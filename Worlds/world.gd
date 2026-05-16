@@ -4,6 +4,12 @@ extends Node2D
 @export_group("地圖設定")
 ## 勾選此項代表該場景是基地/安全區，會強制玩家行走
 @export var is_base: bool = false
+# 音效設定群組
+@export_group("音效設定")
+## 該地圖專屬的背景音樂 (如果為空就不播)
+@export var level_bgm: AudioStream
+## 背景音樂音量微調 (預設 -10.0 dB)
+@export var bgm_volume: float = -10.0
 
 @onready var tile_map: TileMap = $TileMap
 @onready var camera_2d: Camera2D = $Player/Camera2D
@@ -23,6 +29,11 @@ func _ready() -> void:
 	camera_2d.limit_bottom = used.end.y * tile_size.y
 	camera_2d.limit_left = used.position.x * tile_size.x
 	camera_2d.reset_smoothing()
+	
+	# 🎵 🌟 新增：如果這張地圖有設定音樂，就播放它！
+	if level_bgm:
+		AudioManager.play_bgm(level_bgm, bgm_volume)
+	
 	# 通知玩家根據地圖屬性初始化移動模式
 	if player:
 		player.update_movement_by_scene(is_base)
@@ -32,7 +43,9 @@ func _ready() -> void:
 # ==========================================
 ## 切換地圖/重生時，更新玩家位置並重置相機
 func update_player(pos: Vector2, direction: Player.Direction) -> void:
-	player.global_posidtion = pos
+	if not is_node_ready():
+		await ready
+	player.global_position = pos
 	player.direction = direction
 	
 	# 傳送瞬間停用平滑處理，防止相機穿牆閃爍

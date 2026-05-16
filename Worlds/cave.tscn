@@ -1,6 +1,7 @@
-[gd_scene load_steps=16 format=3 uid="uid://cr3hilc0pgtl7"]
+[gd_scene load_steps=17 format=3 uid="uid://cr3hilc0pgtl7"]
 
 [ext_resource type="Script" path="res://Worlds/world.gd" id="1_8un65"]
+[ext_resource type="AudioStream" uid="uid://c01vnnn86iuki" path="res://sound/BGM/ammzp-vow8v.wav" id="2_lx0xs"]
 [ext_resource type="Texture2D" uid="uid://c0y6cdjp3re8d" path="res://Assets/Tree-Assets.png" id="2_yn02e"]
 [ext_resource type="PackedScene" uid="uid://dyao0d6qx1sgo" path="res://objects/mine_gate.tscn" id="3_3iyid"]
 [ext_resource type="Script" path="res://classes/EntryPoint.gd" id="4_qd7qq"]
@@ -476,6 +477,8 @@ size = Vector2(50, 144)
 
 [node name="World" type="Node2D"]
 script = ExtResource("1_8un65")
+level_bgm = ExtResource("2_lx0xs")
+bgm_volume = -12.0
 
 [node name="TileMap" type="TileMap" parent="."]
 tile_set = SubResource("TileSet_8xpmu")
