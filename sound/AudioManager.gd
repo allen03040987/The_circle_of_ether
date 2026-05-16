@@ -9,20 +9,26 @@ var _bgm_player: AudioStreamPlayer
 var _bgm_base_volume: float = 0.0 # 記住我們設定的預設音量
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_bgm_player = AudioStreamPlayer.new()
 	_bgm_player.bus = "BGM"
 	add_child(_bgm_player)
 
 # 🌟 新增 volume_db 參數：預設 0.0 (原音量)，負數變小聲 (例如 -10.0 是小聲，-20.0 是非常小聲)
+# 在 AudioManager.gd 裡：
 func play_bgm(stream: AudioStream, volume_db: float = 0.0) -> void:
 	if not stream: return
 	
 	_bgm_base_volume = volume_db
 	
-	# 如果同一首正在播，只需把音量平滑地拉回正常 (防止它剛好處於漸出狀態)
+	# 如果同一首正在播，只需把音量平滑地拉回正常
 	if _bgm_player.stream == stream and _bgm_player.playing:
-		var tween = create_tween()
-		tween.tween_property(_bgm_player, "volume_db", _bgm_base_volume, 0.5)
+		# 🌟 修復：只有當音量真的不同時，才需要調整，節省效能
+		if _bgm_player.volume_db != _bgm_base_volume:
+			var tween = create_tween()
+			# 🌟 核心防護：讓音量漸變無視 tree.paused = true 的凍結效果！
+			tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS) 
+			tween.tween_property(_bgm_player, "volume_db", _bgm_base_volume, 0.5)
 		return 
 		
 	_bgm_player.stream = stream

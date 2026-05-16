@@ -18,6 +18,11 @@ var selected_weapons: Array[String] = []
 @onready var settings_panel: Control = $SettingsPanel 
 @onready var main_pause_ui: Control = $VBoxContainer 
 
+# 🎵 暫停音量控制變數
+var _volume_tween: Tween
+var _normal_volume: float = 0.0
+@onready var _master_bus_idx: int = AudioServer.get_bus_index("Master")
+
 # 改為不強制綁定，等 _ready 時再安全獲取
 var loadout_panel: Control = null
 
@@ -25,6 +30,9 @@ var loadout_panel: Control = null
 # ⚙️ 初始化 (Initialization)
 # ==========================================
 func _ready() -> void:
+	# 🌟 記錄遊戲原本的 Master 音量
+	_normal_volume = AudioServer.get_bus_volume_db(_master_bus_idx)
+	
 	# 使用 get_node_or_null，這樣就算你還沒做裝備介面也不會報錯！
 	loadout_panel = get_node_or_null("LoadoutPanel")
 	
@@ -76,6 +84,10 @@ func toggle_pause() -> void:
 		settings_panel.hide()
 		if loadout_panel: loadout_panel.hide()
 		Engine.time_scale = 1.0 
+		
+		# 🌟 新增：暫停時，在 0.3 秒內將遊戲總音量降低（例如降到 -20 dB，留有一點模糊背景音）
+		# 如果希望完全靜音，可以把 -20.0 改成 -60.0
+		_fade_game_volume(-20.0, 0.3)
 	else:
 		var current_scale = 1.0
 		var players = get_tree().get_nodes_in_group("Player")
@@ -86,6 +98,9 @@ func toggle_pause() -> void:
 		
 		Engine.time_scale = current_scale
 		hide_menu()
+		
+		# 🌟 新增：離開暫停時，在 0.3 秒內將音量平滑拉回正常！
+		_fade_game_volume(_normal_volume, 0.3)
 
 func _set_game_ui_visible(is_visible: bool) -> void:
 	get_tree().call_group("HUD", "set_visible", is_visible)
@@ -103,6 +118,23 @@ func hide_menu() -> void:
 	visible = false
 	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN 
 
+# 處理音量平滑漸變的工具函數
+func _fade_game_volume(target_db: float, duration: float) -> void:
+	if _volume_tween:
+		_volume_tween.kill() # 確保前一次的漸變不會互相衝突
+		
+	_volume_tween = create_tween()
+	# 核心：確保這個 Tween 在遊戲暫停 (tree.paused = true) 時也能正常運作！
+	_volume_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	
+	var current_vol = AudioServer.get_bus_volume_db(_master_bus_idx)
+	_volume_tween.tween_method(
+		func(vol: float): AudioServer.set_bus_volume_db(_master_bus_idx, vol),
+		current_vol,
+		target_db,
+		duration
+	)
+	
 # ==========================================
 # 📡 按鈕訊號接收 (Button Signals)
 # ==========================================
@@ -187,4 +219,9 @@ func _on_quit_button_pressed() -> void:
 	get_tree().paused = false          
 	hide()                             
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE 
+	
+	# 🌟 新增防護：退出前立刻把音量還原，並清空計時器
+	if _volume_tween: _volume_tween.kill()
+	AudioServer.set_bus_volume_db(_master_bus_idx, _normal_volume)
+	
 	Game.back_to_title()

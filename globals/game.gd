@@ -78,11 +78,17 @@ func change_scene(path: String, params := {}) -> void:
 	var tree := get_tree() 
 	tree.paused = true  
 	
+	# 🌟 效能極致優化：提早發送非同步載入請求！
+	# 讓 Godot 在我們播淡出動畫和存檔的時候，背景就已經在偷偷搬磚讀取新地圖了！
+	ResourceLoader.load_threaded_request(path, "", true)
+	
+	
 	# --- 1. 畫面淡出 ---
 	var tween := create_tween() 
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.tween_property(color_rect, "color:a", 1.0, 0.1) 
 	await tween.finished 
+	
 	
 	# --- 2. 儲存舊地圖狀態 ---
 	if tree.current_scene is World: 
@@ -99,8 +105,25 @@ func change_scene(path: String, params := {}) -> void:
 		params.init.call()
 	
 	# --- 4. 載入新地圖 ---
-	tree.change_scene_to_file(path) 
-	await tree.tree_changed  
+	while ResourceLoader.load_threaded_get_status(path) == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+		await tree.process_frame 
+		
+	if ResourceLoader.load_threaded_get_status(path) == ResourceLoader.THREAD_LOAD_LOADED:
+		var next_scene_pack = ResourceLoader.load_threaded_get(path)
+		
+		# 🌟 強化 2：音訊緩衝呼吸大法！
+		# 在執行最吃 CPU 的場景替換前，讓主程式刻意停頓兩幀
+		# 這能讓底層的音效系統有足夠時間「囤積」音樂數據，完美覆蓋掉替換時的卡頓
+		await tree.process_frame
+		await tree.process_frame
+		
+		tree.change_scene_to_packed(next_scene_pack)
+		await tree.tree_changed  
+	else:
+		printerr("❌ 場景載入失敗: ", path)
+		tree.paused = false
+		is_transitioning = false
+		return
 	
 	# --- 5. 還原新地圖狀態與玩家位置 ---
 	if tree.current_scene is World: 
@@ -109,6 +132,7 @@ func change_scene(path: String, params := {}) -> void:
 		# 還原怪物生死狀態
 		if new_name in world_stats: 
 			tree.current_scene.from_dict(world_stats[new_name])
+			
 		# 新玩家誕生後，把記憶背包裡的資料塞給他！
 		if "player" in tree.current_scene and tree.current_scene.player:
 			if not player_combat_state.is_empty() and tree.current_scene.player.has_method("import_combat_state"):
@@ -127,6 +151,7 @@ func change_scene(path: String, params := {}) -> void:
 			
 	# --- 6. 畫面淡入與解鎖 ---
 	tween = create_tween() 
+	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS) # 確保淡入也不受 pause 影響
 	tween.tween_property(color_rect, "color:a", 0.0, 0.2) 
 	tree.paused = false  
 	

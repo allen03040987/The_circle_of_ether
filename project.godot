@@ -17,6 +17,7 @@ config/features=PackedStringArray("4.2", "GL Compatibility")
 [audio]
 
 buses/default_bus_layout="res://sound/default_bus_layout.tres"
+driver/output_latency=40
 
 [autoload]
 
