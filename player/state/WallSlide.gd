@@ -8,6 +8,10 @@ extends State
 # 如果牆壁是由多塊 Tile 拼成的，接縫處的法線可能會瞬間算錯，導致角色掉下來。
 var locked_wall_normal: float
 
+# 🎵 🌟 滑牆音效專用變數
+const SLIDE_SFX = preload("res://sound/SFX/slide.wav") # 👈 請換成你的音檔路徑
+var slide_audio_player: AudioStreamPlayer
+
 # ==========================================
 # 🎬 狀態生命週期：進入狀態
 # ==========================================
@@ -25,7 +29,15 @@ func enter() -> void:
 	
 	# 🌟 決定面向：滑牆時，身體永遠面向與牆壁相反的方向 (背對或側對牆壁)
 	player.direction = player.Direction.LEFT if locked_wall_normal < 0 else player.Direction.RIGHT
-
+	
+	# 🎵 🌟 動態生成滑牆音效播放器，並預設為靜音播放
+	slide_audio_player = AudioStreamPlayer.new()
+	slide_audio_player.stream = SLIDE_SFX
+	slide_audio_player.bus = "SFX"
+	slide_audio_player.volume_db = -60.0 # 人類聽不到的音量
+	add_child(slide_audio_player)
+	slide_audio_player.play()
+	
 # ==========================================
 # 🏃 物理更新 (每秒 60 次)
 # ==========================================
@@ -49,6 +61,21 @@ func physics_update(delta: float) -> void:
 		
 	player.custom_move_and_slide()
 	
+	# 🎵 🌟 滑牆音效無縫漸變邏輯
+	if is_instance_valid(slide_audio_player):
+		var target_volume = -60.0 # 預設目標為靜音
+		
+		# 只有當角色「往下墜 (velocity.y > 10)」且「貼在牆上」時，才會有摩擦聲
+		if player.velocity.y > 10.0 and player.is_on_wall():
+			target_volume = -10.0 # 目標音量 (你可以自己微調，例如 -5.0 或 -15.0)
+			
+		# 每幀將目前音量往目標音量拉近。80.0 代表每秒漸變 80 分貝 (大約 0.6 秒可以完成漸出入)
+		slide_audio_player.volume_db = move_toward(
+			slide_audio_player.volume_db, 
+			target_volume, 
+			80.0 * delta
+		)
+		
 	# ==========================================
 	# 🚦 狀態切換決策
 	# ==========================================
@@ -72,3 +99,14 @@ func physics_update(delta: float) -> void:
 	# 🕳️ 脫離牆壁：玩家主動放開方向鍵，或者射線離開了牆壁 (例如牆壁到底了)
 	if not player.is_on_wall() or not player.wall_slide_checker.is_colliding():
 		state_machine.transition_to("Fall")
+		
+# ==========================================
+# 🎬 狀態生命週期：離開狀態
+# ==========================================
+func exit() -> void:
+	# 🎵 離開牆壁時，讓摩擦聲在 0.2 秒內快速收尾並銷毀喇叭！
+	if is_instance_valid(slide_audio_player):
+		var tween = create_tween()
+		tween.tween_property(slide_audio_player, "volume_db", -60.0, 0.2)
+		# Tween 結束後，把這個免洗喇叭清掉，不留記憶體垃圾
+		tween.tween_callback(slide_audio_player.queue_free)

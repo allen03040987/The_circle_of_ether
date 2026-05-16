@@ -2,10 +2,16 @@ extends State
 ## 牆跳狀態 (Wall Jump State)
 ## 角色從牆壁上借力跳出的過程。包含短暫的「操作剝奪期」。
 
+const JUMP_SFX = preload("res://sound/SFX/jump.wav")
+	
+	
 # ==========================================
 # 🎬 狀態生命週期：進入狀態
 # ==========================================
 func enter() -> void:
+	
+	if JUMP_SFX:
+		AudioManager.play_sfx(JUMP_SFX, -10.0, 1.0)
 	player.play_safe_anim("wall_jump")
 	player.jump_request_timer.stop()
 	

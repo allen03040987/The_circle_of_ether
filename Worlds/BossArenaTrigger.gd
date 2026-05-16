@@ -37,7 +37,7 @@ func _on_body_entered(body: Node2D) -> void:
 		# 🎵 🌟 新增：踏入戰場，激昂的 Boss 戰 BGM 奏響！
 		var boss_music = preload("res://sound/BGM/BossNaihe/SACRED NIGHT ᐸ五丈原の戦いᐳ.wav") 
 		AudioManager.play_bgm(boss_music)
-		AudioManager.play_bgm(boss_music, -12.0)
+		AudioManager.play_bgm(boss_music, -5.0)
 		# 3. 關閉競技場大門
 		if is_instance_valid(arena_door):
 			var shape = arena_door.get_node_or_null("CollisionShape2D")

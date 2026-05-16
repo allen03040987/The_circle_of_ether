@@ -2,6 +2,9 @@ extends State
 ## 閃避/滑行狀態 (Slide State)
 ## 處理一般閃避位移、殘影特效，並包含遭攻擊瞬間觸發的「極限閃避 (魔女時間)」機制。
 
+const sliding_SFX = preload("res://sound/SFX/sliding.wav")
+const Successfully_SFX = preload("res://sound/SFX/Successfully_dodged.wav")
+
 # 基礎物理變數
 var dodge_dir: float
 var ghost_timer: float = 0.0
@@ -18,6 +21,9 @@ var buffered_direction: int = 0
 # 🎬 狀態生命週期：進入狀態
 # ==========================================
 func enter() -> void:
+	if sliding_SFX:
+		AudioManager.play_sfx(sliding_SFX, -10.0, 1.0)
+		
 	if player.scabbard:
 		player.scabbard.fade_in()
 	
@@ -111,6 +117,9 @@ func exit() -> void:
 # ==========================================
 func trigger_perfect_dodge() -> void:
 	if has_perfect_dodged: return 
+		
+	if Successfully_SFX:
+		AudioManager.play_sfx(Successfully_SFX, -10.0, 1.0)
 		
 	# 1. 啟動魔女時間專屬標記與鎖定
 	has_perfect_dodged = true

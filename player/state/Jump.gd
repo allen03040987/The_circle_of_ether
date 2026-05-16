@@ -2,10 +2,15 @@ extends State
 ## 跳躍狀態 (Jump State)
 ## 處理角色往上飛升的過程。當 Y 軸速度不再為負值 (到達頂點) 時，切換至下墜狀態。
 
+const JUMP_SFX = preload("res://sound/SFX/jump.wav")
+
 # ==========================================
 # 🎬 狀態生命週期：進入狀態
 # ==========================================
 func enter() -> void:
+	if JUMP_SFX:
+		AudioManager.play_sfx(JUMP_SFX, -10.0, 1.0)
+		
 	player.play_safe_anim("jump")
 	
 	# 🚀 給予瞬間的向上爆發力

@@ -1,8 +1,9 @@
-[gd_scene load_steps=11 format=3 uid="uid://ctaeuuglfxibb"]
+[gd_scene load_steps=12 format=3 uid="uid://ctaeuuglfxibb"]
 
 [ext_resource type="Theme" uid="uid://b77sq4tvcecec" path="res://ui/main theme.tres" id="1_8a61q"]
 [ext_resource type="Script" path="res://ui/title_screen.gd" id="2_px5yt"]
 [ext_resource type="TileSet" uid="uid://jo1o1ev4jv7r" path="res://Assets/tiles.tres" id="3_lm7t8"]
+[ext_resource type="AudioStream" uid="uid://dxcwlwife3i76" path="res://sound/BGM/jivrt-wks6g.wav" id="3_vtrw1"]
 [ext_resource type="PackedScene" uid="uid://de0liogworiep" path="res://objects/save_stone.tscn" id="4_revfg"]
 [ext_resource type="Texture2D" uid="uid://cr1jafvpcnyqh" path="res://Background/Background.png" id="5_4yed7"]
 [ext_resource type="Texture2D" uid="uid://l2fj7no1avl6" path="res://Trees/Background_only_1.png" id="6_otmf8"]
@@ -56,6 +57,8 @@ grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("1_8a61q")
 script = ExtResource("2_px5yt")
+menu_bgm = ExtResource("3_vtrw1")
+bgm_volume = -8.0
 
 [node name="Graphics" type="Node2D" parent="."]
 position = Vector2(32, -24)
@@ -161,9 +164,10 @@ anchor_left = 1.0
 anchor_top = 0.5
 anchor_right = 1.0
 anchor_bottom = 0.5
-offset_left = -122.0
-offset_top = -12.0
-offset_bottom = 112.0
+offset_left = 262.0
+offset_top = 96.0
+offset_right = 384.0
+offset_bottom = 220.0
 grow_horizontal = 0
 grow_vertical = 2
 
