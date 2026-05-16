@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://cdf3wd7cc8d7j"]
+
+[ext_resource type="PackedScene" uid="uid://o30q16etathu" path="res://VsMods/Clotty/hit_spark.tscn" id="1_khjkb"]
+
+[node name="HitSpark_PRO" instance=ExtResource("1_khjkb")]
+
+[node name="Sprite2D" parent="." index="1"]
+modulate = Color(0.485093, 0.936132, 0.679578, 1)
+self_modulate = Color(0, 1, 0, 1)
+rotation = -2.37539
+scale = Vector2(18.4672, 4.31843)

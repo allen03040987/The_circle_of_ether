@@ -1,0 +1,112 @@
+[gd_scene load_steps=8 format=3 uid="uid://cu1uuq5f4ersl"]
+
+[ext_resource type="Script" path="res://enemies/boss/BossNaihe/NaiheSpike.gd" id="1_u0kh6"]
+[ext_resource type="Texture2D" uid="uid://bbeh4hl6d0n4j" path="res://enemies/boss/BossNaihe/A3_e.png" id="2_3xmvr"]
+[ext_resource type="Script" path="res://classes/Hitbox.gd" id="3_thi8e"]
+
+[sub_resource type="Animation" id="Animation_etxo6"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [0]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("../Hitbox/CollisionShape2D:disabled")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [false]
+}
+
+[sub_resource type="Animation" id="Animation_jwy1g"]
+resource_name = "emerge"
+length = 0.5
+step = 0.05
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8]
+}
+tracks/1/type = "method"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("..")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(),
+"transitions": PackedFloat32Array(),
+"values": []
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("../Hitbox/CollisionShape2D:disabled")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.5),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [false, true]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_fatbr"]
+_data = {
+"RESET": SubResource("Animation_etxo6"),
+"emerge": SubResource("Animation_jwy1g")
+}
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_dcj7v"]
+size = Vector2(59, 160)
+
+[node name="NaiheSpike" type="Node2D"]
+script = ExtResource("1_u0kh6")
+
+[node name="A3E" type="Sprite2D" parent="."]
+position = Vector2(2, -66)
+rotation = -1.5708
+texture = ExtResource("2_3xmvr")
+hframes = 3
+vframes = 3
+region_enabled = true
+region_rect = Rect2(0, 0, 384, 192)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+root_node = NodePath("../A3E")
+libraries = {
+"": SubResource("AnimationLibrary_fatbr")
+}
+
+[node name="Hitbox" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 8
+script = ExtResource("3_thi8e")
+knockback_force = Vector2(500, 0)
+spark_base_offset = Vector2(0, -5)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(4.5, -81)
+shape = SubResource("RectangleShape2D_dcj7v")

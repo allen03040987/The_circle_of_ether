@@ -1,0 +1,94 @@
+[gd_scene load_steps=3 format=3 uid="uid://4ebxd2fnvob0"]
+
+[ext_resource type="Script" path="res://ui/pause_menu.gd" id="1_4p64w"]
+[ext_resource type="PackedScene" uid="uid://8lf6qf5bw1gn" path="res://ui/settings_panel.tscn" id="1_wc3ca"]
+
+[node name="PauseMenu" type="CanvasLayer"]
+process_mode = 3
+script = ExtResource("1_4p64w")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+offset_right = 384.0
+offset_bottom = 221.0
+color = Color(0, 0, 0, 0.392157)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+visible = false
+offset_right = 169.0
+offset_bottom = 153.0
+
+[node name="ResumeButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "繼續遊戲"
+
+[node name="LoadoutButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "更換裝備"
+
+[node name="SettingsButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "開啟設定"
+
+[node name="QuitButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "回到主選單"
+
+[node name="SettingsPanel" parent="." instance=ExtResource("1_wc3ca")]
+visible = false
+offset_left = 1.0
+offset_top = 1.0
+offset_right = 1.0
+offset_bottom = 3.0
+
+[node name="LoadoutPanel" type="Panel" parent="."]
+visible = false
+offset_right = 385.0
+offset_bottom = 220.0
+
+[node name="BackButton" type="Button" parent="LoadoutPanel"]
+layout_mode = 0
+offset_left = 4.0
+offset_top = 184.0
+offset_right = 44.0
+offset_bottom = 215.0
+text = "返回
+"
+
+[node name="StatusLabel" type="Label" parent="LoadoutPanel"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+text = "目前選擇"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="LoadoutPanel"]
+layout_mode = 0
+offset_left = 1.0
+offset_top = 34.0
+offset_right = 145.0
+offset_bottom = 74.0
+
+[node name="BtnKatana" type="Button" parent="LoadoutPanel/HBoxContainer"]
+layout_mode = 2
+text = "武士刀"
+
+[node name="BtnSpear" type="Button" parent="LoadoutPanel/HBoxContainer"]
+layout_mode = 2
+text = "長槍"
+
+[node name="BtnTalisman" type="Button" parent="LoadoutPanel/HBoxContainer"]
+layout_mode = 2
+text = "符咒"
+
+[node name="ApplyButton" type="Button" parent="LoadoutPanel"]
+layout_mode = 2
+offset_left = 1.0
+offset_top = 133.0
+offset_right = 73.0
+offset_bottom = 173.0
+text = "確認裝備"
+
+[connection signal="pressed" from="VBoxContainer/ResumeButton" to="." method="_on_resume_button_pressed"]
+[connection signal="pressed" from="VBoxContainer/LoadoutButton" to="." method="_on_loadout_button_pressed"]
+[connection signal="pressed" from="VBoxContainer/SettingsButton" to="." method="_on_settings_button_pressed"]
+[connection signal="pressed" from="VBoxContainer/QuitButton" to="." method="_on_quit_button_pressed"]
+[connection signal="pressed" from="LoadoutPanel/BackButton" to="." method="_on_back_from_loadout"]

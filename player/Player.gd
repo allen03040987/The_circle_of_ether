@@ -1,0 +1,1067 @@
+class_name Player
+extends CharacterBody2D
+## 玩家總控制樞紐 (Player Controller Hub)
+## 負責管理生命週期、統整玩家輸入、處理時間流逝與緩衝邏輯。
+## 具體的移動與攻擊行為下放給 StateMachine 執行。
+
+# ==========================================
+# 📐 物理常數與列舉 
+# ==========================================
+enum Direction { LEFT = -1, RIGHT = 1 }
+
+const WALK_SPEED := 150.0
+const RUN_SPEED := 350.0
+const JUMP_VELOCITY := -410.0
+const FLOOR_ACCELERATION := RUN_SPEED / 0.04
+const AIR_ACCELERATION := RUN_SPEED / 0.03
+const TERMINAL_VELOCITY := 700.0 # 終端下落速度
+const WALL_JUMP_VELOCITY := Vector2(300, -500) 
+
+var default_gravity := ProjectSettings.get("physics/2d/default_gravity") as float
+
+# ==========================================
+# 廣播信號 (Signals)
+# ==========================================
+signal weapon_switched(new_weapon: Weapon) # 當玩家成功切換武器時廣播
+
+# ==========================================
+# 🔗 節點參考 
+# ==========================================
+@onready var graphics: Node2D = $Graphics
+@onready var animation_player: AnimationPlayer = $AnimationPlayer
+@onready var state_machine: StateMachine = $StateMachine
+@onready var stats: Node = Game.player_stats
+@onready var weapon_slot: Node2D = $Graphics/WeaponSlot
+@onready var scabbard: Node2D = $ScabbardContainer
+
+# --- 計時器 ---
+@onready var coyote_timer: Timer = $CoyoteTimer
+@onready var jump_request_timer: Timer = $JumpRequestTimer
+@onready var slide_request_timer: Timer = $SlideRequestTimer
+@onready var slide_cooldown_timer: Timer = $SlideCooldownTimer
+@onready var invincible_timer: Timer = $InvincibleTimer
+
+# --- 射線檢測 ---
+@onready var foot_checker: RayCast2D = $Graphics/FootChecker
+@onready var hand_checker: RayCast2D = $Graphics/HandChecker
+@onready var wall_slide_checker: RayCast2D = $WallSlideChecker
+
+# --- UI 與互動 ---
+@onready var interaction_icon: AnimatedSprite2D = $InteractionIcon
+
+# ==========================================
+# 🧠 核心變數 
+# ==========================================
+var direction := Direction.RIGHT :
+	set(v):
+		direction = v
+		if not is_node_ready(): await ready
+		graphics.scale.x = direction
+
+var locked_facing_dir: int = 0
+var invincible_time_left: float = 0.0 
+var interacting_with: Array[Interactable] = []
+var is_dead := false
+var is_walking := false
+
+# ==========================================
+# ⚔️ 戰鬥輸入緩存 (Input Buffer)
+# ==========================================
+@export var can_combo := false
+var is_combo_requested := false
+var is_heavy_requested := false
+var is_weapon_invincible := false
+var is_ult_requested := false 
+var is_input_locked := false  # 領域展開絕對鎖死標記
+
+var combo_buffer_time: float = 0.0
+var heavy_buffer_time: float = 0.0
+const ATTACK_BUFFER_DURATION: float = 0.2 
+
+var is_counter_requested := false
+var counter_pickup_timer := 0.0 # 極限閃避後的反擊寬限期
+
+var is_perfect_dodging := false
+var pending_damage = null
+var current_weapon: Weapon = null
+
+# ==========================================
+# 🔄 合軸切換系統 
+# ==========================================
+var switch_hold_timer: float = 0.0
+const SWITCH_LONG_PRESS_TIME: float = 0.3 
+var is_switch_handled: bool = false  
+
+# 武器切換冷卻系統
+const WEAPON_SWITCH_COOLDOWN: float = 1.0 
+var weapon_switch_cooldown_timer: float = 0.0     
+
+# ==========================================
+# 🧰 武器庫目錄 (Weapon Arsenal)
+# ==========================================
+# 將所有的武器場景預載入，方便隨時實例化
+const WEAPON_BLUEPRINTS: Dictionary = {
+	"katana": preload("res://player/Katana/katana.tscn"), # 請確保這些路徑與你的專案相符！
+	"spear": preload("res://player/Spear/spear.tscn"),
+	"talisman": preload("res://player/Talisman/talisman.tscn")
+}
+
+# 記錄玩家目前「裝備」在身上的武器 ID 清單
+@export var equipped_weapon_ids: Array[String] = ["katana", "spear"]
+
+# ==========================================
+# ⚙️ 初始化與生命週期 
+# ==========================================
+func _ready() -> void:
+	equip_loadout(equipped_weapon_ids)
+	var is_base = false
+	var current_world = get_tree().current_scene
+	if current_world is World and "is_base" in current_world:
+		is_base = current_world.is_base
+		
+	update_movement_by_scene(is_base)
+	
+	if not Game.settings_changed.is_connected(_on_global_settings_changed):
+		Game.settings_changed.connect(_on_global_settings_changed)
+		
+# ==========================================
+# 🎒 動態裝備系統 (Loadout System)
+# ==========================================
+func equip_loadout(weapon_ids: Array[String]) -> void:
+	equipped_weapon_ids = weapon_ids
+	
+	# 1. 清空目前的 WeaponSlot
+	for child in weapon_slot.get_children():
+		child.queue_free()
+		weapon_slot.remove_child(child) 
+	
+	current_weapon = null
+	
+	# 🌟 核心優化：銀行清算！註銷所有「未裝備武器」的資源帳戶
+	var keys_to_remove = []
+	for old_w_id in weapon_resources.keys():
+		if old_w_id not in equipped_weapon_ids:
+			keys_to_remove.append(old_w_id)
+			
+	for key in keys_to_remove:
+		weapon_resources.erase(key)
+		print("🗑️ [系統] 武器 [", key, "] 已卸下，其大招能量與合軸值已徹底歸零註銷！")
+	
+	# 2. 根據清單生成新武器
+	for w_id in equipped_weapon_ids:
+		if WEAPON_BLUEPRINTS.has(w_id):
+			var new_weapon = WEAPON_BLUEPRINTS[w_id].instantiate()
+			weapon_slot.add_child(new_weapon)
+			new_weapon.hide() 
+			new_weapon.player = self 
+			
+			if not weapon_resources.has(w_id):
+				weapon_resources[w_id] = {"energy": 0.0, "switch": 0.0}
+				print("🏦 [系統] 裝備新武器！已為 [", w_id, "] 建立資源帳戶。")
+		else:
+			printerr("❌ 找不到武器藍圖：", w_id)
+			
+	# 3. 強制裝備第一把武器
+	if weapon_slot.get_child_count() > 0:
+		_force_equip_weapon(weapon_slot.get_child(0))
+		print("🎒 裝備更新完成！目前持有：", equipped_weapon_ids)
+		
+func _process(delta: float) -> void:
+	interaction_icon.visible = not interacting_with.is_empty()
+	
+	# ==========================================
+	# ⏳ 真實時間引擎 (Unscaled Time)
+	# ==========================================
+	var unscaled_delta = delta / Engine.time_scale if Engine.time_scale > 0.0 else 0.0
+	
+	# 防喚醒衝擊
+	if unscaled_delta > 0.1:
+		unscaled_delta = 0.0166 
+	
+	# ==========================================
+	# 🌟 核心修復：讓後台武器也能正常冷卻 (後台時間流動)
+	# ==========================================
+	# 巡視武器槽裡所有的武器 (包含前台與後台)
+	for weapon in weapon_slot.get_children():
+		# 防呆：確保武器是有效的，且有我們需要的函數
+		if is_instance_valid(weapon) and weapon.has_method("update_timers_only"):
+			# 把真實時間傳給每一把武器，讓它們各自倒數冷卻
+			weapon.update_timers_only(unscaled_delta)
+
+	# --- 計時器倒數 ---
+	if invincible_time_left > 0:
+		invincible_time_left -= unscaled_delta
+		if not is_perfect_dodging:
+			graphics.modulate.a = 0.8 
+	else:
+		graphics.modulate.a = 1.0
+		is_perfect_dodging = false
+	
+	if time_stop_left > 0:
+		time_stop_left -= unscaled_delta
+		if time_stop_left <= 0:
+			clear_time_stop()
+	
+	if counter_pickup_timer > 0:
+		counter_pickup_timer -= unscaled_delta
+		
+	if weapon_switch_cooldown_timer > 0:
+		weapon_switch_cooldown_timer -= unscaled_delta
+		
+	if combo_buffer_time > 0 and not is_input_locked:
+		combo_buffer_time -= unscaled_delta
+	else:
+		is_combo_requested = false
+
+	if heavy_buffer_time > 0 and not is_input_locked:
+		heavy_buffer_time -= unscaled_delta
+	else:
+		is_heavy_requested = false
+	
+	# 鎖死狀態下的強制清潔
+	if is_input_locked:
+		is_combo_requested = false; is_heavy_requested = false; is_ult_requested = false
+		combo_buffer_time = 0.0; heavy_buffer_time = 0.0
+		
+	# 落地解鎖空戰限制
+	if is_on_floor() and is_instance_valid(current_weapon):
+		if "air_attack_locked" in current_weapon:
+			current_weapon.air_attack_locked = false
+	
+	# ==========================================
+	# 🔄 處理武器切換 (長短按識別)
+	# ==========================================
+	if not is_input_locked and weapon_slot.get_child_count() >= 2:
+		# 如果還在冷卻中，直接封鎖切換，並清空按鍵緩衝，防止連點卡死
+		if weapon_switch_cooldown_timer > 0:
+			switch_hold_timer = 0.0
+			is_switch_handled = false
+		else:
+			if Input.is_action_pressed("switch_weapon"):
+				if not is_switch_handled:
+					switch_hold_timer += unscaled_delta
+					if switch_hold_timer >= SWITCH_LONG_PRESS_TIME:
+						_execute_weapon_switch(true) # 長按變奏
+						is_switch_handled = true
+						weapon_switch_cooldown_timer = WEAPON_SWITCH_COOLDOWN # 🌟 觸發冷卻
+			else:
+				if switch_hold_timer > 0.0 and not is_switch_handled:
+					_execute_weapon_switch(false) # 短按切換
+					weapon_switch_cooldown_timer = WEAPON_SWITCH_COOLDOWN # 🌟 觸發冷卻
+				
+				switch_hold_timer = 0.0
+				is_switch_handled = false
+			
+# ==========================================
+# 🎮 玩家輸入控制 
+# ==========================================
+func _input(event: InputEvent) -> void:
+	# 第一道防線：鎖定時攔截實體按鍵
+	if is_input_locked:
+		if event.is_action("ui_cancel") or event.is_action("ui_accept"):
+			return 
+		if event is InputEventKey or event is InputEventMouseButton or event is InputEventJoypadButton:
+			get_viewport().set_input_as_handled() 
+		return
+
+func _unhandled_input(event: InputEvent) -> void:
+		
+	if is_input_locked: return 
+		
+	if event.is_action_pressed("toggle_walk"):
+		toggle_walk_mode()
+		
+	# --- 攻擊輸入緩衝 ---
+	if event.is_action_pressed("attack"):
+		var can_buffer = true
+		if not is_on_floor() and is_instance_valid(current_weapon) and current_weapon.has_method("can_air_light"):
+			can_buffer = current_weapon.can_air_light()
+			
+		if can_buffer:
+			is_combo_requested = true
+			combo_buffer_time = ATTACK_BUFFER_DURATION
+	
+	if event.is_action_pressed("heavy_attack"):
+		var can_buffer = true
+		
+		# 第一時間向武器確認「現在能不能放戰技？」
+		if is_instance_valid(current_weapon) and current_weapon.has_method("can_use_heavy"):
+			can_buffer = current_weapon.can_use_heavy()
+			
+		if can_buffer:
+			is_heavy_requested = true
+			heavy_buffer_time = ATTACK_BUFFER_DURATION
+		
+	if event.is_action_pressed("ultimate"):
+		var can_buffer = true
+		if is_instance_valid(current_weapon) and current_weapon.has_method("can_use_ultimate"):
+			can_buffer = current_weapon.can_use_ultimate()
+			
+		if can_buffer:
+			is_ult_requested = true
+			combo_buffer_time = ATTACK_BUFFER_DURATION
+		
+	# --- 移動與互動 ---
+	if event.is_action_pressed("jump"):
+		jump_request_timer.start()
+		
+	# 變動跳躍高度
+	if event.is_action_released("jump"):
+		jump_request_timer.stop()
+		if velocity.y < JUMP_VELOCITY / 2:
+			velocity.y = JUMP_VELOCITY / 2
+
+	if event.is_action_pressed("silde"): 
+		slide_request_timer.start()
+	
+	if event.is_action_pressed("interact") and not interacting_with.is_empty():
+		interacting_with.back().interact()
+
+# ==========================================
+# 🛡️ 狀態機專用介面 
+# ==========================================
+func play_safe_anim(anim_name: String) -> void:
+	if animation_player.has_animation(anim_name):
+		if animation_player.current_animation != anim_name:
+			animation_player.play(anim_name)
+	else:
+		printerr("❌ 找不到動畫: ", anim_name)
+
+func custom_move_and_slide() -> void:
+	if pending_damage != null:
+		return
+		
+	move_and_slide()
+
+# ==========================================
+# ⚔️ 受擊系統與運算
+# ==========================================
+func take_damage(temp_damage: Damage) -> void:
+	if is_dead or state_machine.current_state.name.to_lower() == "dying":
+		return
+	
+	if invincible_time_left > 0 or invincible_timer.time_left > 0:
+		return
+	
+	# 強制清除輸入緩衝
+	is_combo_requested = false
+	is_heavy_requested = false
+	combo_buffer_time = 0.0
+	heavy_buffer_time = 0.0
+	
+	stats.health -= temp_damage.amount
+	
+	# 受擊短暫無敵
+	var invincible_duration = 0.8
+	var timer = CombatManager.get_skill_timer(invincible_duration)
+	invincible_time_left = invincible_duration 
+	timer.timeout.connect(func(): pass)
+	
+	velocity = Vector2.ZERO 
+	
+	match temp_damage.type:
+		Damage.Type.NO_STUN:
+			pending_damage = null # 🌟 補上這行，防止霸體受擊卡死移動
+			pass 
+		Damage.Type.HEAVY:
+			state_machine.call_deferred("transition_to", "Launched") 
+		Damage.Type.THROW:
+			pending_damage = null # 🌟 補上這行
+			print("未來擴充：被抓取狀態 Grabbed")
+		_, Damage.Type.LIGHT:
+			state_machine.call_deferred("transition_to", "Hurt")
+	
+	if stats.health <= 0:
+		state_machine.call_deferred("transition_to", "Dying")
+
+func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
+	
+	if is_dead or state_machine.current_state.name.to_lower() == "dying":
+		return
+		
+	if invincible_time_left > 0 or invincible_timer.time_left > 0:
+		return
+
+	# 極限閃避攔截
+	if state_machine.current_state.name.to_lower() == "slide":
+		if state_machine.current_state.has_method("trigger_perfect_dodge"):
+			state_machine.current_state.trigger_perfect_dodge()
+		return
+
+	var final_amount: int = hitbox.damage_amount if "damage_amount" in hitbox else 1
+	var final_type: int = hitbox.attack_type if "attack_type" in hitbox else Damage.Type.LIGHT
+	var final_knockback := Vector2.ZERO
+	
+	if "absolute_knockback" in hitbox and hitbox.absolute_knockback != Vector2.ZERO:
+		final_knockback = hitbox.absolute_knockback
+	else:
+		var raw_force := Vector2(150.0, 0.0)
+		if "knockback_force" in hitbox:
+			raw_force = hitbox.knockback_force
+		var dir_x : float = sign(global_position.x - hitbox.owner.global_position.x)
+		if dir_x == 0: dir_x = -direction 
+		final_knockback = Vector2(raw_force.x * dir_x, raw_force.y)
+	
+	pending_damage = {
+		"source": hitbox,
+		"amount": final_amount,
+		"type": final_type,
+		"knockback_force": final_knockback
+	}
+	
+	var temp_damage = Damage.new()
+	temp_damage.amount = final_amount
+	temp_damage.type = final_type
+	temp_damage.knockback_force = final_knockback
+	
+	take_damage(temp_damage)
+
+func die() -> void:
+	if is_dead: return
+	is_dead = true
+	
+	invincible_timer.stop()
+	graphics.modulate.a = 1.0
+	is_perfect_dodging = false
+	Engine.time_scale = 1.0
+	
+	if has_node("CanvasLayer/GameOverScreen"):
+		$CanvasLayer/GameOverScreen.show_game_over()
+
+func strike_impulse(strength: float) -> void:
+	var current_state = state_machine.current_state.name.to_lower()
+	if current_state in ["hurt", "launched", "dying"]:
+		print("🛡️ [防護網觸發] 受傷中，成功攔截動畫偷渡！")
+		return
+		
+	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+	velocity.x = direction * (strength * speed_mult)
+	
+	# 🚨 監視器 A：印出衝刺瞬間的引擎時間與最終速度
+	if speed_mult > 2.0:
+		print("⚠️ [警告] 異常 TimeScale: ", Engine.time_scale, " | 動畫賦予的極端速度: ", velocity.x)
+
+# ==========================================
+# 🎨 視覺特效與環境互動 
+# ==========================================
+func add_ghost() -> void:
+	var ghost := Sprite2D.new()
+	var original_sprite := $Graphics/Sprite2D
+	
+	ghost.texture = original_sprite.texture
+	ghost.hframes = original_sprite.hframes
+	ghost.vframes = original_sprite.vframes
+	ghost.frame = original_sprite.frame
+	ghost.region_enabled = original_sprite.region_enabled
+	ghost.region_rect = original_sprite.region_rect
+	ghost.offset = original_sprite.offset
+	ghost.flip_h = original_sprite.flip_h
+	ghost.flip_v = original_sprite.flip_v
+	
+	var manual_offset := Vector2(0, -29) 
+	ghost.global_position = global_position + manual_offset
+	ghost.scale = graphics.scale 
+	
+	if is_perfect_dodging:
+		ghost.modulate = Color(1.8, 0.4, 2.5, 0.15) 
+	else:
+		ghost.modulate = Color(0.5, 1.8, 1.0, 0.4) 
+	
+	get_parent().add_child(ghost)
+	
+	var tween := create_tween()
+	tween.tween_property(ghost, "modulate:a", 0.0, 0.3).set_trans(Tween.TRANS_SINE)
+	tween.tween_callback(ghost.queue_free)
+
+func can_wall_slide() -> bool:
+	return is_on_wall() and hand_checker.is_colliding() and foot_checker.is_colliding()
+	
+func register_interactable(v: Interactable) -> void:
+	if state_machine.current_state.name.to_lower() == "dying": 
+		return
+	if v not in interacting_with:
+		interacting_with.append(v)
+
+func unregister_interactable(v: Interactable) -> void:
+	interacting_with.erase(v)
+
+# ==========================================
+# 🚶 模式切換邏輯
+# ==========================================
+func update_movement_by_scene(force_walk: bool) -> void:
+	if force_walk:
+		is_walking = true 
+	else:
+		is_walking = Game.config_default_walking 
+	
+	if state_machine.current_state != null:
+		if state_machine.current_state.name.to_lower() == "run":
+			play_safe_anim("walking" if is_walking else "running")
+
+func toggle_walk_mode() -> void:
+	# 1. 基地防護：如果在基地內強制走路，就不允許玩家用快捷鍵切換
+	var current_world = get_tree().current_scene
+	if current_world is World and "is_base" in current_world and current_world.is_base:
+		print("🛑 基地內強制步行，無法切換奔跑！")
+		return 
+
+	# 2. 核心狀態切換
+	is_walking = !is_walking
+	
+	# 3. 只有當狀態真的改變時，才同步全域設定與存檔
+	if Game.config_default_walking != is_walking:
+		Game.config_default_walking = is_walking
+		Game.save_settings()
+		print("🏃 快捷鍵切換成功！目前行走模式：", is_walking)
+	
+	# 4. 視覺即時回饋：如果玩家現在正在移動，立刻無縫切換動畫！
+	if state_machine.current_state.name.to_lower() == "run":
+		play_safe_anim("walking" if is_walking else "running")
+
+func _on_global_settings_changed() -> void:
+	var is_base = false
+	var current_world = get_tree().current_scene
+	if current_world is World and "is_base" in current_world:
+		is_base = current_world.is_base
+	update_movement_by_scene(is_base)
+
+# ==========================================
+# 🎨 動畫特效分組 (VFX Categories)
+# ==========================================
+
+@export_group("VFX: 基礎通用 (環境/煙塵)")
+@export var vfx_common: Dictionary = {}
+
+@export_group("VFX: 武器特效與火花")
+@export var vfx_weapon: Dictionary = {}
+
+@export_group("VFX: 系統反饋 (蓄力/受擊)")
+@export var vfx_system: Dictionary = {}
+
+## 呼叫並生成特效 (已擴充：支援獨立 XY 縮放與動態旋轉)
+## 
+## [參數說明]
+## @param vfx_name     : 特效在字典中的名稱 (字串，必填)
+## @param offset_x     : 橫向位置偏移量 (數值，會根據玩家面向自動左右翻轉，預設 0.0)
+## @param offset_y     : 縱向位置偏移量 (數值，負數為往上，預設 0.0)
+## @param custom_scale : 自定義縮放比例 (Vector2，可獨立控制寬高，預設 Vector2(1.0, 1.0) 不縮放)
+## @param rotation_deg : 動態旋轉角度 (數值，單位為度，例如 45.0 為順時針轉 45 度，預設 0.0)
+## @param custom_color : 特效的主要渲染顏色 (Color，預設白色)
+## @param aura_color   : 特效專屬光暈(Aura)的顏色 (Color，預設白色)
+## @param detach       : 是否脫離玩家獨立存在 (布林值，true=留在原地，false=黏在玩家身上，預設 true)
+## @param custom_z_index: 圖層偏移，預設 1 (蓋在玩家前面)
+## @param raw_intensity: HDR 發光強度 (數值，數值越大特效越刺眼，必須放在最後面！預設 1.0)
+func spawn_anim_vfx(
+	vfx_name: String, 
+	offset_x: float = 0.0, 
+	offset_y: float = 0.0, 
+	custom_scale: Vector2 = Vector2(1.0, 1.0), 
+	rotation_deg: float = 0.0, 
+	custom_color: Color = Color.WHITE, 
+	aura_color: Color = Color.WHITE, 
+	detach: bool = true, 
+	custom_z_index: int = 1,
+	raw_intensity: float = 1.0
+) -> void:
+	
+	# 遍歷所有字典找特效
+	var vfx_scene = null
+	if vfx_common.has(vfx_name): vfx_scene = vfx_common[vfx_name]
+	elif vfx_weapon.has(vfx_name): vfx_scene = vfx_weapon[vfx_name]
+	elif vfx_system.has(vfx_name): vfx_scene = vfx_system[vfx_name]
+	
+	if vfx_scene == null: return # 找不到就安靜退出
+	
+	var vfx = vfx_scene.instantiate()
+	
+	# 3. 處理時間流逝 (抗時停機制，讓特效不被大招變慢)
+	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+	if vfx.has_node("AnimationPlayer"): vfx.get_node("AnimationPlayer").speed_scale = speed_mult
+	if vfx is GPUParticles2D: vfx.speed_scale = speed_mult
+	elif vfx.has_node("GPUParticles2D"): vfx.get_node("GPUParticles2D").speed_scale = speed_mult
+		
+	# 4.處理空間解綁與 Z-Index
+	if detach:
+		get_parent().add_child(vfx)
+		var spawn_pos = global_position
+		spawn_pos.x += offset_x * direction
+		spawn_pos.y += offset_y
+		vfx.global_position = spawn_pos
+		
+		# 脫離玩家時：必須加上玩家本身的 Z-Index，確保特效不會掉到背景後面
+		vfx.z_index = self.z_index + custom_z_index 
+	else:
+		self.add_child(vfx)
+		vfx.position = Vector2(offset_x * direction, offset_y)
+		
+		# 掛在玩家身上時：Godot 預設 z_as_relative = true，所以直接給相對值即可
+		vfx.z_index = custom_z_index
+
+	# 5. 處理動態變換 (獨立 XY 縮放與旋轉)
+	# 把 Vector2(x, y) 拆開：X 軸乘上 direction 控制左右翻轉，Y 軸保持原樣
+	vfx.scale = Vector2(direction * custom_scale.x, custom_scale.y)
+	
+	# 神級細節：旋轉角度必須乘上 direction！
+	# 這樣設定 45 度時，面向右邊是右上，面向左邊會自動鏡像成左上，動畫師不用做兩套！
+	vfx.rotation_degrees = rotation_deg * direction
+	
+	# 6. 處理 HDR 發光渲染與顏色疊加
+	var hdr_color = Color(
+		custom_color.r * raw_intensity, 
+		custom_color.g * raw_intensity, 
+		custom_color.b * raw_intensity, 
+		custom_color.a
+	)
+	
+	# 遞迴染色
+	_apply_vfx_colors(vfx, hdr_color, aura_color)
+
+func _apply_vfx_colors(node: Node, main_color: Color, aura_color: Color) -> void:
+	if node is CanvasItem and node.name != "AnimationPlayer":
+		if node.name == "Aura":
+			node.self_modulate = aura_color
+		else:
+			node.self_modulate = main_color
+			
+	for child in node.get_children():
+		_apply_vfx_colors(child, main_color, aura_color)
+
+# ==========================================
+# ⏳ 泛用時停系統 (Time Stop / Domain Expansion)
+# ==========================================
+var time_stop_left: float = 0.0
+var current_time_scale: float = 1.0
+
+func trigger_time_stop(real_duration: float, target_time_scale: float) -> void:
+	# 霸權判定：只允許更慢或更久的時停覆蓋當前狀態
+	if target_time_scale < current_time_scale or real_duration > time_stop_left:
+		current_time_scale = target_time_scale
+		Engine.time_scale = target_time_scale
+		time_stop_left = real_duration 
+
+func clear_time_stop() -> void:
+	if Engine.time_scale != 1.0 or current_time_scale != 1.0:
+		Engine.time_scale = 1.0
+		current_time_scale = 1.0
+		time_stop_left = 0.0
+		animation_player.speed_scale = 1.0
+
+# ==========================================
+# 📊 合軸戰鬥資源中樞 
+# ==========================================
+@export_group("合軸戰鬥倍率")
+var energy_regen_mult: float = 1.0   
+var switch_regen_mult: float = 1.0   
+
+var weapon_resources: Dictionary = {}
+var current_outro_buff: String = "" 
+
+func add_weapon_resource(weapon_id: String, base_energy: float, base_switch: float) -> void:
+	if not weapon_resources.has(weapon_id): 
+		weapon_resources[weapon_id] = {"energy": 0.0, "switch": 0.0}
+		print("🏦 [系統] 大腦偵測到新武器，已自動為 [", weapon_id, "] 建立專屬資源帳戶！")
+	
+	var data = weapon_resources[weapon_id]
+	data["energy"] = clamp(data["energy"] + (base_energy * energy_regen_mult), 0.0, 100.0)
+	data["switch"] = clamp(data["switch"] + (base_switch * switch_regen_mult), 0.0, 100.0)
+	
+	if base_switch > 0:
+		print("🔄 [", weapon_id, "] 獲得合軸值: ", base_switch, " | 目前合軸: ", data["switch"], "/100")
+
+func get_weapon_energy(weapon_id: String) -> float:
+	if weapon_resources.has(weapon_id):
+		return weapon_resources[weapon_id]["energy"]
+	return 0.0
+
+func consume_weapon_energy(weapon_id: String, amount: float) -> bool:
+	if weapon_resources.has(weapon_id) and weapon_resources[weapon_id]["energy"] >= amount:
+		weapon_resources[weapon_id]["energy"] -= amount
+		print("💥 [", weapon_id, "] 消耗能量: ", amount, " | 剩餘能量: ", weapon_resources[weapon_id]["energy"])
+		return true
+	return false
+
+func consume_switch_value(weapon_id: String) -> bool:
+	if weapon_resources.has(weapon_id) and weapon_resources[weapon_id]["switch"] >= 100.0:
+		weapon_resources[weapon_id]["switch"] = 0.0
+		return true
+	return false
+
+var assist_q_timer: float = 0.0
+var assist_e_timer: float = 0.0
+
+func _process_combat_timers(delta: float) -> void:
+	if assist_q_timer > 0: assist_q_timer -= delta
+	if assist_e_timer > 0: assist_e_timer -= delta
+	
+# ==========================================
+# 🔄 切換執行樞紐 (Swap Execution)
+# ==========================================
+func _execute_weapon_switch(request_intro: bool) -> void:
+	var total_weapons = weapon_slot.get_child_count()
+	# 防呆：如果只有一把武器，不准切換！
+	if total_weapons <= 1:
+		print("⚠️ 只有一把武器，無法切換！")
+		return
+		
+	# 🌟 動態輪盤切換邏輯：找到當前武器的索引，並切換到「下一把」
+	var current_idx = current_weapon.get_index() if is_instance_valid(current_weapon) else 0
+	var next_idx = (current_idx + 1) % total_weapons
+	var next_weapon = weapon_slot.get_child(next_idx)
+	
+	var next_weapon_id = next_weapon.get("WEAPON_ID") if next_weapon.get("WEAPON_ID") else "unknown"
+	var current_weapon_id = current_weapon.get("WEAPON_ID") if is_instance_valid(current_weapon) and "WEAPON_ID" in current_weapon else "unknown"
+
+	var is_intro_skill = false
+	if request_intro:
+		if weapon_resources.has(current_weapon_id) and weapon_resources[current_weapon_id]["switch"] >= 100.0:
+			weapon_resources[current_weapon_id]["switch"] = 0.0 
+			is_intro_skill = true
+			print("🌪️ [", current_weapon_id, "] 滿合軸退場！觸發 [", next_weapon_id, "] 的變奏技能！")
+		else:
+			var current_sw = weapon_resources[current_weapon_id]["switch"] if weapon_resources.has(current_weapon_id) else 0.0
+			print("⚠️ [", current_weapon_id, "] 合軸值不足 (", current_sw, "/100)，降級為一般切換！")
+
+	_perform_swap(next_weapon, is_intro_skill)
+
+func _perform_swap(next_weapon: Node, is_intro_skill: bool) -> void:
+	is_input_locked = false
+	var is_attacking = state_machine.current_state.name.to_lower() == "weaponattack"
+	
+	# 切換動能抑制
+	if self.velocity.y < -300:
+		self.velocity.y = -300
+		
+	# --- 視覺演出與殘影 ---
+	if is_attacking:
+		spawn_phantom_striker(current_weapon)
+		_flash_character() 
+	elif not is_on_floor():
+		_flash_character() # 空中非攻擊切換：只閃白，不留殘影
+
+	# --- 武器替換 ---
+	if is_instance_valid(current_weapon):
+		if current_weapon.has_method("cancel_attack"):
+			current_weapon.cancel_attack()
+		current_weapon.hide()
+
+	next_weapon.show()
+	current_weapon = next_weapon
+	
+	if current_weapon.get("scabbard_texture") and scabbard.has_method("set_scabbard_texture"):
+		scabbard.set_scabbard_texture(current_weapon.scabbard_texture)
+	
+	weapon_switched.emit(current_weapon)
+	
+	# --- 狀態機分流 ---
+	if is_intro_skill:
+		is_combo_requested = false
+		is_heavy_requested = false
+		is_ult_requested = false
+		
+		state_machine.transition_to("WeaponAttack")
+		if current_weapon.has_method("start_intro_skill"):
+			current_weapon.start_intro_skill()
+			
+	else:
+		if is_attacking:
+			state_machine.transition_to("Idle" if is_on_floor() else "Fall")
+		elif not is_on_floor():
+			var current_state = state_machine.current_state.name.to_lower()
+			if current_state not in ["jump", "fall", "wallslide"]:
+				state_machine.transition_to("Fall") 
+		else:
+			state_machine.transition_to("SwapWeapon")
+	
+# ==========================================
+# 👻 殘影代打系統核心 (Phantom Striker)
+# ==========================================
+func spawn_phantom_striker(outgoing_weapon: Weapon) -> void:
+	var phantom = CharacterBody2D.new()
+	phantom.name = "Phantom_" + outgoing_weapon.name
+	phantom.global_position = self.global_position
+	
+	# 物理隔離：不碰撞怪物，但會踩地板
+	phantom.collision_layer = 0
+	phantom.collision_mask = 1 
+	
+	for child in self.get_children():
+		if child is CollisionShape2D or child is CollisionPolygon2D:
+			var cloned_shape = child.duplicate()
+			phantom.add_child(cloned_shape)
+
+	# --- 動態注入替身大腦 (Proxy Script) ---
+	var proxy_script = GDScript.new()
+	proxy_script.source_code = """
+extends CharacterBody2D
+
+var outgoing_weapon: Node
+var real_player: Node
+var animation_player: AnimationPlayer
+var vfx_common: Dictionary = {}
+var vfx_weapon: Dictionary = {}
+var vfx_system: Dictionary = {} # 讓殘影也能讀取特效庫！
+
+var direction: int = 1
+var is_input_locked: bool = false
+var default_gravity: float = 980.0
+var FLOOR_ACCELERATION: float = 8000.0
+
+var invincible_time_left: float = 0.0
+var scabbard: Node = null
+
+func _ready():
+	set_physics_process(true)
+
+func _physics_process(delta: float):
+	if is_instance_valid(outgoing_weapon):
+		if outgoing_weapon.has_method("get_current_velocity"):
+			velocity = outgoing_weapon.get_current_velocity(delta)
+			
+		if outgoing_weapon.has_method("is_handling_gravity") and not outgoing_weapon.is_handling_gravity():
+			if not is_on_floor():
+				velocity.y += default_gravity * delta
+			else:
+				if velocity.y > 0:
+					velocity.y = 0 
+					
+		move_and_slide()
+
+func strike_impulse(strength: float) -> void:
+	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+	velocity.x = direction * (strength * speed_mult)
+
+func enable_weapon_hitbox(shape_name: String = ""):
+	if outgoing_weapon and outgoing_weapon.has_method("enable_hitbox"):
+		outgoing_weapon.enable_hitbox(shape_name)
+
+func disable_weapon_hitbox(shape_name: String = ""):
+	if outgoing_weapon and outgoing_weapon.has_method("disable_hitbox"):
+		outgoing_weapon.disable_hitbox(shape_name)
+
+# ==========================================
+# 🌟 核心修復：賦予殘影完整的特效召喚能力 (三分字典版)
+# ==========================================
+func spawn_anim_vfx(vfx_name: String, offset_x: float = 0.0, offset_y: float = 0.0, custom_scale: Vector2 = Vector2(1.0, 1.0), rotation_deg: float = 0.0, custom_color: Color = Color.WHITE, aura_color: Color = Color.WHITE, detach: bool = true, custom_z_index: int = 1, raw_intensity: float = 1.0) -> void:
+	
+	# 🌟 改成去三個字典裡面找特效
+	var vfx_scene = null
+	if vfx_common.has(vfx_name): vfx_scene = vfx_common[vfx_name]
+	elif vfx_weapon.has(vfx_name): vfx_scene = vfx_weapon[vfx_name]
+	elif vfx_system.has(vfx_name): vfx_scene = vfx_system[vfx_name]
+
+	if vfx_scene == null: return
+
+	var vfx = vfx_scene.instantiate()
+	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+	if vfx.has_node("AnimationPlayer"): vfx.get_node("AnimationPlayer").speed_scale = speed_mult
+	if vfx is GPUParticles2D: vfx.speed_scale = speed_mult
+	elif vfx.has_node("GPUParticles2D"): vfx.get_node("GPUParticles2D").speed_scale = speed_mult
+
+	if detach:
+		get_parent().add_child(vfx)
+		var spawn_pos = global_position
+		spawn_pos.x += offset_x * direction
+		spawn_pos.y += offset_y
+		vfx.global_position = spawn_pos
+		vfx.z_index = self.z_index + custom_z_index
+	else:
+		self.add_child(vfx)
+		vfx.position = Vector2(offset_x * direction, offset_y)
+		vfx.z_index = custom_z_index
+
+	vfx.scale = Vector2(direction * custom_scale.x, custom_scale.y)
+	vfx.rotation_degrees = rotation_deg * direction
+
+	var hdr_color = Color(custom_color.r * raw_intensity, custom_color.g * raw_intensity, custom_color.b * raw_intensity, custom_color.a)
+	_apply_vfx_colors(vfx, hdr_color, aura_color)
+
+func _apply_vfx_colors(node: Node, main_color: Color, aura_color: Color) -> void:
+	if node is CanvasItem and node.name != "AnimationPlayer":
+		if node.name == "Aura": node.self_modulate = aura_color
+		else: node.self_modulate = main_color
+	for child in node.get_children():
+		_apply_vfx_colors(child, main_color, aura_color)
+
+func add_ghost(): pass 
+func play_safe_anim(anim_name: String):
+	if animation_player and animation_player.has_animation(anim_name):
+		if animation_player.current_animation != anim_name:
+			animation_player.play(anim_name)
+
+func add_weapon_resource(w_id: String, e: float, s: float):
+	if real_player and real_player.has_method("add_weapon_resource"):
+		real_player.add_weapon_resource(w_id, e, s)
+
+func die_gracefully():
+	var hb = outgoing_weapon.get("current_active_hitbox") if is_instance_valid(outgoing_weapon) else null
+	if is_instance_valid(hb) and hb.get("sticky_multi_hit") and hb.get("hit_targets") and not hb.hit_targets.is_empty():
+		get_tree().create_timer(0.1, false).timeout.connect(die_gracefully)
+	else:
+		queue_free() 
+"""
+	proxy_script.reload()
+	phantom.set_script(proxy_script)
+
+	# --- 轉移當前物理狀態 ---
+	phantom.set("vfx_common", self.vfx_common)
+	phantom.set("vfx_weapon", self.vfx_weapon)
+	phantom.set("vfx_system", self.vfx_system) 
+	phantom.z_index = self.z_index
+	phantom.set("real_player", self)
+	phantom.set("direction", self.direction) 
+	phantom.set("FLOOR_ACCELERATION", self.FLOOR_ACCELERATION)
+	phantom.set("default_gravity", self.default_gravity)
+	phantom.set("velocity", self.velocity) 
+
+	# --- 深度靈魂轉移 (複製外觀與武器) ---
+	var cloned_graphics = graphics.duplicate()
+	phantom.add_child(cloned_graphics)
+	cloned_graphics.position = graphics.position
+	cloned_graphics.scale = graphics.scale
+	
+	# 拔除殘影的碰撞受擊能力
+	if cloned_graphics.has_node("Hurtbox"):
+		var phantom_hurtbox = cloned_graphics.get_node("Hurtbox")
+		phantom_hurtbox.collision_layer = 0
+		phantom_hurtbox.collision_mask = 0
+		for child in phantom_hurtbox.get_children():
+			if child is CollisionShape2D or child is CollisionPolygon2D:
+				child.queue_free()
+		
+	var cloned_weapon_slot = cloned_graphics.get_node("WeaponSlot")
+	var cloned_weapon = null
+	for child in cloned_weapon_slot.get_children():
+		if child.name != outgoing_weapon.name:
+			child.queue_free()
+		else:
+			cloned_weapon = child
+			child.show()
+			child.set("player", phantom)
+			
+			var props_to_copy = [
+				"combo_step", "is_attacking", "step_cooldown", 
+				"is_launch_triggered", "launch_timer", 
+				"current_charge_timer", "current_charge_tier", "light_hold_timer", 
+				"is_wave_fired", "air_attack_locked", "is_time_stop_triggered", 
+				"_tsubame_zoom_phase", "_is_hitbox_locked",
+				"is_spear_thrown" 
+			]
+			for prop in props_to_copy:
+				if prop in outgoing_weapon:
+					child.set(prop, outgoing_weapon.get(prop))
+			
+			if "current_active_hitbox" in outgoing_weapon and outgoing_weapon.get("current_active_hitbox") != null:
+				var orig_hb = outgoing_weapon.get("current_active_hitbox")
+				var hb_path = outgoing_weapon.get_path_to(orig_hb)
+				child.set("current_active_hitbox", child.get_node(hb_path))
+				
+	phantom.set("outgoing_weapon", cloned_weapon)
+
+	# --- 轉移動畫與重置所有權 ---
+	var cloned_anim = animation_player.duplicate()
+	phantom.add_child(cloned_anim)
+	phantom.set("animation_player", cloned_anim)
+
+	var nodes_to_process = [phantom]
+	while nodes_to_process.size() > 0:
+		var current = nodes_to_process.pop_back()
+		if current != phantom:
+			current.owner = phantom 
+		nodes_to_process.append_array(current.get_children())
+
+	# --- 接力播放殘影演出 ---
+	if is_instance_valid(cloned_graphics):
+		cloned_graphics.modulate = Color(1.0, 1.0, 1.0, 0.5)
+	var current_anim = animation_player.current_animation
+	var current_pos = animation_player.current_animation_position
+	
+	if current_anim != "":
+		cloned_anim.play(current_anim)
+		cloned_anim.seek(current_pos, true)
+		
+		# 🌟 修復點 1：使用 unbind(1) 來連接，因為 animation_finished 會帶一個參數
+		# 但 die_gracefully 不需要參數。unbind(1) 會自動無視掉那個參數。
+		cloned_anim.animation_finished.connect(phantom.die_gracefully.unbind(1))
+		
+		# --- 終極壽命防呆 ---
+		var max_lifespan: float = 2.0 
+		if animation_player.has_animation(current_anim):
+			var anim_data = animation_player.get_animation(current_anim)
+			if anim_data.loop_mode == Animation.LOOP_NONE:
+				max_lifespan = max(0.5, anim_data.length - current_pos + 0.2)
+				
+		# 🌟 修復點 2：直接連接 Callable，不要寫 func(): ...
+		# 這樣如果 phantom 已經 queue_free 了，這個信號觸發時會自動安全跳過
+		get_tree().create_timer(max_lifespan, false).timeout.connect(phantom.die_gracefully)
+	else:
+		phantom.die_gracefully()
+		return
+
+	get_tree().current_scene.add_child(phantom)
+
+# ==========================================
+# ✨ 視覺與 Hitbox 接口 (Proxy Methods)
+# ==========================================
+func _flash_character() -> void:
+	if graphics:
+		graphics.modulate = Color(2.5, 2.5, 2.5, 1.0)
+		var tween = create_tween()
+		tween.tween_property(graphics, "modulate", Color.WHITE, 0.2).set_trans(Tween.TRANS_SINE)
+
+# ==========================================
+# 💾 跨場景戰鬥狀態繼承 (Combat State Persistence)
+# ==========================================
+func export_combat_state() -> Dictionary:
+	var state = {
+		"weapon_resources": weapon_resources,
+		"weapon_switch_cooldown_timer": weapon_switch_cooldown_timer,
+		# 紀錄當前拿的是第幾把武器 (索引值)
+		"current_weapon_index": current_weapon.get_index() if is_instance_valid(current_weapon) else 0,
+		"weapons_data": {}
+	}
+	
+	# 讓每一把武器自己打包專屬數據 (例如太刀的居合值)
+	for weapon in weapon_slot.get_children():
+		if weapon.has_method("export_weapon_data"):
+			state["weapons_data"][weapon.name] = weapon.export_weapon_data()
+			
+	return state
+
+func import_combat_state(state: Dictionary) -> void:
+	if state.has("weapon_resources"): weapon_resources = state["weapon_resources"]
+	if state.has("weapon_switch_cooldown_timer"): weapon_switch_cooldown_timer = state["weapon_switch_cooldown_timer"]
+	
+	# 恢復各武器內部數據
+	if state.has("weapons_data"):
+		for weapon in weapon_slot.get_children():
+			if state["weapons_data"].has(weapon.name) and weapon.has_method("import_weapon_data"):
+				weapon.import_weapon_data(state["weapons_data"][weapon.name])
+				
+	# 恢復原本拿在手上的武器 (無聲強制切換，不播殘影)
+	if state.has("current_weapon_index"):
+		var target_idx = state["current_weapon_index"]
+		if target_idx >= 0 and target_idx < weapon_slot.get_child_count():
+			_force_equip_weapon(weapon_slot.get_child(target_idx))
+
+func _force_equip_weapon(target_weapon: Node) -> void:
+	if current_weapon == target_weapon: return
+	if is_instance_valid(current_weapon): current_weapon.hide()
+	
+	target_weapon.show()
+	current_weapon = target_weapon
+	if current_weapon.get("scabbard_texture") and scabbard.has_method("set_scabbard_texture"):
+		scabbard.set_scabbard_texture(current_weapon.scabbard_texture)
+	
+	
+	
+
+
+
+
+func enable_weapon_hitbox(shape_name: String = "") -> void:
+	if is_instance_valid(current_weapon) and current_weapon.has_method("enable_hitbox"):
+		current_weapon.enable_hitbox(shape_name)
+
+func disable_weapon_hitbox(shape_name: String = "") -> void:
+	if is_instance_valid(current_weapon) and current_weapon.has_method("disable_hitbox"):
+		current_weapon.disable_hitbox(shape_name)

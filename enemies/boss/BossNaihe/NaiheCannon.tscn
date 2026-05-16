@@ -1,0 +1,60 @@
+[gd_scene load_steps=8 format=3 uid="uid://c81mrvihhmbj7"]
+
+[ext_resource type="Script" path="res://enemies/boss/BossNaihe/NaiheCannon.gd" id="1_ggrn4"]
+[ext_resource type="Texture2D" uid="uid://dcn8f4jcmw8tm" path="res://Explod/Sprite-0004.png" id="2_c65pm"]
+[ext_resource type="Script" path="res://classes/Hitbox.gd" id="3_byfn4"]
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_3x543"]
+blend_mode = 1
+
+[sub_resource type="Gradient" id="Gradient_lpaet"]
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_1483t"]
+gradient = SubResource("Gradient_lpaet")
+width = 120
+height = 80
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.6, 0.6)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_mkwi3"]
+size = Vector2(61, 30.5)
+
+[node name="NaiheCannon" type="Node2D"]
+script = ExtResource("1_ggrn4")
+
+[node name="Graphics" type="Node2D" parent="."]
+scale = Vector2(0.25, 0.25)
+
+[node name="Aura" type="Sprite2D" parent="Graphics"]
+modulate = Color(1, 1, 1, 0.254902)
+self_modulate = Color(0.00655156, 0.912311, 0.751175, 1)
+material = SubResource("CanvasItemMaterial_3x543")
+position = Vector2(-4, 3)
+rotation = -0.0132612
+scale = Vector2(7.5, 7.5)
+texture = SubResource("GradientTexture2D_1483t")
+
+[node name="Sprite2D" type="Sprite2D" parent="Graphics"]
+modulate = Color(0.52372, 1, 0.996343, 0.788235)
+position = Vector2(-4, 3)
+scale = Vector2(2.5, 2.5)
+texture = ExtResource("2_c65pm")
+hframes = 2
+vframes = 2
+region_enabled = true
+region_rect = Rect2(0, 0, 200, 200)
+
+[node name="Hitbox" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 8
+script = ExtResource("3_byfn4")
+spark_base_offset = Vector2(-5, 0)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(-7, -1)
+shape = SubResource("RectangleShape2D_mkwi3")
+debug_color = Color(0.94902, 0.0470588, 0, 0.419608)

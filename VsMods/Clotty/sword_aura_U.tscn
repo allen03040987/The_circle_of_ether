@@ -1,0 +1,29 @@
+[gd_scene load_steps=4 format=3 uid="uid://yv1ytq13b3qu"]
+
+[ext_resource type="PackedScene" uid="uid://di0gl13wrsts8" path="res://VsMods/Clotty/sword_aura.tscn" id="1_ay3kp"]
+[ext_resource type="Texture2D" uid="uid://bdabhewuker2p" path="res://VsMods/Explod/pixel_Hit Sparks-1.png" id="2_2cjh8"]
+[ext_resource type="PackedScene" uid="uid://cdf3wd7cc8d7j" path="res://VsMods/Clotty/hit_spark_pro.tscn" id="2_qm1uk"]
+
+[node name="SwordAura" instance=ExtResource("1_ay3kp")]
+trajectory = 1
+speed = 600.0
+wave_amplitude = 50.0
+wave_frequency = 50.0
+
+[node name="Sprite2D" parent="." index="0"]
+use_parent_material = true
+position = Vector2(7.68401, 4.67722)
+scale = Vector2(0.387971, 1.09339)
+texture = ExtResource("2_2cjh8")
+
+[node name="VsHitbox" parent="." index="1"]
+damage = 1000.0
+air_knockback = Vector2(300, -100)
+causes_down = true
+hit_effect_1 = ExtResource("2_qm1uk")
+hit_effect_2 = ExtResource("2_qm1uk")
+random_spark_angle = true
+
+[node name="CollisionShape2D" parent="VsHitbox" index="0"]
+position = Vector2(-2.39558, 0.385393)
+rotation = -0.720821

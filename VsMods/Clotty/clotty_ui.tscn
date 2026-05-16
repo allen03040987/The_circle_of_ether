@@ -1,0 +1,228 @@
+[gd_scene load_steps=21 format=3 uid="uid://bw3ybq8loh3re"]
+
+[ext_resource type="Script" path="res://VsMods/Clotty/clotty_ui.gd" id="1_ss5rn"]
+[ext_resource type="Texture2D" uid="uid://cwooq2hfeqqq6" path="res://VsMods/Clotty/Clottyui.png" id="2_ilofd"]
+[ext_resource type="Texture2D" uid="uid://b8q70onabauwc" path="res://VsMods/Clotty/Clottyui_4.png" id="2_vyhlr"]
+[ext_resource type="Texture2D" uid="uid://beahjy3c2dy65" path="res://VsMods/Clotty/Clottyui_1.png" id="3_ovnlh"]
+[ext_resource type="FontFile" uid="uid://d101og7k4q6ku" path="res://pixel.ttf" id="4_xpolm"]
+[ext_resource type="Texture2D" uid="uid://bmyqrdip5vk8a" path="res://VsMods/Clotty/Clottyui_2.png" id="5_pw0xd"]
+[ext_resource type="Texture2D" uid="uid://1gyx681druse" path="res://VsMods/Clotty/Clottyui_3.png" id="6_h1t7h"]
+[ext_resource type="Texture2D" uid="uid://by1k7ck0obvyi" path="res://VsMods/Clotty/ClottyuiPRO_9500-0.png" id="8_tukur"]
+[ext_resource type="Texture2D" uid="uid://rg5twd7wuyi5" path="res://VsMods/Clotty/ClottyuiPRO_9500-2.png" id="9_0wmds"]
+[ext_resource type="Texture2D" uid="uid://btl6jk4ffnwfn" path="res://VsMods/Clotty/ClottyuiPRO_9500-3.png" id="10_fasw8"]
+[ext_resource type="Texture2D" uid="uid://dhast3ranb30l" path="res://VsMods/Clotty/ClottyuiPRO_9500-4.png" id="11_i25e4"]
+[ext_resource type="Texture2D" uid="uid://cfquxn2ew7e6q" path="res://VsMods/Clotty/ClottyuiPRO_9500-5.png" id="12_i2tcv"]
+[ext_resource type="Texture2D" uid="uid://bimox16uk56vs" path="res://VsMods/Clotty/ClottyuiPRO_9500-6.png" id="13_6lxql"]
+[ext_resource type="Texture2D" uid="uid://di7fev6sawt55" path="res://VsMods/Clotty/ClottyuiPRO_9500-7.png" id="14_651an"]
+[ext_resource type="Texture2D" uid="uid://cbclvekj0tyag" path="res://VsMods/Clotty/ClottyuiPRO_9500-8.png" id="15_rivr3"]
+[ext_resource type="Texture2D" uid="uid://d2n8whoehcp64" path="res://VsMods/Clotty/ClottyuiPRO_9500-9.png" id="16_c0ywc"]
+[ext_resource type="Texture2D" uid="uid://cs1cfkjoeyyra" path="res://VsMods/Clotty/ClottyuiPRO_9500-11.png" id="17_npx6e"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_08onr"]
+atlas = ExtResource("2_vyhlr")
+region = Rect2(35, 90, 18, 17)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_n6cfm"]
+atlas = ExtResource("5_pw0xd")
+region = Rect2(35, 90, 18, 17)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pyr1o"]
+atlas = ExtResource("6_h1t7h")
+region = Rect2(35, 90, 18, 17)
+
+[node name="clotty_ui" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_right = 4.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_ss5rn")
+
+[node name="SkillContainer" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_left = -3.0
+offset_right = 37.0
+offset_bottom = 80.0
+
+[node name="SkillA_CD" type="TextureProgressBar" parent="SkillContainer"]
+layout_mode = 2
+max_value = 1.0
+step = 0.0
+value = 1.0
+fill_mode = 5
+texture_under = SubResource("AtlasTexture_08onr")
+texture_progress = ExtResource("3_ovnlh")
+tint_progress = Color(1, 1, 1, 0.784314)
+
+[node name="ChargeLabel" type="Label" parent="SkillContainer/SkillA_CD"]
+layout_direction = 2
+layout_mode = 0
+offset_left = 12.0
+offset_top = 11.0
+offset_right = 20.0
+offset_bottom = 25.0
+theme_override_colors/font_color = Color(1, 1, 0.290196, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_fonts/font = ExtResource("4_xpolm")
+theme_override_font_sizes/font_size = 10
+
+[node name="SkillB_CD" type="TextureProgressBar" parent="SkillContainer"]
+layout_mode = 2
+max_value = 1.0
+step = 0.0
+value = 1.0
+fill_mode = 5
+texture_under = ExtResource("2_ilofd")
+texture_progress = ExtResource("3_ovnlh")
+tint_progress = Color(1, 1, 1, 0.784314)
+
+[node name="ChargeLabel" type="Label" parent="SkillContainer/SkillB_CD"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 11.0
+offset_right = 20.0
+offset_bottom = 25.0
+theme_override_colors/font_color = Color(1, 1, 0.290196, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 10
+
+[node name="Ult1_CD" type="TextureProgressBar" parent="SkillContainer"]
+layout_mode = 2
+max_value = 1.0
+step = 0.0
+value = 1.0
+fill_mode = 5
+texture_under = SubResource("AtlasTexture_n6cfm")
+texture_progress = ExtResource("3_ovnlh")
+tint_progress = Color(1, 1, 1, 0.784314)
+
+[node name="ChargeLabel" type="Label" parent="SkillContainer/Ult1_CD"]
+layout_direction = 2
+layout_mode = 0
+offset_left = 12.0
+offset_top = 11.0
+offset_right = 20.0
+offset_bottom = 25.0
+theme_override_colors/font_color = Color(1, 1, 0.290196, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 10
+
+[node name="Ult2_CD" type="TextureProgressBar" parent="SkillContainer"]
+layout_mode = 2
+max_value = 1.0
+step = 0.0
+value = 1.0
+fill_mode = 4
+texture_under = SubResource("AtlasTexture_pyr1o")
+texture_progress = ExtResource("3_ovnlh")
+tint_progress = Color(1, 1, 1, 0.784314)
+
+[node name="ChargeLabel" type="Label" parent="SkillContainer/Ult2_CD"]
+layout_direction = 2
+layout_mode = 0
+offset_left = 12.0
+offset_top = 11.0
+offset_right = 20.0
+offset_bottom = 25.0
+theme_override_colors/font_color = Color(1, 1, 0.290196, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 10
+
+[node name="EnergyContainer" type="Control" parent="."]
+anchors_preset = 0
+offset_left = 25.0
+offset_top = -24.0
+offset_right = 65.0
+offset_bottom = 16.0
+scale = Vector2(0.8, 0.8)
+
+[node name="BaseBG" type="TextureRect" parent="EnergyContainer"]
+layout_mode = 0
+offset_left = -74.0
+offset_top = -111.0
+offset_right = 126.0
+offset_bottom = 89.0
+texture = ExtResource("8_tukur")
+
+[node name="States" type="Control" parent="EnergyContainer"]
+anchors_preset = 0
+offset_left = -20.0
+offset_top = -41.25
+offset_right = 200.0
+offset_bottom = 98.75
+scale = Vector2(0.49, 0.49)
+
+[node name="State_1" type="TextureRect" parent="EnergyContainer/States"]
+layout_mode = 2
+offset_left = -0.499996
+offset_top = -1.0
+offset_right = 219.5
+offset_bottom = 139.0
+texture = ExtResource("16_c0ywc")
+
+[node name="State_2" type="TextureRect" parent="EnergyContainer/States"]
+layout_mode = 2
+offset_left = -0.499996
+offset_top = -1.0
+offset_right = 219.5
+offset_bottom = 139.0
+texture = ExtResource("15_rivr3")
+
+[node name="State_3" type="TextureRect" parent="EnergyContainer/States"]
+layout_mode = 2
+offset_left = -0.499996
+offset_top = -1.0
+offset_right = 219.5
+offset_bottom = 139.0
+texture = ExtResource("14_651an")
+
+[node name="State_4" type="TextureRect" parent="EnergyContainer/States"]
+layout_mode = 2
+offset_left = -0.499996
+offset_top = -1.0
+offset_right = 219.5
+offset_bottom = 139.0
+texture = ExtResource("13_6lxql")
+
+[node name="State_5" type="TextureRect" parent="EnergyContainer/States"]
+layout_mode = 2
+offset_left = -0.499996
+offset_top = -1.0
+offset_right = 219.5
+offset_bottom = 139.0
+texture = ExtResource("12_i2tcv")
+
+[node name="State_6" type="TextureRect" parent="EnergyContainer/States"]
+layout_mode = 2
+offset_left = -0.499996
+offset_top = -1.0
+offset_right = 219.5
+offset_bottom = 139.0
+texture = ExtResource("11_i25e4")
+
+[node name="State_7" type="TextureRect" parent="EnergyContainer/States"]
+layout_mode = 2
+offset_left = -0.499996
+offset_top = -1.0
+offset_right = 219.5
+offset_bottom = 139.0
+texture = ExtResource("10_fasw8")
+
+[node name="State_8" type="TextureRect" parent="EnergyContainer/States"]
+layout_mode = 2
+offset_left = -0.499997
+offset_top = -0.999994
+offset_right = 219.5
+offset_bottom = 139.0
+texture = ExtResource("9_0wmds")
+
+[node name="MaxEffect" type="TextureRect" parent="EnergyContainer"]
+layout_mode = 0
+offset_left = -43.75
+offset_top = -71.25
+offset_right = 96.25
+offset_bottom = 48.75
+texture = ExtResource("17_npx6e")

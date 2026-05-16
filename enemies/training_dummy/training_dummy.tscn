@@ -1,0 +1,143 @@
+[gd_scene load_steps=13 format=3 uid="uid://bgt6pjmwir35b"]
+
+[ext_resource type="Script" path="res://enemies/training_dummy/training_dummy.gd" id="1_lklol"]
+[ext_resource type="Script" path="res://classes/Hurtbox.gd" id="2_4wl7k"]
+[ext_resource type="Texture2D" uid="uid://dyuk1mgbcn7tv" path="res://enemies/training_dummy/AQ.png" id="2_gbo31"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hpybf"]
+size = Vector2(23, 61)
+
+[sub_resource type="LabelSettings" id="LabelSettings_g51v5"]
+font_size = 6
+
+[sub_resource type="Animation" id="Animation_hm2oo"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [6]
+}
+
+[sub_resource type="Animation" id="Animation_cfsqg"]
+resource_name = "hurt"
+length = 0.1
+step = 0.05
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.05),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [2, 3]
+}
+
+[sub_resource type="Animation" id="Animation_1py67"]
+resource_name = "hurt_2"
+length = 0.18
+step = 0.05
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [4]
+}
+
+[sub_resource type="Animation" id="Animation_m4u7l"]
+resource_name = "idle"
+loop_mode = 1
+step = 0.5
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.5),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [6, 5]
+}
+
+[sub_resource type="Animation" id="Animation_te3fu"]
+resource_name = "up"
+length = 0.1
+step = 0.05
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.05),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [0, 1]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_1fa3q"]
+_data = {
+"RESET": SubResource("Animation_hm2oo"),
+"hurt": SubResource("Animation_cfsqg"),
+"hurt_2": SubResource("Animation_1py67"),
+"idle": SubResource("Animation_m4u7l"),
+"up": SubResource("Animation_te3fu")
+}
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_nq78x"]
+
+[node name="TrainingDummy" type="CharacterBody2D"]
+z_index = 10
+collision_layer = 4
+script = ExtResource("1_lklol")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(-3, -32)
+texture = ExtResource("2_gbo31")
+hframes = 7
+frame = 6
+region_enabled = true
+region_rect = Rect2(0, 0, 700, 200)
+
+[node name="Hurtbox" type="Area2D" parent="."]
+collision_layer = 16
+collision_mask = 0
+script = ExtResource("2_4wl7k")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
+position = Vector2(0.5, -30.5)
+shape = SubResource("RectangleShape2D_hpybf")
+
+[node name="StatsLabel" type="Label" parent="."]
+offset_left = -9.0
+offset_top = -126.0
+offset_right = 31.0
+offset_bottom = -103.0
+label_settings = SubResource("LabelSettings_g51v5")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+"": SubResource("AnimationLibrary_1fa3q")
+}
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -10)
+shape = SubResource("RectangleShape2D_nq78x")

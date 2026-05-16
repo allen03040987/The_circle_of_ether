@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="BaseStats" load_steps=2 format=3 uid="uid://ca66rbq0qusch"]
+
+[ext_resource type="Script" path="res://classes/BaseStats.gd" id="1_vms0o"]
+
+[resource]
+script = ExtResource("1_vms0o")
+max_health = 10000
+max_poise = 100.0
+max_energy = 9.0
+energy_regen = 2.0
+base_damage = 1

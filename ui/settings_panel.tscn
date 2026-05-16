@@ -1,0 +1,27 @@
+[gd_scene load_steps=2 format=3 uid="uid://8lf6qf5bw1gn"]
+
+[ext_resource type="Script" path="res://ui/settings_panel.gd" id="1_x2eau"]
+
+[node name="SettingsPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_x2eau")
+
+[node name="Panel" type="Panel" parent="."]
+layout_mode = 0
+offset_right = 385.0
+offset_bottom = 33.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel"]
+layout_mode = 0
+offset_right = 384.0
+offset_bottom = 40.0
+
+[node name="WalkToggle" type="CheckButton" parent="Panel/VBoxContainer"]
+layout_mode = 2
+focus_mode = 0
+text = "切換為行走模式 "

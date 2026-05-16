@@ -1,0 +1,55 @@
+[gd_scene load_steps=8 format=3 uid="uid://cxf7eo48pavu7"]
+
+[ext_resource type="Script" path="res://player/Spear/SpearBoomerang.gd" id="1_3ii06"]
+[ext_resource type="Texture2D" uid="uid://c3gh0neiqsscu" path="res://player/Spear/spear.png" id="2_2fhpq"]
+[ext_resource type="Script" path="res://classes/Hitbox.gd" id="3_4pycq"]
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_mjwna"]
+blend_mode = 1
+
+[sub_resource type="Gradient" id="Gradient_lpaet"]
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_okybu"]
+gradient = SubResource("Gradient_lpaet")
+width = 80
+height = 80
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.6, 0.6)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_jd2ve"]
+size = Vector2(72, 72)
+
+[node name="SpearBoomerang" type="Node2D"]
+script = ExtResource("1_3ii06")
+
+[node name="Graphics" type="Node2D" parent="."]
+scale = Vector2(0.5, 0.5)
+
+[node name="Aura" type="Sprite2D" parent="Graphics"]
+modulate = Color(1, 1, 1, 0.254902)
+self_modulate = Color(0.946139, 0.759965, 0.128223, 1)
+material = SubResource("CanvasItemMaterial_mjwna")
+position = Vector2(8, 8)
+scale = Vector2(7.59878, 7.39857)
+texture = SubResource("GradientTexture2D_okybu")
+
+[node name="Sprite2D" type="Sprite2D" parent="Graphics"]
+position = Vector2(8, 2)
+scale = Vector2(2.5, 2.5)
+texture = ExtResource("2_2fhpq")
+region_rect = Rect2(0, 0, 200, 200)
+
+[node name="Hitbox" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("3_4pycq")
+spark_base_offset = Vector2(-5, 0)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(1, 0)
+shape = SubResource("RectangleShape2D_jd2ve")
+debug_color = Color(0.94902, 0.0470588, 0, 0.419608)

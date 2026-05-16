@@ -1,0 +1,140 @@
+[gd_scene load_steps=9 format=3 uid="uid://dhxdpgje0esqh"]
+
+[ext_resource type="Script" path="res://Explod/hit_spark.gd" id="1_861y3"]
+[ext_resource type="Texture2D" uid="uid://bbeh4hl6d0n4j" path="res://enemies/boss/BossNaihe/A3_e.png" id="2_iivtu"]
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_pbbef"]
+blend_mode = 1
+
+[sub_resource type="Gradient" id="Gradient_pesyf"]
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_sq0s0"]
+gradient = SubResource("Gradient_pesyf")
+width = 400
+height = 200
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.6, 0.6)
+
+[sub_resource type="Animation" id="Animation_g0e3y"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("CPUParticles2D/Sprite-0003:modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 1, 1, 1)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("CPUParticles2D/Sprite-0003:frame")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Aura:modulate")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 1, 1, 0.376471)]
+}
+
+[sub_resource type="Animation" id="Animation_p13pf"]
+resource_name = "slash"
+length = 0.3
+step = 0.02
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("CPUParticles2D/Sprite-0003:modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0.1, 0.24),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Color(1, 1, 1, 1), Color(1, 1, 1, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("CPUParticles2D/Sprite-0003:frame")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(-0.02, 0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.14),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Aura:modulate")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.08, 0.24),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Color(1, 1, 1, 0), Color(0.384314, 0, 0.698039, 0.227451), Color(1, 1, 1, 0)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_h3s45"]
+_data = {
+"RESET": SubResource("Animation_g0e3y"),
+"slash": SubResource("Animation_p13pf")
+}
+
+[node name="Aggregation ring" type="Node2D"]
+scale = Vector2(0.8, 0.8)
+script = ExtResource("1_861y3")
+
+[node name="Aura" type="Sprite2D" parent="."]
+modulate = Color(1, 1, 1, 0.376471)
+material = SubResource("CanvasItemMaterial_pbbef")
+scale = Vector2(1.5, 1.5)
+texture = SubResource("GradientTexture2D_sq0s0")
+
+[node name="CPUParticles2D" type="CPUParticles2D" parent="."]
+emitting = false
+amount = 15
+one_shot = true
+explosiveness = 1.0
+direction = Vector2(1, 0.5)
+spread = 15.0
+gravity = Vector2(0, 0)
+initial_velocity_min = 400.0
+initial_velocity_max = 600.0
+linear_accel_min = -100.0
+
+[node name="Sprite-0003" type="Sprite2D" parent="CPUParticles2D"]
+position = Vector2(0, -1.25)
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("2_iivtu")
+hframes = 3
+vframes = 3
+region_enabled = true
+region_rect = Rect2(0, 0, 384, 192)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+"": SubResource("AnimationLibrary_h3s45")
+}

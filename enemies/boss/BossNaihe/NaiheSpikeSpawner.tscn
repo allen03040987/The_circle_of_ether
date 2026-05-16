@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3 uid="uid://cjuone6fyjmg5"]
+
+[ext_resource type="Script" path="res://enemies/boss/BossNaihe/NaiheSpikeSpawner.gd" id="1_h4fes"]
+
+[node name="NaiheSpikeSpawner" type="Node2D"]
+script = ExtResource("1_h4fes")
+max_spikes = 6
+spawn_interval = 0.4
+spacing = 80.0

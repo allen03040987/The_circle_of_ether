@@ -1,0 +1,29 @@
+[gd_resource type="Theme" load_steps=5 format=3 uid="uid://b77sq4tvcecec"]
+
+[ext_resource type="Texture2D" uid="uid://3h6puyf1ngfm" path="res://HUD/Base-01.png" id="1_b8wlt"]
+[ext_resource type="FontFile" uid="uid://d101og7k4q6ku" path="res://pixel.ttf" id="1_r4kee"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_lbpcf"]
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_28eab"]
+texture = ExtResource("1_b8wlt")
+texture_margin_left = 3.0
+texture_margin_top = 3.0
+texture_margin_right = 2.0
+texture_margin_bottom = 3.0
+region_rect = Rect2(93, 13, 21, 22)
+
+[resource]
+default_font = ExtResource("1_r4kee")
+Button/colors/font_outline_color = Color(0.333333, 1, 0.917647, 0.619608)
+Button/colors/font_pressed_color = Color(1, 1, 1, 0.427451)
+Button/constants/outline_size = 2
+Button/styles/disabled = SubResource("StyleBoxEmpty_lbpcf")
+Button/styles/focus = SubResource("StyleBoxTexture_28eab")
+Button/styles/hover = SubResource("StyleBoxEmpty_lbpcf")
+Button/styles/normal = SubResource("StyleBoxEmpty_lbpcf")
+Button/styles/pressed = SubResource("StyleBoxEmpty_lbpcf")

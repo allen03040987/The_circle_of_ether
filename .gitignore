@@ -1,0 +1,19 @@
+# Godot 4+ 專用暫存與快取
+.godot/
+
+# Godot 3 專用暫存與快取
+.mono/
+data_*/
+mono_crash_*.json
+
+# 編輯器專屬設定（如果你不想把自己的視窗佈局分享給別人）
+export_presets.cfg
+
+# 匯出的成品（避免把打包好的遊戲 .exe 或 .apk 傳上去）
+android/
+build/
+export/
+
+# 系統與編輯器暫存
+.DS_Store
+Thumbs.db

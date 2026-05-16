@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://cv7qein1mmn2f"]
+
+[ext_resource type="Script" path="res://player/Talisman/Talisman.gd" id="1_wghj6"]
+[ext_resource type="Texture2D" uid="uid://cffvkmas3ihmr" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (2).png" id="2_cd140"]
+
+[node name="Talisman" type="Node2D"]
+script = ExtResource("1_wghj6")
+scabbard_texture = ExtResource("2_cd140")
+skill_1_icon = ExtResource("2_cd140")
+skill_1_enhanced_icon = ExtResource("2_cd140")
+skill_2_icon = ExtResource("2_cd140")
+skill_3_icon = ExtResource("2_cd140")
+ult_icon = ExtResource("2_cd140")

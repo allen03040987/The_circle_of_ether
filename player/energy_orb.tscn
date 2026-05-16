@@ -1,0 +1,50 @@
+[gd_scene load_steps=6 format=3 uid="uid://hyyql1430bww"]
+
+[ext_resource type="Script" path="res://EnergyOrb.gd" id="1_2bsb3"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_hqmr4"]
+radius = 41.1825
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_h14nf"]
+blend_mode = 1
+
+[sub_resource type="Gradient" id="Gradient_4q00x"]
+offsets = PackedFloat32Array(0, 0.408907, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.580392, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_2kimv"]
+gradient = SubResource("Gradient_4q00x")
+width = 80
+height = 80
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.6, 0.6)
+
+[node name="EnergyOrb" type="Area2D"]
+scale = Vector2(0.01, 0.01)
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_2bsb3")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_hqmr4")
+
+[node name="Node2D" type="Node2D" parent="."]
+position = Vector2(7.62939e-06, 7.62939e-06)
+scale = Vector2(20.75, 20.75)
+
+[node name="Aura" type="Sprite2D" parent="Node2D"]
+self_modulate = Color(0.357035, 0.586894, 1, 1)
+material = SubResource("CanvasItemMaterial_h14nf")
+position = Vector2(-3.72529e-07, -3.68804e-07)
+scale = Vector2(0.361446, 0.361446)
+texture = SubResource("GradientTexture2D_2kimv")
+
+[node name="Polygon2D" type="Polygon2D" parent="Node2D"]
+modulate = Color(0, 1, 0.87451, 1)
+polygon = PackedVector2Array(0, -2, 2, 0, 0, 2, -2, 0)
+
+[node name="Polygon2D2" type="Polygon2D" parent="Node2D"]
+rotation = -0.831769
+scale = Vector2(0.441448, 0.441448)
+polygon = PackedVector2Array(0, -2, 2, 0, 0, 2, -2, 0)

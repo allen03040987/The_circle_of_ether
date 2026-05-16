@@ -1,0 +1,192 @@
+[gd_scene load_steps=22 format=3 uid="uid://c18ugfjxauur6"]
+
+[ext_resource type="Script" path="res://player/Katana/Katana.gd" id="1_8dhj7"]
+[ext_resource type="Texture2D" uid="uid://cffvkmas3ihmr" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (2).png" id="2_awpfg"]
+[ext_resource type="Texture2D" uid="uid://bqpsoqqtxlauo" path="res://player/Katana/Katana.png" id="2_cocv7"]
+[ext_resource type="Script" path="res://classes/Hitbox.gd" id="2_ieebl"]
+[ext_resource type="Texture2D" uid="uid://ctrgf4ga2poh3" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (5).png" id="3_pa6tr"]
+[ext_resource type="Texture2D" uid="uid://c3hhlbn5i1i0c" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (1).png" id="4_jdmsc"]
+[ext_resource type="Texture2D" uid="uid://gjxg3xjlo2kw" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (3).png" id="5_x6d44"]
+[ext_resource type="Texture2D" uid="uid://3ui0qpcn8v1" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (4).png" id="6_pdw6q"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_kqkt2"]
+size = Vector2(71, 45)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_je2b4"]
+size = Vector2(114, 39)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_tol8k"]
+size = Vector2(80, 45)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_m0urb"]
+size = Vector2(93, 44)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_p41qw"]
+size = Vector2(92, 45.75)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_51jwg"]
+size = Vector2(76, 45)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_efo84"]
+size = Vector2(175, 97)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_eqldk"]
+size = Vector2(174, 89.125)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_k02j6"]
+size = Vector2(102, 62.75)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_npnyr"]
+size = Vector2(127, 77)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_c2yqj"]
+size = Vector2(262.142, 188.236)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_rxe4g"]
+size = Vector2(404.136, 188.237)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_r8mev"]
+size = Vector2(680.318, 292.263)
+
+[node name="Katana" type="Node2D"]
+script = ExtResource("1_8dhj7")
+charge_time_per_tier = 0.3
+scabbard_texture = ExtResource("2_cocv7")
+skill_1_icon = ExtResource("2_awpfg")
+skill_1_enhanced_icon = ExtResource("3_pa6tr")
+skill_2_icon = ExtResource("4_jdmsc")
+skill_3_icon = ExtResource("5_x6d44")
+ult_icon = ExtResource("6_pdw6q")
+
+[node name="Hitbox" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("2_ieebl")
+knockback_force = Vector2(50, 0)
+spark_base_offset = Vector2(0, -5)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(21.5, -23.5)
+shape = SubResource("RectangleShape2D_kqkt2")
+disabled = true
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(9, -23.5)
+shape = SubResource("RectangleShape2D_je2b4")
+disabled = true
+
+[node name="CollisionShape2D3" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(26, -23.5)
+shape = SubResource("RectangleShape2D_tol8k")
+disabled = true
+
+[node name="CollisionShape2D4" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(32.5, -24)
+shape = SubResource("RectangleShape2D_m0urb")
+disabled = true
+
+[node name="CollisionShape2D5" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(32, -24.125)
+shape = SubResource("RectangleShape2D_p41qw")
+disabled = true
+
+[node name="C0" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("2_ieebl")
+attack_type = 0
+spark_base_offset = Vector2(-5, 0)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="C0"]
+position = Vector2(17, -25)
+shape = SubResource("RectangleShape2D_51jwg")
+disabled = true
+
+[node name="C1" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("2_ieebl")
+spark_base_offset = Vector2(-5, 0)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="C1"]
+position = Vector2(-1.5, -34.5)
+shape = SubResource("RectangleShape2D_efo84")
+disabled = true
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="C1"]
+position = Vector2(-2, -30.5625)
+shape = SubResource("RectangleShape2D_eqldk")
+disabled = true
+
+[node name="C2" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("2_ieebl")
+spark_base_offset = Vector2(-5, 0)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="C2"]
+position = Vector2(19, -31.625)
+shape = SubResource("RectangleShape2D_k02j6")
+disabled = true
+
+[node name="Air_J" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("2_ieebl")
+spark_base_offset = Vector2(-5, 0)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Air_J"]
+position = Vector2(-1.5, -34.5)
+shape = SubResource("RectangleShape2D_npnyr")
+disabled = true
+
+[node name="attack_tsubame" type="Area2D" parent="."]
+scale = Vector2(1.00393, 1)
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("2_ieebl")
+attack_type = 0
+spark_base_offset = Vector2(-5, 0)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="attack_tsubame"]
+position = Vector2(35.8595, -48.9999)
+rotation = -3.14159
+scale = Vector2(0.638367, -0.807496)
+shape = SubResource("RectangleShape2D_c2yqj")
+disabled = true
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="attack_tsubame"]
+position = Vector2(81.1816, -49.9998)
+rotation = -3.14159
+scale = Vector2(0.638367, -0.807496)
+shape = SubResource("RectangleShape2D_rxe4g")
+disabled = true
+
+[node name="UltHitbox" type="Area2D" parent="."]
+scale = Vector2(1.00393, 1)
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("2_ieebl")
+attack_type = 0
+spark_base_offset = Vector2(-5, 0)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="UltHitbox"]
+position = Vector2(1.90735e-06, -39)
+rotation = -3.14159
+scale = Vector2(0.638367, -0.807496)
+shape = SubResource("RectangleShape2D_r8mev")
+disabled = true

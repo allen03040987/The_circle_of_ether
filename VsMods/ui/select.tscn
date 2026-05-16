@@ -1,0 +1,42 @@
+[gd_scene load_steps=2 format=3 uid="uid://bn0fk5m6ajqa0"]
+
+[ext_resource type="Script" path="res://VsMods/ui/select.gd" id="1_2sbx2"]
+
+[node name="Select" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_2sbx2")
+
+[node name="fight_button" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_right = 0.5
+anchor_bottom = 2.898
+offset_left = 147.0
+offset_top = 182.0
+offset_right = 232.0
+offset_bottom = 211.0
+
+[node name="p1_char_select" type="OptionButton" parent="."]
+layout_mode = 0
+offset_right = 147.0
+offset_bottom = 56.0
+
+[node name="p1_skill_select" type="OptionButton" parent="."]
+layout_mode = 0
+offset_top = 100.0
+offset_right = 147.0
+offset_bottom = 156.0
+
+[node name="p2_char_select" type="OptionButton" parent="."]
+layout_mode = 0
+offset_left = 232.0
+offset_right = 384.0
+offset_bottom = 56.0
+
+[node name="p2_skill_select" type="OptionButton" parent="."]
+layout_mode = 0
+offset_left = 232.0
+offset_top = 100.0
+offset_right = 379.0
+offset_bottom = 156.0

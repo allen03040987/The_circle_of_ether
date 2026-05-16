@@ -1,0 +1,35 @@
+---
+description: Godot 4.2.2 惡魔城開發規範
+globs: ["**/*.gd", "**/*.tscn"]
+alwaysApply: true
+---
+
+# 核心開發準則
+
+## 1. 物理與位移 (重要)
+- **禁用原生函數**：嚴禁直接呼叫 `move_and_slide()`。
+- **統一介面**：所有位移必須使用 `player.custom_move_and_slide()`，以確保時停與緩速系統正常運作。
+
+## 2. 戰鬥與傷害
+- **防禦力計算**：不要直接操作 `victim.current_hp -= damage`。
+- **傷害介面**：必須統一使用 `victim.take_damage(damage_per_hit)`。
+
+## 3. 動畫與安全
+- **防止崩潰**：播放動畫時，統一使用 `player.play_safe_anim("動畫名")`，利用撐大網格方式防止 Godot 底層越界報錯。
+
+## 4. 狀態機與面向
+- **鎖定面向**：對於不可中途轉向的突進技，進入狀態時需存入 `locked_facing_dir`，並在 `process_physics` 中強制覆寫，且移除 `check_interrupts()`。
+- **物理執行**：`custom_move_and_slide()` 必須寫在各個狀態腳本（如 VsPlayerState.gd 或惡魔城狀態腳本）的 `process_physics` 中。
+
+## 5. 專案邊界
+- 目前專注於「惡魔城」模式開發，除非明確要求，否則不要改動 `VsMods/` 資料夾下的格鬥模組。
+
+## 6. 招式與戰鬥計時（與暫停／時停相容）
+- **遊戲內招式、霸體、冷卻、延遲判定**等「跟關卡同步」的計時，一律透過 **`CombatManager.get_skill_timer(duration)`**（回傳 `SceneTreeTimer`），**不要**隨意改用 `get_tree().create_timer(...)`、`Timer` 節點或自己 new 計時，以免和暫停、`Engine.time_scale`（頓幀／魔女時間）打架。
+- **例外**：選單 UI、純現實時間倒數、或你明確要「與戰鬥時間軸無關」的邏輯，才可另選 API，並在程式裡註解原因。
+
+# 修改習慣
+
+- 改動盡量**小範圍**，對齊既有命名、註解風格與狀態機／信號用法。
+- 與場景綁定的邏輯優先改對應 `.gd`，避免在對話裡假設未存在的節點路徑。
+- 使用者偏好回覆語言：**繁體中文**。

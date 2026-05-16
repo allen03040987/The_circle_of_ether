@@ -1,0 +1,74 @@
+extends State
+## 滑牆狀態 (Wall Slide State)
+## 當角色在空中接觸牆壁，且持續朝牆壁方向推動搖桿時觸發。
+
+# 🔒 鎖定的牆壁法線 (Wall Normal)
+# 牆壁法線就是「垂直於牆壁朝外的方向」。例如在右邊的牆上，法線是向左(-1)。
+# 🌟 秘訣 1：絕對不要在 physics_update 裡每幀重抓！
+# 如果牆壁是由多塊 Tile 拼成的，接縫處的法線可能會瞬間算錯，導致角色掉下來。
+var locked_wall_normal: float
+
+# ==========================================
+# 🎬 狀態生命週期：進入狀態
+# ==========================================
+func enter() -> void:
+	player.play_safe_anim("wall_sliding")
+	
+	# 🎯 抓取並鎖定法線 (只在進入的瞬間抓一次)
+	locked_wall_normal = player.get_wall_normal().x
+	
+	# 🧭 強制設定獨立的射線 (wall_slide_checker) 指向牆壁內部
+	# Godot 內建的 is_on_wall() 有時候會抽風，我們用這根實體射線作為雙重保險
+	var wall_dir := Vector2(-locked_wall_normal, 0)
+	player.wall_slide_checker.target_position = wall_dir * 20
+	player.wall_slide_checker.force_raycast_update()
+	
+	# 🌟 決定面向：滑牆時，身體永遠面向與牆壁相反的方向 (背對或側對牆壁)
+	player.direction = player.Direction.LEFT if locked_wall_normal < 0 else player.Direction.RIGHT
+
+# ==========================================
+# 🏃 物理更新 (每秒 60 次)
+# ==========================================
+func physics_update(delta: float) -> void:
+	var movement := Input.get_axis("move_left", "move_right")
+	
+	# 🌟 秘訣 2：補回水平推力！
+	# 必須讓玩家能持續往牆壁「擠」，系統的 is_on_wall() 才會判定為 true，才不會掉下來！
+	player.velocity.x = move_toward(player.velocity.x, movement * player.RUN_SPEED, player.AIR_ACCELERATION * delta)
+	
+	# 1. 🍎 處理摩擦力重力：滑牆時的重力只有平常的 1/4 ( default_gravity / 4.0 )
+	player.velocity.y += (player.default_gravity / 4.0) * delta
+	
+	# 2. 🛑 滑牆速度控制
+	if state_machine.state_time < 0.15 and player.velocity.y < 0:
+		# 如果角色原本是往上飛的 (例如往上跳撞到牆)，先快速消除向上的力量，讓他「黏」住
+		player.velocity.y *= 0.8
+	else:
+		# 限制最高下滑速度 (170.0)，這就是為什麼能在牆上慢慢滑的原因
+		player.velocity.y = min(player.velocity.y, 170.0)
+		
+	player.custom_move_and_slide()
+	
+	# ==========================================
+	# 🚦 狀態切換決策
+	# ==========================================
+	
+	# ⚡ 閃避 (離開牆壁)
+	if player.slide_request_timer.time_left > 0 and player.stats.energy >= 3:
+		if player.slide_cooldown_timer.is_stopped():
+			state_machine.transition_to("Slide")
+			return
+	
+	# 🚀 牆跳
+	if player.jump_request_timer.time_left > 0:
+		state_machine.transition_to("WallJump")
+		return
+		
+	# 🌍 落地
+	if player.is_on_floor():
+		state_machine.transition_to("Idle")
+		return
+		
+	# 🕳️ 脫離牆壁：玩家主動放開方向鍵，或者射線離開了牆壁 (例如牆壁到底了)
+	if not player.is_on_wall() or not player.wall_slide_checker.is_colliding():
+		state_machine.transition_to("Fall")
