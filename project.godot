@@ -14,6 +14,10 @@ config/name="以太之圓"
 run/main_scene="res://Worlds/cave.tscn"
 config/features=PackedStringArray("4.2", "GL Compatibility")
 
+[audio]
+
+buses/default_bus_layout="res://sound/default_bus_layout.tres"
+
 [autoload]
 
 Game="*res://globals/game.tscn"
@@ -21,6 +25,7 @@ Vignette="res://globals/vignette.tscn"
 VsGameManager="*res://VsMods/ui/VsGameManager.gd"
 CombatManager="*res://Explod/CombatManager.gd"
 PauseMenu="*res://ui/pause_menu.tscn"
+AudioManager="*res://sound/AudioManager.gd"
 
 [display]
 

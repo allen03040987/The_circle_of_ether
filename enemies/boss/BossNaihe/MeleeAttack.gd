@@ -21,7 +21,7 @@ func enter() -> void:
 		_play_attack_anim("attack_6")
 	elif next_move == "A7":
 		combo_count = 7 
-		_play_attack_anim("attack_1") # A7 還沒做好，先播 A1 代替
+		_play_attack_anim("attack_7") # A7 還沒做好，先播 A1 代替
 
 func _play_attack_anim(anim_name: String) -> void:
 	boss.face_player() # 每一刀揮出前，都會重新瞄準玩家一次

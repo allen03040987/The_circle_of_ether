@@ -43,22 +43,22 @@ func _handle_retreat(delta: float) -> void:
 	if timer <= 0:
 		var roll = randf() # 擲骰子
 		
-		# 🔴 30% 機率：後撤接 A5 突刺！(極具壓迫感的回馬槍)
-		if roll < 0.30:
+		# 🔴 40% 機率：後撤接 A5 突刺！(極具壓迫感的回馬槍)
+		if roll < 0.40:
 			state_machine.transition_to("DashAttack")
 			
 		# 🟡 30% 機率：原本的 A4 劈砍 (帶 3 根地刺)
-		elif roll < 0.60:
+		elif roll < 0.70:
 			current_phase = "attack"
 			boss.play_safe_anim("attack_4")
 			
-		# 🟢 20% 機率：後撤接 A6 蔓延地刺 (逼迫玩家跳躍或翻滾)
-		elif roll < 0.80:
+		# 🟢 15% 機率：後撤接 A6 蔓延地刺 (逼迫玩家跳躍或翻滾)
+		elif roll < 0.85:
 			# 利用大腦的標籤系統，把 A6 的指令傳給近戰狀態
 			boss.set_meta("next_melee", "A6")
 			state_machine.transition_to("MeleeAttack")
 			
-		# ⚪ 20% 機率：無作為 (單純拉開距離，退回大腦重新觀察)
+		# ⚪ 15% 機率：無作為 (單純拉開距離，退回大腦重新觀察)
 		else:
 			state_machine.transition_to("Decision")
 
