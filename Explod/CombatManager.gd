@@ -179,14 +179,11 @@ func spawn_dodge_spark(pos: Vector2) -> void:
 # 🛡️ 輔助：抗時停特效加速器 
 # ==========================================
 func _apply_anti_timestop(node: Node) -> void:
-	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+	# 🌟 核心修復：不要再算數學了！
+	# 直接把節點的 Process Mode 設為 ALWAYS (永遠執行)。
+	# 這樣即使 Engine.time_scale 變成了 0.05，這個節點和它底下的動畫依然會以真實世界的時間 (1.0) 播放！
+	node.process_mode = Node.PROCESS_MODE_ALWAYS
 	
-	if node.has_node("AnimationPlayer"): node.get_node("AnimationPlayer").speed_scale = speed_mult
-	if node is GPUParticles2D: node.speed_scale = speed_mult
-	elif node.has_node("GPUParticles2D"): node.get_node("GPUParticles2D").speed_scale = speed_mult
-		
-	if node.has_method("set_anti_timestop_speed"): node.set_anti_timestop_speed(speed_mult)
-
 # ==========================================
 # ⏱️ 動作遊戲專用計時器 (System Timers)
 # ==========================================

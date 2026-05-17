@@ -1054,8 +1054,21 @@ func _force_equip_weapon(target_weapon: Node) -> void:
 	
 	
 	
-
-
+# ==========================================
+# 🎬 動畫事件轉接器 (Animation Events)
+# ==========================================
+# 讓 AnimationPlayer 呼叫這個函數來精準播放揮空聲！
+func trigger_swing_sfx(sfx_type: String) -> void:
+	match sfx_type:
+		"wave":
+			AudioManager.play_sfx(preload("res://sound/SFX/attack/wave.wav"), -8.0)
+		"cut":
+			AudioManager.play_sfx(preload("res://sound/SFX/attack/cut.wav"), -8.0)
+		"cut_2":
+			AudioManager.play_sfx(preload("res://sound/SFX/attack/cut_2.wav"), -8.0)
+		"cut_3":
+			AudioManager.play_sfx(preload("res://sound/SFX/attack/cut_2.wav"), -8.0)
+		
 
 
 func enable_weapon_hitbox(shape_name: String = "") -> void:

@@ -16,11 +16,6 @@ const WEAPON_ID: String = "katana"
 const DIMENSIONAL_SLASH_SCENE = preload("res://Explod/tscn/Dimensional Slash.tscn")
 const SWORD_WAVE_SCENE = preload("res://player/Katana/c_3_wave.tscn")
 
-# 🎵 🌟 新增：預載太刀揮空音效
-const SFX_WAVE = preload("res://sound/SFX/attack/wave.wav") # A1 專用 (輕盈破空聲)
-const SFX_CUT = preload("res://sound/SFX/attack/cut.wav")   # A2, A3, A4 (鋒利斬擊聲)
-const SFX_CUT_2 = preload("res://sound/SFX/attack/cut_2.wav")   # A2, A3, A4 (鋒利斬擊聲)
-const EARTHQUAKE = preload("res://sound/SFX/attack/Earthquake.wav")   # A2, A3, A4 (鋒利斬擊聲)
 
 const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.05, 1.05), 2: Vector2(1.1, 1.1), 3: Vector2(1.15, 1.15) }
 
@@ -39,20 +34,20 @@ var is_tsubame_ready: bool = false          # 強化戰技 (燕返) 是否就緒
 # [普攻字典]
 const LIGHT_ATTACK_CONFIG = {
 	# 格式：招式編號: { 動畫名稱, 開啟哪個判定框, 最大連擊數, 打擊間隔, 擊退力, 基礎傷害, 大招能量回復, 切換值回復, 專屬居合值回復 }
-	1: {"anim": "katana/attack_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(100.0, 0.0), "base_dmg": 512, "hit_sfx_type": "sound_light_2", "energy": 200, "switch": 5, "iai_reward": 2, "sfx": SFX_WAVE},
-	2: {"anim": "katana/attack_2", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(150.0, 0.0), "base_dmg": 512, "hit_sfx_type": "slash_light", "energy": 2, "switch": 5, "iai_reward": 2, "sfx": SFX_CUT},
-	3: {"anim": "katana/attack_3", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "slash_light", "energy": 2, "switch": 5,"iai_reward": 2, "sfx": SFX_CUT},
-	4: {"anim": "katana/attack_4", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(400.0, 0.0), "shake": 30.0, "hit_sfx_type": "slash_light", "base_dmg": 645, "energy": 2, "switch": 5, "iai_reward": 2, "sfx": SFX_CUT},
+	1: {"anim": "katana/attack_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(100.0, 0.0), "base_dmg": 512, "hit_sfx_type": "sound_light_2", "energy": 200, "switch": 5, "iai_reward": 2,},
+	2: {"anim": "katana/attack_2", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(150.0, 0.0), "base_dmg": 512, "hit_sfx_type": "slash_light", "energy": 2, "switch": 5, "iai_reward": 2,},
+	3: {"anim": "katana/attack_3", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "slash_light", "energy": 2, "switch": 5,"iai_reward": 2,},
+	4: {"anim": "katana/attack_4", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(400.0, 0.0), "shake": 30.0, "hit_sfx_type": "slash_light", "base_dmg": 645, "energy": 2, "switch": 5, "iai_reward": 2, },
 }
 
 # [戰技與大招字典] 
 const SKILL_CONFIG = {
 	21: { "anim": "katana/attack_c3", "hitbox_name": "None", "type": Damage.Type.HEAVY, "knockback": Vector2.ZERO, "shake": 20.0, "shake_on_hit_only": true, "base_dmg": 932, "energy": 15, "switch": 20, "iai_reward": 10 },
 	30: { "anim": "katana/attack_c0_charge_start", "hitbox_name": "None", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 0, "energy": 0, "switch": 0, "iai_reward": 0 },
-	34: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2(50.0, 0.0), "shake": 6.0, "shake_on_hit_only": true, "base_dmg": 200,"hit_sfx_type": "slash_light", "energy": 1, "switch": 2, "iai_reward": 0, "sfx": SFX_CUT_2 },
-	32: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 325,"hit_sfx_type": "slash_light", "energy": 1, "switch": 2, "iai_reward": 0, "sfx": SFX_CUT_2 },
-	33: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 3.0, "shake_on_hit_only": true, "base_dmg": 325,"hit_sfx_type": "slash_light", "energy": 1, "switch": 2, "iai_reward": 0, "sfx": SFX_CUT_2 },
-	11: { "anim": "katana/attack_c1", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -500.0), "shake": 20.0, "shake_on_hit_only": false, "base_dmg": 560,"hit_sfx_type": "slash_light", "energy": 10, "switch": 15, "iai_reward": 5 ,"sfx": EARTHQUAKE },
+	34: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2(50.0, 0.0), "shake": 6.0, "shake_on_hit_only": true, "base_dmg": 200,"hit_sfx_type": "slash_light", "energy": 1, "switch": 2, "iai_reward": 0 },
+	32: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 325,"hit_sfx_type": "slash_light", "energy": 1, "switch": 2, "iai_reward": 0, },
+	33: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 3.0, "shake_on_hit_only": true, "base_dmg": 325,"hit_sfx_type": "slash_light", "energy": 1, "switch": 2, "iai_reward": 0,  },
+	11: { "anim": "katana/attack_c1", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -500.0), "shake": 20.0, "shake_on_hit_only": false, "base_dmg": 560,"hit_sfx_type": "slash_light", "energy": 10, "switch": 15, "iai_reward": 5 },
 	12: { "anim": "katana/attack_c1_2", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -300.0), "shake": 30.0, "shake_on_hit_only": true, "base_dmg": 720,"hit_sfx_type": "slash_light", "energy": 10, "switch": 15, "iai_reward": 5 },
 	41: { "anim": "katana/skill_down", "hitbox_name": "C2", "type": Damage.Type.LIGHT, "knockback": Vector2(100.0, 0.0), "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 200,"hit_sfx_type": "slash_light", "energy": 10, "switch": 15, "iai_reward": 10 },
 	
@@ -244,9 +239,11 @@ func start_ultimate() -> void:
 	
 	ult_timer = ult_cd 
 	combo_step = 80
+	player.invincible_time_left = 3.0
+	
 	_play_skill_step(combo_step)
 	
-	player.is_input_locked = true 
+	player.is_input_locked = true
 
 func start_intro_skill() -> void:
 	step_cooldown = 0.15

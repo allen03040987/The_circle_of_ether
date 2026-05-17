@@ -195,6 +195,10 @@ func spawn_anim_vfx(vfx_name: String, offset_x: float = 0.0, offset_y: float = 0
 		return
 
 	var vfx = anim_vfx_library[vfx_name].instantiate()
+	
+	# 🌟 核心修復：拔掉 speed_mult 數學計算，賦予絕對特權！
+	vfx.process_mode = Node.PROCESS_MODE_ALWAYS
+	
 	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
 	
 	# 抗時停與解綁邏輯
