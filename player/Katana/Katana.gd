@@ -19,6 +19,8 @@ const SWORD_WAVE_SCENE = preload("res://player/Katana/c_3_wave.tscn")
 # 🎵 🌟 新增：預載太刀揮空音效
 const SFX_WAVE = preload("res://sound/SFX/attack/wave.wav") # A1 專用 (輕盈破空聲)
 const SFX_CUT = preload("res://sound/SFX/attack/cut.wav")   # A2, A3, A4 (鋒利斬擊聲)
+const SFX_CUT_2 = preload("res://sound/SFX/attack/cut_2.wav")   # A2, A3, A4 (鋒利斬擊聲)
+const EARTHQUAKE = preload("res://sound/SFX/attack/Earthquake.wav")   # A2, A3, A4 (鋒利斬擊聲)
 
 const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.05, 1.05), 2: Vector2(1.1, 1.1), 3: Vector2(1.15, 1.15) }
 
@@ -47,21 +49,21 @@ const LIGHT_ATTACK_CONFIG = {
 const SKILL_CONFIG = {
 	21: { "anim": "katana/attack_c3", "hitbox_name": "None", "type": Damage.Type.HEAVY, "knockback": Vector2.ZERO, "shake": 20.0, "shake_on_hit_only": true, "base_dmg": 932, "energy": 15, "switch": 20, "iai_reward": 10 },
 	30: { "anim": "katana/attack_c0_charge_start", "hitbox_name": "None", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 0, "energy": 0, "switch": 0, "iai_reward": 0 },
-	34: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2(50.0, 0.0), "shake": 6.0, "shake_on_hit_only": true, "base_dmg": 200, "energy": 1, "switch": 2, "iai_reward": 0 },
-	32: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 325, "energy": 1, "switch": 2, "iai_reward": 0 },
-	33: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 3.0, "shake_on_hit_only": true, "base_dmg": 325, "energy": 1, "switch": 2, "iai_reward": 0 },
-	11: { "anim": "katana/attack_c1", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -500.0), "shake": 20.0, "shake_on_hit_only": false, "base_dmg": 560, "energy": 10, "switch": 15, "iai_reward": 5 },
-	12: { "anim": "katana/attack_c1_2", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -300.0), "shake": 30.0, "shake_on_hit_only": true, "base_dmg": 720, "energy": 10, "switch": 15, "iai_reward": 5 },
-	41: { "anim": "katana/skill_down", "hitbox_name": "C2", "type": Damage.Type.LIGHT, "knockback": Vector2(100.0, 0.0), "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 200, "energy": 10, "switch": 15, "iai_reward": 10 },
+	34: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2(50.0, 0.0), "shake": 6.0, "shake_on_hit_only": true, "base_dmg": 200,"hit_sfx_type": "slash_light", "energy": 1, "switch": 2, "iai_reward": 0, "sfx": SFX_CUT_2 },
+	32: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 325,"hit_sfx_type": "slash_light", "energy": 1, "switch": 2, "iai_reward": 0, "sfx": SFX_CUT_2 },
+	33: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 3.0, "shake_on_hit_only": true, "base_dmg": 325,"hit_sfx_type": "slash_light", "energy": 1, "switch": 2, "iai_reward": 0, "sfx": SFX_CUT_2 },
+	11: { "anim": "katana/attack_c1", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -500.0), "shake": 20.0, "shake_on_hit_only": false, "base_dmg": 560,"hit_sfx_type": "slash_light", "energy": 10, "switch": 15, "iai_reward": 5 ,"sfx": EARTHQUAKE },
+	12: { "anim": "katana/attack_c1_2", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -300.0), "shake": 30.0, "shake_on_hit_only": true, "base_dmg": 720,"hit_sfx_type": "slash_light", "energy": 10, "switch": 15, "iai_reward": 5 },
+	41: { "anim": "katana/skill_down", "hitbox_name": "C2", "type": Damage.Type.LIGHT, "knockback": Vector2(100.0, 0.0), "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 200,"hit_sfx_type": "slash_light", "energy": 10, "switch": 15, "iai_reward": 10 },
 	
 	# 🌟 強化戰技 (42) - 燕返：第一段配置為 12 連擊的黏著攻擊
 	42: { "anim": "katana/attack_tsubame", "hitbox_name": "attack_tsubame", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -80.0), "shake": 0.0, "shake_on_hit_only": true, 
-		"base_dmg": 200, "energy": 25, "switch": 30, "iai_reward": 0, 
+		"base_dmg": 200,"hit_sfx_type": "slash_light", "energy": 25, "switch": 30, "iai_reward": 0, 
 		"max_hits": 12, "interval": 0.1, "sticky": true },
 	
 	# 🌟 大招 (80) - 全屏 20 連斬：脫手黏著攻擊
 	80: { "anim": "katana/attack_ult", "hitbox_name": "UltHitbox", "type": Damage.Type.HEAVY, "knockback": Vector2(10.0, -100.0), "shake": 5.0, "shake_on_hit_only": true, "base_dmg": 150, "energy": 0, "switch": 0, "iai_reward": 0, 
-		"max_hits": 20, "interval": 0.1, "sticky": true },
+		"max_hits": 20,"hit_sfx_type": "slash_light", "interval": 0.1, "sticky": true },
 	# 🌟 大招結尾演出 (81) - 純收招，無傷害，無無敵
 	81: { "anim": "katana/attack_ult_end", "hitbox_name": "None", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 0, "energy": 0, "switch": 0, "iai_reward": 0 },
 	
@@ -71,8 +73,8 @@ const SKILL_CONFIG = {
 
 # [空戰字典]
 const AIR_ATTACK_CONFIG = {
-	61: { "anim": "katana/air_attack_1", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(20.0, -200.0), "base_dmg": 300, "energy": 2, "switch": 4, "iai_reward": 2},
-	62: { "anim": "katana/air_attack_2", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(20.0, -300.0), "base_dmg": 300, "energy": 2, "switch": 4, "iai_reward": 2},
+	61: { "anim": "katana/air_attack_1", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(20.0, -200.0), "base_dmg": 300,"hit_sfx_type": "slash_light", "energy": 2, "switch": 4, "iai_reward": 2},
+	62: { "anim": "katana/air_attack_2", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(20.0, -300.0), "base_dmg": 300,"hit_sfx_type": "slash_light", "energy": 2, "switch": 4, "iai_reward": 2},
 }
 
 # ==========================================
