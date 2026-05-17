@@ -136,7 +136,7 @@ func spawn_spark(type: int, spawn_position: Vector2, attacker_dir: int = 1, targ
 		)
 		
 		_apply_vfx_colors(spark, hdr_color, aura_color)
-		_apply_anti_timestop(spark)
+		
 
 func _apply_vfx_colors(node: Node, main_color: Color, aura_color: Color) -> void:
 	if node is CanvasItem and node.name != "AnimationPlayer":

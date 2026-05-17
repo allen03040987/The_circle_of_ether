@@ -337,43 +337,39 @@ func custom_move_and_slide() -> void:
 # ⚔️ 受擊系統與運算
 # ==========================================
 func take_damage(temp_damage: Damage) -> void:
-	if is_dead or state_machine.current_state.name.to_lower() == "dying":
-		return
+	if is_dead or state_machine.current_state.name.to_lower() == "dying": return
+	if invincible_time_left > 0 or invincible_timer.time_left > 0: return
 	
-	if invincible_time_left > 0 or invincible_timer.time_left > 0:
-		return
-	
-	# 強制清除輸入緩衝
 	is_combo_requested = false
 	is_heavy_requested = false
 	combo_buffer_time = 0.0
 	heavy_buffer_time = 0.0
 	
+	# 🌟 1. 這裡只負責扣血
 	stats.health -= temp_damage.amount
-	
-	# 受擊短暫無敵
-	var invincible_duration = 0.8
-	var timer = CombatManager.get_skill_timer(invincible_duration)
-	invincible_time_left = invincible_duration 
-	timer.timeout.connect(func(): pass)
-	
 	velocity = Vector2.ZERO 
 	
+	# 🌟 2. 根據你要的設計，精準發放無敵時間！
 	match temp_damage.type:
 		Damage.Type.NO_STUN:
-			pending_damage = null # 🌟 補上這行，防止霸體受擊卡死移動
-			pass 
+			pending_damage = null
 		Damage.Type.HEAVY:
+			grant_invincibility(0.5) # 挑飛給 0.5 秒無敵！
 			state_machine.call_deferred("transition_to", "Launched") 
 		Damage.Type.THROW:
-			pending_damage = null # 🌟 補上這行
-			print("未來擴充：被抓取狀態 Grabbed")
-		_, Damage.Type.LIGHT:
+			pending_damage = null
+		_: # 預設與 LIGHT
+			grant_invincibility(0.25) # 輕受擊給 0.25 秒無敵！
 			state_machine.call_deferred("transition_to", "Hurt")
-	
+			
 	if stats.health <= 0:
 		state_machine.call_deferred("transition_to", "Dying")
 
+# 🌟 統一下發無敵時間，確保 Hitbox 跟 Player 不會精神分裂
+func grant_invincibility(duration: float) -> void:
+	invincible_time_left = duration
+	invincible_timer.start(duration)
+	
 func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
 	
 	if is_dead or state_machine.current_state.name.to_lower() == "dying":

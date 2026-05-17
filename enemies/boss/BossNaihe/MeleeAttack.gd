@@ -26,6 +26,25 @@ func enter() -> void:
 func _play_attack_anim(anim_name: String) -> void:
 	boss.face_player() # 每一刀揮出前，都會重新瞄準玩家一次
 	
+	# ==========================================
+	# 🌟 臨時測試：強制修改 Boss 近戰判定框的火花
+	# ==========================================
+	# (請確認你的 Boss 近戰判定框節點名稱是不是叫 "Hitbox"，如果不是請改一下字串)
+	var hitbox = boss.get_node_or_null("WeaponHitbox") as Hitbox 
+	
+	if hitbox:
+		# 預設先幫你改成【太刀的預設火花 (SLASH)】
+		# 這樣打中玩家時，只會噴出最基本的條狀火花，不會有複雜的自訂特效干擾
+		#hitbox.spark_type = Hitbox.SparkType.SLASH
+		#hitbox.custom_spark_scene = null
+		#hitbox.spark_scale = 1.0
+		#hitbox.spark_color = Color(1.0, 0.2, 0.2, 1.0) # 給它紅色，方便你跟玩家的特效區分
+		
+		# 💡 如果你想要「完全關閉」火花，把上面那幾行註解掉，改用這兩行：
+		hitbox.spark_type = Hitbox.SparkType.OTHER
+		hitbox.custom_spark_scene = null
+	# ==========================================
+	
 	if boss.animation_player.has_animation(anim_name):
 		boss.play_safe_anim(anim_name)
 	else:

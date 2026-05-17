@@ -5918,7 +5918,7 @@ wait_time = 0.4
 one_shot = true
 
 [node name="InvincibleTimer" type="Timer" parent="."]
-wait_time = 0.25
+wait_time = 0.001
 one_shot = true
 
 [node name="StateMachine" type="Node" parent="." node_paths=PackedStringArray("initial_state")]

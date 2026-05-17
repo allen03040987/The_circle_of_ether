@@ -1496,9 +1496,12 @@ collision_layer = 0
 collision_mask = 8
 script = ExtResource("4_lbp7r")
 knockback_force = Vector2(500, 0)
-spark_base_offset = Vector2(0, -5)
+spark_base_offset = Vector2(0, -30)
 spark_random_angle = 360.0
 spark_random_offset = Vector2(0, 0)
+spark_scale = 0.4
+spark_color = Color(1, 0.0705882, 1, 1)
+aura_color = Color(0.286275, 0.207843, 1, 0.501961)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/WeaponHitbox"]
 position = Vector2(66.5, -46.5)

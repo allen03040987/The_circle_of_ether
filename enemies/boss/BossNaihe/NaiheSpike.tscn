@@ -103,9 +103,12 @@ collision_layer = 0
 collision_mask = 8
 script = ExtResource("3_thi8e")
 knockback_force = Vector2(500, 0)
-spark_base_offset = Vector2(0, -5)
+spark_base_offset = Vector2(0, -23)
 spark_random_angle = 360.0
 spark_random_offset = Vector2(0, 0)
+spark_scale = 0.4
+spark_color = Color(0.227451, 0.243137, 1, 1)
+aura_color = Color(1, 0.6, 1, 0.501961)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
 position = Vector2(4.5, -81)

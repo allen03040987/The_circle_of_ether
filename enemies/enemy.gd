@@ -196,15 +196,8 @@ func spawn_anim_vfx(vfx_name: String, offset_x: float = 0.0, offset_y: float = 0
 
 	var vfx = anim_vfx_library[vfx_name].instantiate()
 	
-	# 🌟 核心修復：拔掉 speed_mult 數學計算，賦予絕對特權！
-	vfx.process_mode = Node.PROCESS_MODE_ALWAYS
-	
-	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-	
-	# 抗時停與解綁邏輯
-	if vfx.has_node("AnimationPlayer"): vfx.get_node("AnimationPlayer").speed_scale = speed_mult
-	if vfx is GPUParticles2D: vfx.speed_scale = speed_mult
-	elif vfx.has_node("GPUParticles2D"): vfx.get_node("GPUParticles2D").speed_scale = speed_mult
+	# 🗑️ 刪除：把所有 speed_mult 或 process_mode 的抗時停邏輯全部刪掉！
+	# 讓特效乖乖繼承引擎當前的 time_scale。
 		
 	if detach:
 		get_parent().add_child(vfx)
@@ -219,7 +212,7 @@ func spawn_anim_vfx(vfx_name: String, offset_x: float = 0.0, offset_y: float = 0
 	vfx.rotation_degrees = rotation_deg * direction
 	
 	_apply_vfx_colors(vfx, Color(custom_color.r * raw_intensity, custom_color.g * raw_intensity, custom_color.b * raw_intensity, custom_color.a), aura_color)
-
+	
 # 記得也要把這個私有函數搬過去
 func _apply_vfx_colors(node: Node, main_color: Color, aura_color: Color) -> void:
 	if node is CanvasItem and node.name != "AnimationPlayer":

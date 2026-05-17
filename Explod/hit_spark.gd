@@ -19,12 +19,3 @@ func _ready() -> void:
 func trigger_particles() -> void:
 	particles.emitting = true
 
-# ==========================================
-# 🌟 終極抗時停裝甲：每一幀動態對抗世界時間
-# ==========================================
-func _process(_delta: float) -> void:
-	# 即時抓取當下的時間流速，確保永遠不會錯過時停！
-	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-	
-	if anim_player: anim_player.speed_scale = speed_mult
-	if particles: particles.speed_scale = speed_mult
