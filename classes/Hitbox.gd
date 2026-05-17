@@ -42,6 +42,7 @@ var multi_hit_energy: bool = false # 是否每段攻擊皆給予資源
 # 🧃 4. 打擊感與視覺特效 (VFX)
 # ==========================================
 @export_group("打擊回饋")
+@export var hit_sfx_type: String = "" #  專屬受擊音效 (打中肉的聲音)
 @export var hitstop_duration: float = 0.0 # 卡肉 (時停) 時間
 @export var shake_intensity: float = 0.0  # 震動強度
 @export var shake_on_hit_only: bool = true # 是否僅在命中時震動
@@ -247,6 +248,9 @@ func _execute_hit(hurtbox: Node) -> void:
 		CombatManager.apply_hitstop(hitstop_duration)
 	if shake_intensity > 0 and CombatManager.has_method("apply_camera_shake"):
 		CombatManager.apply_camera_shake(shake_intensity)
+	# (稍微調大聲一點，例如 -2.0，因為打中人的聲音必須比揮空聲更有力)
+	if hit_sfx_type != "":
+		AudioManager.play_hit_sfx(hit_sfx_type, -2.0)
 		
 	# --- 5. 生成火花與打擊特效 ---
 	if (spark_type != SparkType.OTHER or custom_spark_scene != null) and CombatManager.has_method("spawn_spark"):

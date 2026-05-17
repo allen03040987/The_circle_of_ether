@@ -16,6 +16,10 @@ const WEAPON_ID: String = "katana"
 const DIMENSIONAL_SLASH_SCENE = preload("res://Explod/tscn/Dimensional Slash.tscn")
 const SWORD_WAVE_SCENE = preload("res://player/Katana/c_3_wave.tscn")
 
+# 🎵 🌟 新增：預載太刀揮空音效
+const SFX_WAVE = preload("res://sound/SFX/attack/wave.wav") # A1 專用 (輕盈破空聲)
+const SFX_CUT = preload("res://sound/SFX/attack/cut.wav")   # A2, A3, A4 (鋒利斬擊聲)
+
 const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.05, 1.05), 2: Vector2(1.1, 1.1), 3: Vector2(1.15, 1.15) }
 
 # ==========================================
@@ -33,10 +37,10 @@ var is_tsubame_ready: bool = false          # 強化戰技 (燕返) 是否就緒
 # [普攻字典]
 const LIGHT_ATTACK_CONFIG = {
 	# 格式：招式編號: { 動畫名稱, 開啟哪個判定框, 最大連擊數, 打擊間隔, 擊退力, 基礎傷害, 大招能量回復, 切換值回復, 專屬居合值回復 }
-	1: {"anim": "katana/attack_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(100.0, 0.0), "base_dmg": 512, "energy": 200, "switch": 5, "iai_reward": 2},
-	2: {"anim": "katana/attack_2", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(150.0, 0.0), "base_dmg": 512, "energy": 2, "switch": 5, "iai_reward": 2},
-	3: {"anim": "katana/attack_3", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "energy": 2, "switch": 5,"iai_reward": 2},
-	4: {"anim": "katana/attack_4", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(400.0, 0.0), "shake": 30.0, "base_dmg": 645, "energy": 2, "switch": 5, "iai_reward": 2},
+	1: {"anim": "katana/attack_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(100.0, 0.0), "base_dmg": 512, "hit_sfx_type": "sound_light_2", "energy": 200, "switch": 5, "iai_reward": 2, "sfx": SFX_WAVE},
+	2: {"anim": "katana/attack_2", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(150.0, 0.0), "base_dmg": 512, "hit_sfx_type": "slash_light", "energy": 2, "switch": 5, "iai_reward": 2, "sfx": SFX_CUT},
+	3: {"anim": "katana/attack_3", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "slash_light", "energy": 2, "switch": 5,"iai_reward": 2, "sfx": SFX_CUT},
+	4: {"anim": "katana/attack_4", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(400.0, 0.0), "shake": 30.0, "hit_sfx_type": "slash_light", "base_dmg": 645, "energy": 2, "switch": 5, "iai_reward": 2, "sfx": SFX_CUT},
 }
 
 # [戰技與大招字典] 
@@ -643,6 +647,11 @@ func _play_light_step(step: int) -> void:
 	disable_hitbox()
 	var config: Dictionary = LIGHT_ATTACK_CONFIG[step]
 	_apply_hitbox_config(config)
+	
+	if config.has("sfx") and config["sfx"] != null:
+		# 參數：音檔, 音量 (-8.0), 音調隨機度 (交給 AudioManager 處理)
+		AudioManager.play_sfx(config["sfx"], -8.0)
+		
 	if player.animation_player.current_animation == config["anim"]: player.animation_player.stop()
 	player.play_safe_anim(config["anim"])
 
@@ -651,6 +660,10 @@ func _play_skill_step(step: int) -> void:
 	var config: Dictionary = SKILL_CONFIG[step]
 	_apply_hitbox_config(config)
 	
+	# 🎵 🌟 戰技與大招的揮空音效
+	if config.has("sfx") and config["sfx"] != null:
+		AudioManager.play_sfx(config["sfx"], -5.0)
+		
 	# 特殊 Hitbox 屬性覆寫
 	if current_active_hitbox:
 		if step in [11, 12]: current_active_hitbox.spark_type = 1; current_active_hitbox.spark_scale = 0.8
@@ -684,6 +697,7 @@ func _apply_hitbox_config(config: Dictionary) -> void:
 	if hitbox:
 		hitbox.damage_amount = config["base_dmg"]
 		hitbox.max_hits = config.get("max_hits", 1)
+		hitbox.hit_sfx_type = config.get("hit_sfx_type", "")
 		hitbox.hit_interval = config.get("interval", 0.0)
 		hitbox.attack_type = config.get("type", Damage.Type.LIGHT)
 		hitbox.knockback_force = config.get("knockback", Vector2.ZERO)

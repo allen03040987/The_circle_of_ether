@@ -2,6 +2,8 @@ extends State
 ## 下墜狀態 (Fall State)
 ## 處理角色自由落體的過程。可能是跳躍到達頂點後觸發，也可能是直接走下懸崖觸發。
 
+const LAND_SFX = preload("res://sound/SFX/land.wav")
+
 # ==========================================
 # 🎬 狀態生命週期：進入狀態
 # ==========================================
@@ -52,6 +54,9 @@ func physics_update(delta: float) -> void:
 	
 	# 🌍 落地判定
 	if player.is_on_floor():
+		if LAND_SFX:
+			AudioManager.play_sfx(LAND_SFX, -10.0, 1.0)
+		
 		if is_zero_approx(movement):
 			state_machine.transition_to("Idle")
 		else:

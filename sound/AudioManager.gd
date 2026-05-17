@@ -3,6 +3,25 @@ extends Node
 ## 負責播放背景音樂 (BGM) 以及不受場景銷毀影響的全域音效 (SFX)
 
 # ==========================================
+# 💥 受擊音效庫 (Hit SFX Bank)
+# ==========================================
+# 🌟 在這裡預載所有「可共用」的受擊音效 (強烈建議這裡放 AudioStreamRandomizer 資源)
+var hit_sfx_bank: Dictionary = {
+	"slash_light": preload("res://sound/SFX/hit/hit.wav"), 
+	"sound_light": preload("res://sound/SFX/hit/hit_2.wav"), 
+	"sound_light_2": preload("res://sound/SFX/hit/hit_3.wav"), 
+
+}
+
+# 武器或 Hitbox 只要傳遞「字串標籤」過來點歌即可
+func play_hit_sfx(sfx_key: String, volume_db: float = -2.0) -> void:
+	if sfx_key == "" or not hit_sfx_bank.has(sfx_key):
+		return # 如果沒這個標籤，就不播
+		
+	var stream = hit_sfx_bank[sfx_key]
+	play_sfx(stream, volume_db)
+	
+# ==========================================
 # 🎵 背景音樂 (BGM) 控制
 # ==========================================
 var _bgm_player: AudioStreamPlayer
