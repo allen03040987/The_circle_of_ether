@@ -952,7 +952,20 @@ func die_gracefully():
 				child.set("current_active_hitbox", child.get_node(hb_path))
 				
 	phantom.set("outgoing_weapon", cloned_weapon)
-
+	
+	# ==========================================
+	# 🌟 核心修復：複製一個靜音的 SfxPlayer 給殘影，塞住 AnimationPlayer 的嘴！
+	# ==========================================
+	var original_sfx = self.get_node_or_null("SfxPlayer")
+	if original_sfx:
+		var dummy_sfx = original_sfx.duplicate()
+		# 徹底閹割它的發聲能力，避免殘影產生幽靈腳步聲
+		if "volume_db" in dummy_sfx: 
+			dummy_sfx.volume_db = -80.0
+		if "stream" in dummy_sfx: 
+			dummy_sfx.stream = null
+		phantom.add_child(dummy_sfx)
+		
 	# --- 轉移動畫與重置所有權 ---
 	var cloned_anim = animation_player.duplicate()
 	phantom.add_child(cloned_anim)
