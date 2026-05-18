@@ -27,14 +27,15 @@ func _make_decision() -> void:
 	
 	if dist > 150:
 		# 🟢 較遠距離：A5突刺(25%)、A6地刺(25%)、未來A8(25%)、靠近(25%)
-		if roll < 0.25:
+		if roll < 0.05:
 			state_machine.transition_to("DashAttack") # A5 突刺
-		elif roll < 0.50:
+		elif roll < 0.05:
 			boss.set_meta("next_melee", "A6")
 			state_machine.transition_to("MeleeAttack") # 轉交給近戰狀態放 A6
-		elif roll < 0.75:
-			print("🔧 [預留] 準備施放遠距離 A8！目前暫用 Chase 代替")
-			state_machine.transition_to("Chase")
+		elif roll < 0.9:
+			print("🌪️ 距離過遠！發動 A8 引力波吸取玩家！")
+			boss.set_meta("next_melee", "A8")
+			state_machine.transition_to("MeleeAttack")
 		else:
 			state_machine.transition_to("Chase") # 走過去靠近玩家
 			
@@ -59,6 +60,5 @@ func _make_decision() -> void:
 			boss.set_meta("next_melee", "A3")
 			state_machine.transition_to("MeleeAttack")
 		else:
-			print("🔧 [預留] 準備施放中距離 A7！目前暫用 A1 代替")
 			boss.set_meta("next_melee", "A7")
 			state_machine.transition_to("MeleeAttack")

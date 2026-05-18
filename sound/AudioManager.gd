@@ -7,12 +7,42 @@ extends Node
 # ==========================================
 # 🌟 在這裡預載所有「可共用」的受擊音效 (強烈建議這裡放 AudioStreamRandomizer 資源)
 var hit_sfx_bank: Dictionary = {
-	"slash_light": preload("res://sound/SFX/hit/hit.wav"), 
-	"sound_light": preload("res://sound/SFX/hit/hit_2.wav"), 
-	"sound_light_2": preload("res://sound/SFX/hit/hit_3.wav"), 
+	"hit": preload("res://sound/SFX/hit/hit.wav"), 
+	"hit_2": preload("res://sound/SFX/hit/hit_2.wav"), 
+	"hit_3": preload("res://sound/SFX/hit/hit_3.wav"), 
 
 }
 
+# ==========================================
+# 🗡️ 揮空與動作音效庫 (Action SFX Bank)
+# ==========================================
+# 🌟 未來所有的空揮聲、拔刀聲、腳步聲，通通集中在這裡註冊！
+var action_sfx_bank: Dictionary = {
+	"wave": preload("res://sound/SFX/attack/wave.wav"),
+	"wave_2": preload("res://sound/SFX/attack/wave_2.wav"),
+	"cut": preload("res://sound/SFX/attack/cut.wav"),
+	"cut_2": preload("res://sound/SFX/attack/cut_2.wav"),
+	"cut_3": preload("res://sound/SFX/attack/cut_3.wav"), 
+	"cut_4": preload("res://sound/SFX/attack/cut_4.wav"), 
+	"cut_5": preload("res://sound/SFX/attack/cut_5.wav"), 
+	
+	"Earthquake": preload("res://sound/SFX/attack/Earthquake.wav"),
+	"Earthquake_2": preload("res://sound/SFX/attack/Earthquake_2.wav"),
+	
+	# 💡 如果 hit_4 是武器「打中肉」的聲音，未來建議把它移到我們之前寫的 hit_sfx_bank 裡
+	# 但如果它是砸地板或特殊動作的碰撞聲，放在這裡完全沒問題！
+	"hit_4": preload("res://sound/SFX/hit/hit_4.wav") 
+}
+
+# 負責接收各個角色傳來的「點歌標籤」
+func play_action_sfx(sfx_key: String, volume_db: float = -8.0) -> void:
+	if sfx_key == "" or not action_sfx_bank.has(sfx_key):
+		printerr("⚠️ [AudioManager] 找不到動作音效標籤: ", sfx_key)
+		return
+		
+	var stream = action_sfx_bank[sfx_key]
+	play_sfx(stream, volume_db)
+	
 # 武器或 Hitbox 只要傳遞「字串標籤」過來點歌即可
 func play_hit_sfx(sfx_key: String, volume_db: float = -2.0) -> void:
 	if sfx_key == "" or not hit_sfx_bank.has(sfx_key):

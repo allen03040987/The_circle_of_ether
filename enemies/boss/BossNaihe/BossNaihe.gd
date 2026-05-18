@@ -13,6 +13,8 @@ const SPIKE_SPAWNER_SCENE = preload("res://enemies/boss/BossNaihe/NaiheSpikeSpaw
 # --- 戰鬥階段與招式 ---
 var current_phase: int = 1
 
+var _hb_defaults := {} # 🌟 用來備份 Hitbox 的初始面板設定
+
 const ATTACKS = {
 	"combo_1": {"anim": "naihe/attack_1", "dist": 150}, 
 	"combo_2": {"anim": "naihe/attack_2", "dist": 150}, 
@@ -23,16 +25,27 @@ var current_attack_anim: String = ""
 # ⚙️ 初始化與生命週期
 # ==========================================
 func _ready() -> void:
-	# 專屬體質設定：霸體且免疫挑飛
 	can_be_launched = false
 	has_full_super_armor = true
+	
+	# 🌟 記下面板設定
+	var hb = get_node_or_null("Graphics/WeaponHitbox")
+	if hb:
+		_hb_defaults = {
+			"sticky_multi_hit": hb.get("sticky_multi_hit"),
+			"max_hits": hb.get("max_hits"),
+			"hit_interval": hb.get("hit_interval"),
+			"damage_amount": hb.get("damage_amount"),
+			"attack_type": hb.get("attack_type"),
+			"knockback_force": hb.get("knockback_force") # 🌟 多備份這行擊退力！
+		}
 	
 	if hurtbox and not hurtbox.hurt.is_connected(_on_hurtbox_hurt):
 		hurtbox.hurt.connect(_on_hurtbox_hurt)
 		
 	if stats and not stats.health_changed.is_connected(_on_health_changed):
 		stats.health_changed.connect(_on_health_changed)
-
+		
 func _physics_process(delta: float) -> void:
 	pass # 面向控制交由 StateMachine 處理
 
@@ -132,13 +145,43 @@ func enable_hitbox(shape_name: String = "") -> void:
 	var hb = get_node_or_null("Graphics/WeaponHitbox") as Hitbox
 	if hb:
 		hb.hit_targets.clear()
-		hb.sticky_multi_hit = false
 		
-		# 動態賦予絕對擊退方向
-		var base_kb_x = abs(hb.knockback_force.x) 
-		var base_kb_y = hb.knockback_force.y      
-		hb.absolute_knockback = Vector2(base_kb_x * direction, base_kb_y)
+		var is_pull_attack = (shape_name == "Shape_A8_Pull") or (animation_player and animation_player.current_animation.ends_with("attack_8"))
 		
+		if is_pull_attack:
+			hb.sticky_multi_hit = true
+			hb.max_hits = 5          
+			hb.hit_interval = 0.1     
+			hb.damage_amount = 0      
+			hb.attack_type = Damage.Type.NO_STUN
+			
+			# 🌟 核心修復：直接改本體的擊退力！讓 Player.gd 完美的數學公式接管吸力！
+			hb.knockback_force = Vector2(-400.0, 0.0) 
+			
+			# 把 absolute_knockback 清空，防止它蓋過我們漂亮的相對數學
+			if "absolute_knockback" in hb:
+				hb.absolute_knockback = Vector2.ZERO
+			
+			hb.spark_type = Hitbox.SparkType.OTHER 
+			hb.custom_spark_scene = null
+			
+		else:
+			# 🔄 普通招式：還原所有的面板設定
+			if not _hb_defaults.is_empty():
+				hb.sticky_multi_hit = _hb_defaults["sticky_multi_hit"]
+				hb.max_hits = _hb_defaults["max_hits"]
+				hb.hit_interval = _hb_defaults["hit_interval"]
+				hb.damage_amount = _hb_defaults["damage_amount"]
+				hb.attack_type = _hb_defaults["attack_type"]
+				hb.knockback_force = _hb_defaults["knockback_force"] # 🌟 還原擊退力！
+			
+			# 普通招式維持原有的強制定向擊退邏輯
+			var base_kb_x = abs(hb.knockback_force.x) 
+			var base_kb_y = hb.knockback_force.y      
+			if "absolute_knockback" in hb:
+				hb.absolute_knockback = Vector2(base_kb_x * direction, base_kb_y)
+		
+		# 開啟對應的 Hitbox
 		for child in hb.get_children():
 			if child is CollisionShape2D and (shape_name == "" or child.name == shape_name):
 				child.set_deferred("disabled", false)

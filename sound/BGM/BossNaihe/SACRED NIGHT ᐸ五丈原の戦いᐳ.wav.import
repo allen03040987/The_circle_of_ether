@@ -2,7 +2,7 @@
 
 importer="wav"
 type="AudioStreamWAV"
-uid="uid://c5rbls20l3jr5"
+uid="uid://cobbvrw4goqh3"
 path="res://.godot/imported/SACRED NIGHT ᐸ五丈原の戦いᐳ.wav-8429a4d389494c1c9522a2b12b326f56.sample"
 
 [deps]
@@ -18,7 +18,7 @@ force/max_rate=false
 force/max_rate_hz=44100
 edit/trim=false
 edit/normalize=false
-edit/loop_mode=2
+edit/loop_mode=0
 edit/loop_begin=0
 edit/loop_end=-1
 compress/mode=0

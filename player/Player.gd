@@ -18,7 +18,7 @@ const TERMINAL_VELOCITY := 700.0 # 終端下落速度
 const WALL_JUMP_VELOCITY := Vector2(300, -500) 
 
 var default_gravity := ProjectSettings.get("physics/2d/default_gravity") as float
-
+var external_force := Vector2.ZERO # 用來儲存風力或黑洞牽引力
 # ==========================================
 # 廣播信號 (Signals)
 # ==========================================
@@ -331,7 +331,15 @@ func custom_move_and_slide() -> void:
 	if pending_damage != null:
 		return
 		
+	# 🌟 神級物理：把外部牽引力疊加進去，算完立刻還原！
+	# 這樣就算玩家正在普攻(速度被武器鎖死)，也依然會被吸走！
+	var original_x = velocity.x
+	velocity.x += external_force.x
 	move_and_slide()
+	velocity.x = original_x 
+	
+	# 牽引力每幀快速衰減，確保吸力一停，玩家就恢復正常
+	external_force.x = move_toward(external_force.x, 0.0, 1500.0 * get_physics_process_delta_time())
 
 # ==========================================
 # ⚔️ 受擊系統與運算
@@ -397,6 +405,21 @@ func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
 		var dir_x : float = sign(global_position.x - hitbox.owner.global_position.x)
 		if dir_x == 0: dir_x = -direction 
 		final_knockback = Vector2(raw_force.x * dir_x, raw_force.y)
+	
+	# ==========================================
+	# 🌟 攔截通道：如果是牽引技 (0 傷害且 NO_STUN)
+	# ==========================================
+	if final_amount == 0 and final_type == Damage.Type.NO_STUN:
+		# 直接把吸力注入 external_force
+		external_force = final_knockback
+		# 🚨 直接 return！絕對不觸發後面的無敵時間跟受擊判定！
+		return 
+
+	# ==========================================
+	
+	# 原本的無敵檢查 (被牽引通道繞過了，所以正常攻擊還是會被擋)
+	if invincible_time_left > 0 or invincible_timer.time_left > 0:
+		return
 	
 	pending_damage = {
 		"source": hitbox,
@@ -1066,20 +1089,10 @@ func _force_equip_weapon(target_weapon: Node) -> void:
 # ==========================================
 # 🎬 動畫事件轉接器 (Animation Events)
 # ==========================================
-# 讓 AnimationPlayer 呼叫這個函數來精準播放揮空聲！
+# 讓 AnimationPlayer 呼叫這個函數，再由它轉交給總機 AudioManager 播放
 func trigger_swing_sfx(sfx_type: String) -> void:
-	match sfx_type:
-		"wave":
-			AudioManager.play_sfx(preload("res://sound/SFX/attack/wave.wav"), -8.0)
-		"cut":
-			AudioManager.play_sfx(preload("res://sound/SFX/attack/cut.wav"), -8.0)
-		"cut_2":
-			AudioManager.play_sfx(preload("res://sound/SFX/attack/cut_2.wav"), -8.0)
-		"cut_3":
-			AudioManager.play_sfx(preload("res://sound/SFX/attack/cut_2.wav"), -8.0)
+	AudioManager.play_action_sfx(sfx_type, -8.0)
 		
-
-
 func enable_weapon_hitbox(shape_name: String = "") -> void:
 	if is_instance_valid(current_weapon) and current_weapon.has_method("enable_hitbox"):
 		current_weapon.enable_hitbox(shape_name)

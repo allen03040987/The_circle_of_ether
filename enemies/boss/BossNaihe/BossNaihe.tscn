@@ -1,4 +1,4 @@
-[gd_scene load_steps=60 format=3 uid="uid://ckdh77mixmkpo"]
+[gd_scene load_steps=64 format=3 uid="uid://ckdh77mixmkpo"]
 
 [ext_resource type="Script" path="res://enemies/boss/BossNaihe/BossNaihe.gd" id="1_yd66y"]
 [ext_resource type="PackedScene" uid="uid://c1s06onyotqf3" path="res://Explod/tscn/cut.tscn" id="2_hpj24"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://classes/BaseStats.gd" id="5_l8wow"]
 [ext_resource type="Script" path="res://classes/StateMachine.gd" id="5_p2ur3"]
 [ext_resource type="PackedScene" uid="uid://bnxo3v1t67xfj" path="res://Explod/tscn/Circular cut.tscn" id="5_u4grm"]
+[ext_resource type="PackedScene" uid="uid://ejwp3sdtv1s3" path="res://Explod/tscn/whirlwind.tscn" id="6_fptfq"]
 [ext_resource type="Texture2D" uid="uid://08ww515mlicw" path="res://enemies/boss/BossNaihe/idle.png" id="6_oe7dt"]
 [ext_resource type="Script" path="res://enemies/boss/BossNaihe/BossIdle.gd" id="6_ulw7j"]
 [ext_resource type="Script" path="res://enemies/boss/BossNaihe/BossChase.gd" id="7_2kliv"]
@@ -28,6 +29,7 @@
 [ext_resource type="Script" path="res://enemies/boss/BossNaihe/Death.gd" id="15_2814w"]
 [ext_resource type="Texture2D" uid="uid://dgx3gn5flvfm" path="res://enemies/boss/BossNaihe/A7.png" id="16_6xuaf"]
 [ext_resource type="Texture2D" uid="uid://3h6puyf1ngfm" path="res://HUD/Base-01.png" id="16_ea470"]
+[ext_resource type="Texture2D" uid="uid://chybxydsc5y5u" path="res://enemies/boss/BossNaihe/A8.png" id="19_j3b85"]
 [ext_resource type="Script" path="res://enemies/boss/BossNaihe/RetreatAttack.gd" id="19_vko6e"]
 [ext_resource type="Script" path="res://enemies/boss/BossNaihe/Paralyzed.gd" id="20_aq8jv"]
 [ext_resource type="Script" path="res://enemies/boss/BossNaihe/DashAttack.gd" id="20_t01ef"]
@@ -48,7 +50,10 @@ size = Vector2(304, 70)
 size = Vector2(196, 70)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_2thd3"]
-size = Vector2(491, 222)
+size = Vector2(645, 222)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_8u3li"]
+size = Vector2(777, 227)
 
 [sub_resource type="Animation" id="Animation_1ovkj"]
 length = 0.001
@@ -1411,6 +1416,113 @@ tracks/5/keys = {
 "values": [3]
 }
 
+[sub_resource type="Animation" id="Animation_f2tb3"]
+resource_name = "attack_8"
+step = 0.07
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Graphics/Sprite2D:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(6, -34)]
+}
+tracks/1/type = "method"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0.28, 0.42),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": ["CollisionShape2D5"],
+"method": &"enable_hitbox"
+}, {
+"args": ["CollisionShape2D5"],
+"method": &"disable_hitbox"
+}]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Graphics/Sprite2D:texture")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [ExtResource("19_j3b85")]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Graphics/Sprite2D:hframes")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [3]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Graphics/Sprite2D:region_rect")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Rect2(0, 0, 210, 210)]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Graphics/Sprite2D:frame")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.07, 0.14, 0.21, 0.28, 0.35, 0.42, 0.49, 0.56, 0.63, 0.7, 0.77),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 4, 3, 2, 1]
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("Graphics/Sprite2D:vframes")
+tracks/6/interp = 1
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [3]
+}
+tracks/7/type = "method"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath(".")
+tracks/7/interp = 1
+tracks/7/loop_wrap = true
+tracks/7/keys = {
+"times": PackedFloat32Array(0.28),
+"transitions": PackedFloat32Array(1),
+"values": [{
+"args": ["whirlwind", 80.0, -50.0, Vector2(1.5, 1.5), 90.0, Color(0.814144, 0.0932538, 0.812965, 1), Color(1, 1, 1, 1), false, 5, 2.0],
+"method": &"spawn_anim_vfx"
+}]
+}
+
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_qthgx"]
 _data = {
 "RESET": SubResource("Animation_1ovkj"),
@@ -1421,6 +1533,7 @@ _data = {
 "attack_5": SubResource("Animation_bk2km"),
 "attack_6": SubResource("Animation_fsyn4"),
 "attack_7": SubResource("Animation_nx270"),
+"attack_8": SubResource("Animation_f2tb3"),
 "dash_back": SubResource("Animation_rktnu"),
 "die": SubResource("Animation_1d63r"),
 "idle": SubResource("Animation_p21mp"),
@@ -1465,7 +1578,8 @@ anim_vfx_library = {
 "A3": ExtResource("4_t32b8"),
 "Circular cut": ExtResource("5_u4grm"),
 "chop": ExtResource("3_tqde7"),
-"cut": ExtResource("2_hpj24")
+"cut": ExtResource("2_hpj24"),
+"whirlwind": ExtResource("6_fptfq")
 }
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
@@ -1519,8 +1633,13 @@ shape = SubResource("RectangleShape2D_8q5k6")
 disabled = true
 
 [node name="CollisionShape2D4" type="CollisionShape2D" parent="Graphics/WeaponHitbox"]
-position = Vector2(-1.5, -61)
+position = Vector2(1.5, -61)
 shape = SubResource("RectangleShape2D_2thd3")
+disabled = true
+
+[node name="CollisionShape2D5" type="CollisionShape2D" parent="Graphics/WeaponHitbox"]
+position = Vector2(366.5, -63.5)
+shape = SubResource("RectangleShape2D_8u3li")
 disabled = true
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]

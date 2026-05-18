@@ -22,7 +22,10 @@ func enter() -> void:
 	elif next_move == "A7":
 		combo_count = 7 
 		_play_attack_anim("attack_7") # A7 還沒做好，先播 A1 代替
-
+	elif next_move == "A8":
+		combo_count = 8
+		_play_attack_anim("attack_8")
+		
 func _play_attack_anim(anim_name: String) -> void:
 	boss.face_player() # 每一刀揮出前，都會重新瞄準玩家一次
 	
@@ -32,17 +35,6 @@ func _play_attack_anim(anim_name: String) -> void:
 	# (請確認你的 Boss 近戰判定框節點名稱是不是叫 "Hitbox"，如果不是請改一下字串)
 	var hitbox = boss.get_node_or_null("WeaponHitbox") as Hitbox 
 	
-	if hitbox:
-		# 預設先幫你改成【太刀的預設火花 (SLASH)】
-		# 這樣打中玩家時，只會噴出最基本的條狀火花，不會有複雜的自訂特效干擾
-		#hitbox.spark_type = Hitbox.SparkType.SLASH
-		#hitbox.custom_spark_scene = null
-		#hitbox.spark_scale = 1.0
-		#hitbox.spark_color = Color(1.0, 0.2, 0.2, 1.0) # 給它紅色，方便你跟玩家的特效區分
-		
-		# 💡 如果你想要「完全關閉」火花，把上面那幾行註解掉，改用這兩行：
-		hitbox.spark_type = Hitbox.SparkType.OTHER
-		hitbox.custom_spark_scene = null
 	# ==========================================
 	
 	if boss.animation_player.has_animation(anim_name):
@@ -73,8 +65,14 @@ func physics_update(delta: float) -> void:
 				_play_attack_anim("attack_3")
 			else:
 				state_machine.transition_to("Decision")
-				
-		elif combo_count in [3, 6, 7]: # 單發招式播完，退回大腦
+		
+		# 🌟 在這裡插入 A8 轉 A9 的無縫派生
+		elif combo_count == 8:
+			print("🌪️ A8 吸取完畢！玩家已進入斬殺線，發動 A9！")
+			combo_count = 9
+			_play_attack_anim("attack_2")
+			
+		elif combo_count in [3, 6, 7, 9]: # 🌟 記得把 9 加進這個陣列，讓 A9 播完能退回 Decision
 			state_machine.transition_to("Decision")
 
 # ==========================================
