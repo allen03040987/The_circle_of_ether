@@ -739,7 +739,28 @@ func _apply_charge_zoom(target_zoom: Vector2, duration: float = 0.2) -> void:
 		
 		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
 		_camera_tween.set_speed_scale(speed_mult)
-		_camera_tween.tween_property(camera, "zoom", target_zoom, duration)
+		
+		# ==========================================
+		# 🌟 核心修復：對接 CombatManager 仲裁系統
+		# ==========================================
+		if target_zoom == ZOOM_LEVELS[0]:
+			# 如果目標是 ZOOM_LEVELS[0] (代表要收招還原視野)
+			# 我們不盲目回到 1.0，而是取用 CombatManager 記住的地圖/BOSS 基準視野！
+			var final_zoom = CombatManager.base_zoom if CombatManager.get("base_zoom") != null else Vector2(1.0, 1.0)
+			
+			_camera_tween.tween_property(camera, "zoom", final_zoom, duration)
+			
+			# 收招還原完成後，把相機控制權還給世界
+			_camera_tween.tween_callback(func():
+				if CombatManager.get("is_close_up_active") != null:
+					CombatManager.is_close_up_active = false
+			)
+		else:
+			# 如果是放大特寫，告訴 CombatManager「我要暫時鎖死相機」
+			if CombatManager.get("is_close_up_active") != null:
+				CombatManager.is_close_up_active = true
+				
+			_camera_tween.tween_property(camera, "zoom", target_zoom, duration)
 
 func spawn_sword_wave(wave_type: String) -> void:
 	if not SWORD_WAVE_SCENE: return

@@ -36,8 +36,15 @@ func _on_body_entered(body: Node2D) -> void:
 				
 		# 🎵 🌟 新增：踏入戰場，激昂的 Boss 戰 BGM 奏響！
 		var boss_music = preload("res://sound/BGM/BossNaihe/SACRED NIGHT ᐸ五丈原の戦いᐳ.wav") 
-		AudioManager.play_bgm(boss_music)
 		AudioManager.play_bgm(boss_music, -5.0)
+	
+		# ==========================================
+		# 🎥 🌟 核心新增：呼叫世界腳本，切換成 BOSS 廣角鏡頭！
+		# ==========================================
+		var world = get_tree().current_scene
+		if world and world.has_method("set_boss_camera_mode"):
+			world.set_boss_camera_mode(true)
+		
 		# 3. 關閉競技場大門
 		if is_instance_valid(arena_door):
 			var shape = arena_door.get_node_or_null("CollisionShape2D")
@@ -56,13 +63,20 @@ func _on_body_entered(body: Node2D) -> void:
 # 🔓 BOSS 擊殺後處理 (開門)
 # ==========================================
 func _open_door_and_finish() -> void:
-	# 🛡️ 終極防護網：如果節點已經不在樹上 (代表玩家正在關閉遊戲)，直接終止，絕對不准報錯！
+	# 🛡️ 終極防護網
 	if not is_inside_tree(): return 
 	
 	print("🎉 [Arena] BOSS 被擊敗！開啟大門！")
 	
 	# 🎵 🌟 戰鬥結束，讓 BGM 在 2.5 秒內優雅地漸出消失！
 	AudioManager.stop_bgm(2.5)
+	
+	# ==========================================
+	# 🎥 🌟 核心新增：BOSS 死亡，危機解除，相機平滑拉回預設距離！
+	# ==========================================
+	var world = get_tree().current_scene
+	if world and world.has_method("set_boss_camera_mode"):
+		world.set_boss_camera_mode(false)
 	
 	if is_instance_valid(arena_door):
 		var shape = arena_door.get_node_or_null("CollisionShape2D")

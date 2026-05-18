@@ -190,3 +190,53 @@ func _apply_anti_timestop(node: Node) -> void:
 func get_skill_timer(duration: float) -> SceneTreeTimer:
 	# Ignore Time Scale = true，保證無敵與冷卻等核心計時不受時停干擾
 	return get_tree().create_timer(duration, false, false, true)
+
+# ==========================================
+# 🎥 全域相機與特寫管理 (Camera & Close-up Management)
+# ==========================================
+var base_zoom := Vector2(1.0, 1.0) # 紀錄地圖當前的基準視野（普通常景 或 BOSS 戰視野）
+var is_close_up_active := false    # 標記目前是否正在執行大招特寫
+var _zoom_tween: Tween
+
+## 🌟 路由介面：由 World.gd 呼叫，變更並紀錄當前的場景基準視野
+func update_base_zoom(target_zoom: Vector2, duration: float = 1.5) -> void:
+	base_zoom = target_zoom
+	# 如果現在沒有人在放招做特寫，就立刻平滑套用新的基準視野
+	if not is_close_up_active:
+		_tween_camera_zoom(target_zoom, duration)
+
+## 🌟 大招特寫介面：由角色技能呼叫！發動特寫拉近鏡頭，並在結束後「精準還原」到當前的 base_zoom
+func apply_camera_closeup(closeup_zoom: Vector2, hold_duration: float, trans_in: float = 0.15, trans_out: float = 0.4) -> void:
+	is_close_up_active = true
+	
+	if _zoom_tween and _zoom_tween.is_valid():
+		_zoom_tween.kill()
+		
+	var camera = get_viewport().get_camera_2d()
+	if not camera: return
+	
+	_zoom_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+	
+	# 抗時停補償：確保在全域時停或卡肉時，特寫鏡頭移動依然流暢流利
+	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+	_zoom_tween.set_speed_scale(speed_mult)
+	
+	# 1. 鏡頭拉近到特寫比例
+	_zoom_tween.tween_property(camera, "zoom", closeup_zoom, trans_in)
+	# 2. 保持特寫時間 (例如定格特寫 0.3 秒)
+	_zoom_tween.tween_interval(hold_duration)
+	# 3. 完美還原到【當前的基準視野】(不論是平時還是 BOSS 戰視野，通通不會迷路！)
+	_zoom_tween.tween_property(camera, "zoom", base_zoom, trans_out)
+	# 4. 結束後解除特寫鎖定
+	_zoom_tween.tween_callback(func(): is_close_up_active = false)
+
+# 內部平滑縮放邏輯
+func _tween_camera_zoom(target_zoom: Vector2, duration: float) -> void:
+	var camera = get_viewport().get_camera_2d()
+	if not camera: return
+	
+	if _zoom_tween and _zoom_tween.is_valid() and not is_close_up_active:
+		_zoom_tween.kill()
+		
+	_zoom_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+	_zoom_tween.tween_property(camera, "zoom", target_zoom, duration)

@@ -73,6 +73,11 @@ func _on_health_changed() -> void:
 	if stats.health <= 0:
 		if state_machine.current_state.name.to_lower() != "death":
 			state_machine.transition_to("Death")
+			
+			# 🌟 新增：BOSS 死了，危機解除，相機平滑拉回預設距離
+			var world = get_tree().current_scene
+			if world and world.has_method("set_boss_camera_mode"):
+				world.set_boss_camera_mode(false)
 		return
 		
 	if current_phase == 1 and stats.health <= (stats.max_health * 0.5):
@@ -150,13 +155,13 @@ func enable_hitbox(shape_name: String = "") -> void:
 		
 		if is_pull_attack:
 			hb.sticky_multi_hit = true
-			hb.max_hits = 5          
+			hb.max_hits = 1         
 			hb.hit_interval = 0.1     
 			hb.damage_amount = 0      
 			hb.attack_type = Damage.Type.NO_STUN
 			
 			# 🌟 核心修復：直接改本體的擊退力！讓 Player.gd 完美的數學公式接管吸力！
-			hb.knockback_force = Vector2(-400.0, 0.0) 
+			hb.knockback_force = Vector2(-600.0, 0.0) 
 			
 			# 把 absolute_knockback 清空，防止它蓋過我們漂亮的相對數學
 			if "absolute_knockback" in hb:

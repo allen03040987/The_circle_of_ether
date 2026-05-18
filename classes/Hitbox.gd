@@ -12,7 +12,7 @@ enum SparkType { SLASH, BLUNT, OTHER }
 @export var damage_amount: int = 1
 @export var attack_type: Damage.Type = Damage.Type.LIGHT # 決定受擊硬直程度
 @export var knockback_force: Vector2 = Vector2(150.0, 0.0) # 基礎擊退力道
-@export var poise_damage: float = 10.0 # 削韌數值
+@export var poise_damage: float = 1.0 # 削韌數值
 
 # 是否啟用「黑洞聚怪」模式 (將受擊者往 Hitbox 中心拉)
 @export var pull_towards_owner: bool = false
@@ -155,20 +155,21 @@ func _try_hit(area: Area2D) -> void:
 	
 	var victim: Node = area.owner
 	
-	# --- 2. 無敵幀與極限閃避判定 ---
-	if is_instance_valid(victim):
-		if victim is Player:
-			if victim.invincible_timer.time_left > 0 or victim.get("is_weapon_invincible"):
-				return 
-				
-		if "state_machine" in victim:
-			var sm: Node = victim.state_machine
-			if is_instance_valid(sm) and is_instance_valid(sm.current_state):
-				if sm.current_state.name.to_lower() == "slide":
-					if sm.current_state.has_method("trigger_perfect_dodge"):
-						sm.current_state.trigger_perfect_dodge()
-					register_dodge(area) # 閃避成功，記一筆但不扣血
-					return
+	if damage_amount > 0:
+		# --- 2. 無敵幀與極限閃避判定 ---
+		if is_instance_valid(victim):
+			if victim is Player:
+				if victim.invincible_timer.time_left > 0 or victim.get("is_weapon_invincible"):
+					return 
+					
+			if "state_machine" in victim:
+				var sm: Node = victim.state_machine
+				if is_instance_valid(sm) and is_instance_valid(sm.current_state):
+					if sm.current_state.name.to_lower() == "slide":
+						if sm.current_state.has_method("trigger_perfect_dodge"):
+							sm.current_state.trigger_perfect_dodge()
+						register_dodge(area) # 閃避成功，記一筆但不扣血
+						return
 				
 	# --- 3. 受害者名單建檔與段數檢查 ---
 	if not hit_targets.has(area):

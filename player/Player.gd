@@ -378,49 +378,52 @@ func grant_invincibility(duration: float) -> void:
 	invincible_time_left = duration
 	invincible_timer.start(duration)
 	
+# ==========================================
+# ⚔️ 受擊系統與運算
+# ==========================================
 func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
-	
 	if is_dead or state_machine.current_state.name.to_lower() == "dying":
 		return
-		
+
+	# 🚨 抓鬼專用監視器：印出到底是哪個 Hitbox 打到了玩家！
+	var final_amount: int = hitbox.get("damage_amount") if "damage_amount" in hitbox else 1
+	var final_type: int = hitbox.get("attack_type") if "attack_type" in hitbox else Damage.Type.LIGHT
+	print("🔍 [受擊偵測] 來源 Hitbox: ", hitbox.name, " | 傷害: ", final_amount)
+
+	# 算出擊退力道
+	var final_knockback := Vector2.ZERO
+	if "absolute_knockback" in hitbox and hitbox.absolute_knockback != Vector2.ZERO:
+		final_knockback = hitbox.absolute_knockback
+	else:
+		var raw_force := Vector2(150.0, 0.0)
+		if "knockback_force" in hitbox: raw_force = hitbox.knockback_force
+		var dir_x : float = sign(global_position.x - hitbox.owner.global_position.x)
+		if dir_x == 0: dir_x = -direction 
+		final_knockback = Vector2(raw_force.x * dir_x, raw_force.y)
+
+	# ==========================================
+	# 📍 絕對特權防線：只要傷害是 0，一律視為環境風力！絕對不准往下走！
+	# ==========================================
+	if final_amount <= 0:
+		external_force = final_knockback
+		return # 🚨 程式在這裡強制結束，底下的無敵跟閃避連看都看不到！
+
+	# ==========================================
+	# 📍 戰鬥防禦防線 (被大於 0 傷害打到才會執行)
+	# ==========================================
+	# 1. 無敵判定
 	if invincible_time_left > 0 or invincible_timer.time_left > 0:
 		return
 
-	# 極限閃避攔截
+	# 2. 極限閃避攔截
 	if state_machine.current_state.name.to_lower() == "slide":
 		if state_machine.current_state.has_method("trigger_perfect_dodge"):
 			state_machine.current_state.trigger_perfect_dodge()
 		return
 
-	var final_amount: int = hitbox.damage_amount if "damage_amount" in hitbox else 1
-	var final_type: int = hitbox.attack_type if "attack_type" in hitbox else Damage.Type.LIGHT
-	var final_knockback := Vector2.ZERO
-	
-	if "absolute_knockback" in hitbox and hitbox.absolute_knockback != Vector2.ZERO:
-		final_knockback = hitbox.absolute_knockback
-	else:
-		var raw_force := Vector2(150.0, 0.0)
-		if "knockback_force" in hitbox:
-			raw_force = hitbox.knockback_force
-		var dir_x : float = sign(global_position.x - hitbox.owner.global_position.x)
-		if dir_x == 0: dir_x = -direction 
-		final_knockback = Vector2(raw_force.x * dir_x, raw_force.y)
-	
 	# ==========================================
-	# 🌟 攔截通道：如果是牽引技 (0 傷害且 NO_STUN)
+	# 📍 正常受擊與扣血
 	# ==========================================
-	if final_amount == 0 and final_type == Damage.Type.NO_STUN:
-		# 直接把吸力注入 external_force
-		external_force = final_knockback
-		# 🚨 直接 return！絕對不觸發後面的無敵時間跟受擊判定！
-		return 
-
-	# ==========================================
-	
-	# 原本的無敵檢查 (被牽引通道繞過了，所以正常攻擊還是會被擋)
-	if invincible_time_left > 0 or invincible_timer.time_left > 0:
-		return
-	
 	pending_damage = {
 		"source": hitbox,
 		"amount": final_amount,

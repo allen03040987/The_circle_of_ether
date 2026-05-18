@@ -10,7 +10,8 @@ var hit_sfx_bank: Dictionary = {
 	"hit": preload("res://sound/SFX/hit/hit.wav"), 
 	"hit_2": preload("res://sound/SFX/hit/hit_2.wav"), 
 	"hit_3": preload("res://sound/SFX/hit/hit_3.wav"), 
-
+	"hit_4": preload("res://sound/SFX/hit/hit_4.wav"),
+	"hit_5": preload("res://sound/SFX/hit/hit_5.wav"),
 }
 
 # ==========================================

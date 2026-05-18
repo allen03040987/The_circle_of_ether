@@ -11,21 +11,21 @@ const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.05, 1.05), 2: Vector2(1
 # 📖 招式數據庫 (Data-Driven Combat Config)
 # ==========================================
 const LIGHT_ATTACK_CONFIG = {
-	1: {"anim": "spear/attack_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(50.0, 0.0), "base_dmg": 300, "energy": 500, "switch": 5, "pozhen": 10},
-	2: {"anim": "spear/attack_2", "hitbox_name": "Hitbox", "max_hits": 2, "interval": 0.1, "knockback": Vector2(50.0, 0.0), "base_dmg": 350, "energy": 5, "switch": 5, "pozhen": 10},
-	3: {"anim": "spear/attack_3", "hitbox_name": "Hitbox", "max_hits": 3, "interval": 0.1, "knockback": Vector2(20.0, 0.0), "base_dmg": 150, "energy": 5, "switch": 4, "pozhen": 10},
-	4: {"anim": "spear/attack_4", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(600.0, 0.0), "shake": 20.0, "base_dmg": 600, "energy": 10, "switch": 15, "pozhen": 10}
+	1: {"anim": "spear/attack_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(50.0, 0.0), "base_dmg": 300, "energy": 500, "switch": 5, "pozhen": 10,"hit_sfx_type": "hit"},
+	2: {"anim": "spear/attack_2", "hitbox_name": "Hitbox", "max_hits": 2, "interval": 0.1, "knockback": Vector2(50.0, 0.0), "base_dmg": 350, "energy": 5, "switch": 5, "pozhen": 10,"hit_sfx_type": "hit"},
+	3: {"anim": "spear/attack_3", "hitbox_name": "Hitbox", "max_hits": 3, "interval": 0.1, "knockback": Vector2(20.0, 0.0), "base_dmg": 150, "energy": 5, "switch": 4, "pozhen": 10,"hit_sfx_type": "hit"},
+	4: {"anim": "spear/attack_4", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(600.0, 0.0), "shake": 20.0, "base_dmg": 600, "energy": 10, "switch": 15, "pozhen": 10,"hit_sfx_type": "hit"}
 }
 
 const SKILL_CONFIG = {
 	# 戰技 20：迴旋絞殺 (傷害由飛行物造成，故 base_dmg 為 0)
-	20: {"anim": "spear/c1", "hitbox_name": "None", "max_hits": 1, "interval": 0.0, "knockback": Vector2.ZERO, "base_dmg": 0, "energy": 0, "switch": 0},
+	20: {"anim": "spear/c1", "hitbox_name": "None", "max_hits": 1, "interval": 0.0, "knockback": Vector2.ZERO, "base_dmg": 0, "energy": 0, "switch": 0,"hit_sfx_type": "hit"},
 	# 戰技 21：大範圍聚怪 (多次判定、輕微上浮與強烈橫向拉力)
-	21: {"anim": "spear/c2", "hitbox_name": "C2", "type": Damage.Type.LIGHT, "max_hits": 4, "interval": 0.12, "knockback": Vector2(220.0, -30.0), "pull": true, "shake": 15.0, "base_dmg": 50, "energy": 3, "switch": 3, "pozhen": 10, "sticky": true},
+	21: {"anim": "spear/c2", "hitbox_name": "C2", "type": Damage.Type.LIGHT, "max_hits": 4, "interval": 0.12, "knockback": Vector2(220.0, -30.0), "pull": true, "shake": 15.0, "base_dmg": 50, "energy": 3, "switch": 3, "pozhen": 10, "sticky": true,"hit_sfx_type": "hit"},
 	# 戰技 22：向上挑飛 (Skill 2)
-	22: {"anim": "spear/c3", "hitbox_name": "C3", "type": Damage.Type.HEAVY, "max_hits": 1, "interval": 0.0, "knockback": Vector2(0.0, -600.0), "shake": 60.0, "base_dmg": 500, "energy": 10, "switch": 15, "pozhen": 10},
+	22: {"anim": "spear/c3", "hitbox_name": "C3", "type": Damage.Type.HEAVY, "max_hits": 1, "interval": 0.0, "knockback": Vector2(0.0, -600.0), "shake": 60.0, "base_dmg": 500, "energy": 10, "switch": 15, "pozhen": 10,"hit_sfx_type": "hit"},
 	# 強化普攻 (30)：消耗 40 點破陣值發動
-	30: {"anim": "spear/attack_enhanced", "hitbox_name": "attack_enhanced", "type": Damage.Type.HEAVY, "max_hits": 4, "interval": 0.1, "knockback": Vector2(100.0, -100.0), "shake": 15.0, "base_dmg": 800, "energy": 10, "switch": 20, "pozhen": 0, "sticky": true},
+	30: {"anim": "spear/attack_enhanced", "hitbox_name": "attack_enhanced", "type": Damage.Type.HEAVY, "max_hits": 4, "interval": 0.1, "knockback": Vector2(100.0, -100.0), "shake": 15.0, "base_dmg": 800, "energy": 10, "switch": 20, "pozhen": 0, "sticky": true,"hit_sfx_type": "hit"},
 	# 新增：大招啟動演出 (80)
 	80: {"anim": "spear/attack_ult", "hitbox_name": "None", "max_hits": 1, "interval": 0.0, "knockback": Vector2.ZERO, "base_dmg": 0, "energy": 0, "switch": 0},
 	# 大招氣刃發射與後搖 (81)
@@ -33,8 +33,8 @@ const SKILL_CONFIG = {
 }
 # [空戰字典] (數值與動畫名稱你可以後續再微調)
 const AIR_ATTACK_CONFIG = {
-	61: { "anim": "spear/air_attack_1", "hitbox_name": "Air_J", "max_hits": 4, "interval": 0.15, "shake": 10.0, "type": Damage.Type.LIGHT, "knockback": Vector2(10.0, -150.0), "base_dmg": 50, "energy": 1, "switch": 2, "pozhen": 10, "sticky": true},
-	62: { "anim": "spear/air_attack_2", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "shake": 50.0, "type": Damage.Type.HEAVY, "knockback": Vector2(300.0, 600.0), "base_dmg": 300, "energy": 2, "switch": 4, "pozhen": 10},
+	61: { "anim": "spear/air_attack_1", "hitbox_name": "Air_J", "max_hits": 4, "interval": 0.15, "shake": 10.0, "type": Damage.Type.LIGHT, "knockback": Vector2(10.0, -150.0), "base_dmg": 50, "energy": 1, "switch": 2, "pozhen": 10, "sticky": true,"hit_sfx_type": "hit"},
+	62: { "anim": "spear/air_attack_2", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "shake": 50.0, "type": Damage.Type.HEAVY, "knockback": Vector2(300.0, 600.0), "base_dmg": 300, "energy": 2, "switch": 4, "pozhen": 10,"hit_sfx_type": "hit"},
 }
 # ==========================================
 # 🎛️ 內部狀態變數
@@ -517,6 +517,7 @@ func _play_attack(config: Dictionary) -> void:
 	if hitbox:
 		hitbox.damage_amount = config.get("base_dmg", 100)
 		hitbox.max_hits = config.get("max_hits", 1)
+		hitbox.hit_sfx_type = config.get("hit_sfx_type", "")
 		
 		if "hit_interval" in hitbox: hitbox.hit_interval = config.get("interval", 0.0)
 		if "knockback_force" in hitbox: hitbox.knockback_force = config.get("knockback", Vector2.ZERO)
@@ -679,6 +680,7 @@ func cancel_attack() -> void:
 # 🛠️ 鏡頭特寫與氣刃生成
 # ==========================================
 func _apply_charge_zoom(target_zoom: Vector2, duration: float = 0.2) -> void:
+	# 殘影不准控制鏡頭！
 	if player.name.begins_with("Phantom"): return
 	
 	var camera = get_viewport().get_camera_2d()
@@ -688,7 +690,28 @@ func _apply_charge_zoom(target_zoom: Vector2, duration: float = 0.2) -> void:
 		
 		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
 		_camera_tween.set_speed_scale(speed_mult)
-		_camera_tween.tween_property(camera, "zoom", target_zoom, duration)
+		
+		# ==========================================
+		# 🌟 核心修復：對接 CombatManager 仲裁系統
+		# ==========================================
+		if target_zoom == ZOOM_LEVELS[0]:
+			# 如果目標是 ZOOM_LEVELS[0] (代表要收招還原視野)
+			# 我們不盲目回到 1.0，而是取用 CombatManager 記住的地圖/BOSS 基準視野！
+			var final_zoom = CombatManager.base_zoom if CombatManager.get("base_zoom") != null else Vector2(1.0, 1.0)
+			
+			_camera_tween.tween_property(camera, "zoom", final_zoom, duration)
+			
+			# 收招還原完成後，把相機控制權還給世界
+			_camera_tween.tween_callback(func():
+				if CombatManager.get("is_close_up_active") != null:
+					CombatManager.is_close_up_active = false
+			)
+		else:
+			# 如果是放大特寫，告訴 CombatManager「我要暫時鎖死相機」
+			if CombatManager.get("is_close_up_active") != null:
+				CombatManager.is_close_up_active = true
+				
+			_camera_tween.tween_property(camera, "zoom", target_zoom, duration)
 
 func spawn_spear_wave(wave_type: String) -> void:
 	if not SPEAR_WAVE_SCENE: return

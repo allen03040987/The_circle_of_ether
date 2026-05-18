@@ -2,11 +2,13 @@ class_name BossDecisionState
 extends BossState
 
 var decision_timer: float = 0.0
+var last_attack: String = "" # 🌟 新增：讓 Boss 有記憶，記住上一招放了什麼
 
 func enter() -> void:
 	boss.play_safe_anim("idle")
-	# 攻擊間隔，產生不規律的戰鬥節奏
-	decision_timer = randf_range(1.0, 2.2)
+	# 🌟 加快攻擊頻率：原本 1.0 ~ 2.2 秒，現在縮短為 0.5 ~ 1.2 秒！
+	# (如果覺得太瘋狗，可以微調成 0.8 ~ 1.5)
+	decision_timer = randf_range(0.5, 1.0)
 
 func physics_update(delta: float) -> void:
 	boss.velocity.x = move_toward(boss.velocity.x, 0.0, boss.acceleration * delta)
@@ -23,42 +25,37 @@ func _make_decision() -> void:
 	if not is_instance_valid(boss.player_target): return
 	
 	var dist = boss.global_position.distance_to(boss.player_target.global_position)
-	var roll = randf() # 擲骰子
+	var next_state = "Chase"
+	var next_melee = ""
 	
-	if dist > 150:
-		# 🟢 較遠距離：A5突刺(25%)、A6地刺(25%)、未來A8(25%)、靠近(25%)
-		if roll < 0.05:
-			state_machine.transition_to("DashAttack") # A5 突刺
-		elif roll < 0.05:
-			boss.set_meta("next_melee", "A6")
-			state_machine.transition_to("MeleeAttack") # 轉交給近戰狀態放 A6
-		elif roll < 0.9:
-			print("🌪️ 距離過遠！發動 A8 引力波吸取玩家！")
-			boss.set_meta("next_melee", "A8")
-			state_machine.transition_to("MeleeAttack")
+	# 🌟 防連發機制：如果抽到同一招，最多重新擲骰子 3 次
+	for i in range(3):
+		var roll = randf()
+		next_state = "Chase"
+		next_melee = ""
+		
+		if dist > 150:
+			next_state = "MeleeAttack"; next_melee = "A8"
+				
+		elif dist < 60: 
+			# 🔴 較近距離：A4後撤(60%)、A7近劈(30%)、A1(10%)
+			if roll < 0.60: next_state = "RetreatAttack"; next_melee = "A4"
+			elif roll < 0.90: next_state = "MeleeAttack"; next_melee = "A7"
+			else: next_state = "MeleeAttack"; next_melee = "A1"
+				
 		else:
-			state_machine.transition_to("Chase") # 走過去靠近玩家
+			# 🟡 中距離：A1(40%)、A3(30%)、A7(30%)
+			if roll < 0.40: next_state = "MeleeAttack"; next_melee = "A1"
+			elif roll < 0.70: next_state = "MeleeAttack"; next_melee = "A3"
+			else: next_state = "MeleeAttack"; next_melee = "A7"
+		
+		# 💡 如果這招跟上一招不一樣，或者決定要走位(Chase)，就滿意地跳出迴圈！
+		if next_melee != last_attack or next_state == "Chase":
+			break
 			
-	elif dist < 60: 
-		# 🔴 較近距離：A4後撤(60%)、未來A7(30%)、A1A2聯招(10%)
-		if roll < 0.60:
-			state_machine.transition_to("RetreatAttack") # A4 後撤接劈砍
-		elif roll < 0.90:
-			print("🔧 [預留] 準備施放近距離 A7！目前暫用 A1 代替")
-			boss.set_meta("next_melee", "A7")
-			state_machine.transition_to("MeleeAttack")
-		else:
-			boss.set_meta("next_melee", "A1")
-			state_machine.transition_to("MeleeAttack")
-			
-	else:
-		# 🟡 一定距離 (中間)：A1A2聯招(40%)、A3單放(30%)、未來A7(30%)
-		if roll < 0.40:
-			boss.set_meta("next_melee", "A1")
-			state_machine.transition_to("MeleeAttack")
-		elif roll < 0.70:
-			boss.set_meta("next_melee", "A3")
-			state_machine.transition_to("MeleeAttack")
-		else:
-			boss.set_meta("next_melee", "A7")
-			state_machine.transition_to("MeleeAttack")
+	# 記錄這次出的招式（如果是 Chase 就不記，這樣下次才可以正常出招）
+	if next_melee != "":
+		last_attack = next_melee
+		boss.set_meta("next_melee", next_melee)
+		
+	state_machine.transition_to(next_state)

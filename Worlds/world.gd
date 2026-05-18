@@ -2,13 +2,17 @@ class_name World
 extends Node2D 
 
 @export_group("地圖設定")
-## 勾選此項代表該場景是基地/安全區，會強制玩家行走
 @export var is_base: bool = false
-# 音效設定群組
+
+# 🌟 新增：相機與視野設定
+@export_group("相機視野 (Zoom)")
+## 預設的視野大小 (數值越小看越遠，預設是 Vector2(1,1))
+@export var default_zoom: Vector2 = Vector2(0.85, 0.85) 
+## BOSS 戰專用的超廣角視野 
+@export var boss_zoom: Vector2 = Vector2(0.65, 0.65)
+
 @export_group("音效設定")
-## 該地圖專屬的背景音樂 (如果為空就不播)
 @export var level_bgm: AudioStream
-## 背景音樂音量微調 (預設 -10.0 dB)
 @export var bgm_volume: float = -10.0
 
 @onready var tile_map: TileMap = $TileMap
@@ -20,7 +24,6 @@ extends Node2D
 # ⚙️ 初始化 (Initialization)
 # ==========================================
 func _ready() -> void:
-	# 根據 TileMap 的實際大小限制攝影機邊界
 	var used := tile_map.get_used_rect().grow(-1)
 	var tile_size := tile_map.tile_set.tile_size
 	
@@ -30,11 +33,12 @@ func _ready() -> void:
 	camera_2d.limit_left = used.position.x * tile_size.x
 	camera_2d.reset_smoothing()
 	
-	# 🎵 🌟 新增：如果這張地圖有設定音樂，就播放它！
+	# 🌟 改由戰鬥管理器統一設定並紀錄初始基礎視野
+	CombatManager.update_base_zoom(default_zoom, 0.0)
+	
 	if level_bgm:
 		AudioManager.play_bgm(level_bgm, bgm_volume)
 	
-	# 通知玩家根據地圖屬性初始化移動模式
 	if player:
 		player.update_movement_by_scene(is_base)
 
@@ -76,3 +80,13 @@ func from_dict(dict: Dictionary) -> void:
 		# 若不再 enemies 名單上，代表之前已經死了，立刻清除
 		if path not in dict.enemies_alive: 
 			node.queue_free()
+
+# ==========================================
+# 🎥 動態相機控制 (Camera Control)
+# ==========================================
+## 切換 BOSS 戰鬥視角 (is_boss_fight: true 變廣角，false 變回原樣)
+## 切換 BOSS 戰鬥視角
+func set_boss_camera_mode(is_boss_fight: bool) -> void:
+	var target_zoom = boss_zoom if is_boss_fight else default_zoom
+	# 🌟 直接委託仲裁官，這樣就不會跟大招特寫打架！
+	CombatManager.update_base_zoom(target_zoom, 1.5)
