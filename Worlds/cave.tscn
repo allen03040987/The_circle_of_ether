@@ -577,9 +577,13 @@ centered = false
 
 [node name="Slime" parent="." groups=["enemise"] instance=ExtResource("9_nsa6e")]
 position = Vector2(144, -208)
+base_damage = 10
+base_knockback = Vector2(400, 0)
 
 [node name="Slime2" parent="." groups=["enemise"] instance=ExtResource("9_nsa6e")]
 position = Vector2(152, -208)
+base_damage = 10
+base_knockback = Vector2(400, 0)
 
 [node name="CanvasModulate" type="CanvasModulate" parent="."]
 color = Color(0.758192, 0.758192, 0.758192, 1)

@@ -95,6 +95,13 @@ const AIR_ATTACK_CONFIG = {
 
 # --- 內部狀態 ---
 var current_active_hitbox: Hitbox = null
+
+var _current_energy_reward: float = 0.0
+var _current_switch_reward: float = 0.0
+var _current_iai_reward: int = 0
+var _multi_hit_energy: bool = false
+var _has_granted_resources_this_step: bool = false
+
 var combo_step: int = 0
 var last_attack_time: float = 0.0
 var is_attacking: bool = false
@@ -188,37 +195,40 @@ func start_heavy_attack() -> void:
 
 	# 🪽 空戰派生處理
 	if not player.is_on_floor():
-		if Input.is_action_pressed("move_down"):
-			_play_skill_step(21) 
-			skill_3_timer = skill_3_cd # 🌟 啟動【下砸】冷卻
-		elif is_tsubame_ready:
+		# 🌟 修復：燕返擁有絕對第一優先級
+		if is_tsubame_ready:
 			_play_skill_step(42) 
 			is_tsubame_ready = false
 			current_tsubame = 0
+		elif Input.is_action_pressed("move_down"):
+			_play_skill_step(21) 
+			skill_3_timer = skill_3_cd
 		else:
 			is_attacking = false 
 		return
 
+	# ==========================================
 	# 🗡️ 地面方向派生
+	# ==========================================
 	if combo_step == 11:
 		_play_skill_step(12)
 		skill_2_timer = skill_2_cd
 		return
 		
-	if Input.is_action_pressed("move_up"): 
+	# 🌟 修復：燕返擁有絕對第一優先級
+	if is_tsubame_ready:
+		_play_skill_step(42) 
+		is_tsubame_ready = false
+		current_tsubame = 0 
+	elif Input.is_action_pressed("move_up"): 
 		_play_skill_step(11) 
-		skill_2_timer = skill_2_cd # 🌟 啟動【挑飛】冷卻
+		skill_2_timer = skill_2_cd
 	elif Input.is_action_pressed("move_down"): 
 		_play_skill_step(21) 
-		skill_3_timer = skill_3_cd # 🌟 啟動【下砸】冷卻
+		skill_3_timer = skill_3_cd 
 	else:
-		if is_tsubame_ready:
-			_play_skill_step(42) 
-			is_tsubame_ready = false
-			current_tsubame = 0 
-		else:
-			_play_skill_step(41)
-			skill_1_timer = skill_1_cd # 🌟 啟動【中立】冷卻
+		_play_skill_step(41)
+		skill_1_timer = skill_1_cd
 
 func start_counter_attack() -> void:
 	if step_cooldown > 0: return
@@ -376,8 +386,9 @@ func get_current_velocity(delta: float) -> Vector2:
 				
 				player.is_input_locked = false # 🌟 核心修復 1：把這行補上去！確保提早放棄蓄力時會解鎖。
 				
-				if player.scabbard: 
-					player.scabbard.fade_in()
+				var p_scabbard = player.get("scabbard")
+				if p_scabbard: 
+					p_scabbard.fade_in()
 			else:
 				var release_step = 34 # 預設一階
 				if current_charge_tier == 2: release_step = 32
@@ -479,7 +490,7 @@ func get_current_velocity(delta: float) -> Vector2:
 				current_active_hitbox.damage_amount = 1500 
 				current_active_hitbox.knockback_force = Vector2(200.0, -500.0) 
 				current_active_hitbox.shake_intensity = 400.0
-				current_active_hitbox.has_generated_energy = false 
+				_has_granted_resources_this_step = false
 				
 			_is_hitbox_locked = false 
 			disable_hitbox() 
@@ -601,8 +612,9 @@ func is_attack_finished() -> bool:
 		_is_hitbox_locked = true 
 		disable_hitbox()
 		
-		if not requires_sheath() and player.scabbard:
-			player.scabbard.fade_in()
+		var p_scabbard = player.get("scabbard")
+		if not requires_sheath() and p_scabbard:
+			p_scabbard.fade_in()
 			
 		return true
 	return false
@@ -632,7 +644,8 @@ func cancel_attack() -> void:
 	_is_hitbox_locked = true 
 	disable_hitbox()
 	
-	if player.scabbard: player.scabbard.fade_in()
+	var p_scabbard = player.get("scabbard")
+	if p_scabbard: p_scabbard.fade_in()
 		
 func requires_sheath() -> bool:
 	if combo_step == 0:
@@ -715,7 +728,44 @@ func _apply_hitbox_config(config: Dictionary) -> void:
 		
 		hitbox.spark_type = 0; hitbox.spark_scale = 0.3; hitbox.spark_color = Color(0.7, 1.5, 0.5, 1.0); hitbox.aura_color = Color(0, 1, 1, 1)
 		hitbox.hit_targets.clear() 
+		# ==========================================
+		# 🌟 核心解耦 1：不再強塞給 Hitbox，由太刀自己記住這招能賺多少錢
+		# ==========================================
+		_current_energy_reward = float(config.get("energy", 0))
+		_current_switch_reward = float(config.get("switch", 0))
+		_current_iai_reward = int(config.get("iai_reward", 0))
+		_multi_hit_energy = config.get("multi_hit_energy", false)
+		_has_granted_resources_this_step = false
+		
+		# ==========================================
+		# 🌟 核心解耦 2：切斷舊信號，接管新信號
+		# ==========================================
+		if current_active_hitbox and current_active_hitbox.hit.is_connected(_on_hitbox_hit):
+			current_active_hitbox.hit.disconnect(_on_hitbox_hit)
+			
 		current_active_hitbox = hitbox
+		
+		if not current_active_hitbox.hit.is_connected(_on_hitbox_hit):
+			current_active_hitbox.hit.connect(_on_hitbox_hit)
+
+# ==========================================
+# 🎯 命中回饋處理 (由 Hitbox 信號觸發)
+# ==========================================
+func _on_hitbox_hit(hurtbox: Node) -> void:
+	# 防呆：確保不是打到玩家自己
+	if is_instance_valid(player) and is_instance_valid(hurtbox.owner) and hurtbox.owner == player: 
+		return
+
+	# 判斷是否為多次給予，或者這招還沒給過資源
+	if _multi_hit_energy or not _has_granted_resources_this_step:
+		if _current_iai_reward > 0:
+			gain_iai(_current_iai_reward)
+			
+		if _current_energy_reward > 0 or _current_switch_reward > 0:
+			if player.has_method("add_weapon_resource"):
+				player.add_weapon_resource(WEAPON_ID, _current_energy_reward, _current_switch_reward)
+				
+		_has_granted_resources_this_step = true
 		
 # ==========================================
 # 🛠️ 輔助工具區
@@ -788,10 +838,26 @@ func spawn_sword_wave(wave_type: String) -> void:
 			wave.hitbox.attack_type = Damage.Type.LIGHT
 			wave.hitbox.spark_scale = 0.3
 			
-			if "energy_reward" in wave.hitbox: wave.hitbox.energy_reward = float(config.get("energy", 0))
-			if "switch_reward" in wave.hitbox: wave.hitbox.switch_reward = float(config.get("switch", 0))
-			if "iai_reward" in wave.hitbox: wave.hitbox.iai_reward = int(config.get("iai_reward", 0))
-			if "multi_hit_energy" in wave.hitbox: wave.hitbox.multi_hit_energy = false
+			# ==========================================
+			# 🌟 核心解耦 3：讓劍氣自己掛載獨立的監視器！
+			# ==========================================
+			var w_energy = float(config.get("energy", 0))
+			var w_switch = float(config.get("switch", 0))
+			var w_iai = int(config.get("iai_reward", 0))
+			var w_multi = config.get("multi_hit_energy", false)
+			
+			# 利用陣列當作參照，確保 Lambda 內的布林值能正確被修改
+			var wave_state = [false] 
+			
+			wave.hitbox.hit.connect(func(hurtbox: Node):
+				if is_instance_valid(player) and is_instance_valid(hurtbox.owner) and hurtbox.owner == player: return
+				
+				if w_multi or not wave_state[0]:
+					if w_iai > 0: gain_iai(w_iai)
+					if (w_energy > 0 or w_switch > 0) and player.has_method("add_weapon_resource"):
+						player.add_weapon_resource(WEAPON_ID, w_energy, w_switch)
+					wave_state[0] = true
+			)
 			
 # ==========================================
 # 🛡️ 狀態機防護名單 (The Bouncer's List)

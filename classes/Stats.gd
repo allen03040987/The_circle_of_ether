@@ -14,14 +14,17 @@ signal poise_broken(is_broken: bool)
 # ==========================================
 # 🎛️ 核心屬性 (Properties)
 # ==========================================
-@export var base_stats: BaseStats # 外部數值設定檔 (Resource)
+@export var base_stats: BaseStats # 外部數值設定檔
 
-# --- 遊戲運作時的真實上限 ---
 var max_health: int
 var max_energy: float
 var energy_regen: float
+var max_poise: float = 100.0
 
-# --- 當前動態數值 (Setter 自動發送訊號) ---
+var is_broken: bool = false
+var poise_recharge_speed: float = 20.0 # 虛弱時的回充速度
+
+# --- 動態數值 (Setter 自動防呆並發送信號) ---
 @onready var health: int = 1 :
 	set(v):
 		v = clampi(v, 0, max_health)
@@ -47,50 +50,41 @@ var poise: float = 0.0 :
 		if poise <= 0 and not is_broken:
 			_enter_broken_state()
 
-var max_poise: float = 100.0
-var is_broken: bool = false
-var poise_recharge_speed: float = 20.0 # 每秒回充量，5秒回滿
-
 # ==========================================
-# ⚙️ 初始化與生命週期 (Lifecycle)
+# ⚙️ 初始化與時間流逝
 # ==========================================
 func _ready() -> void:
-	# 防呆機制：如果忘記插設定本，給予預設值
 	if base_stats == null:
-		printerr("⚠️ [警告] 節點未配置 BaseStats 資源！將使用預設數值。")
-		max_health = 3
-		max_energy = 9.0
-		energy_regen = 2.0
+		printerr("⚠️ [Stats] 未配置 BaseStats，使用預設體質！")
+		max_health = 3; max_energy = 9.0; energy_regen = 2.0; max_poise = 100.0
 	else:
 		max_health = base_stats.max_health
 		max_energy = base_stats.max_energy
 		energy_regen = base_stats.energy_regen
+		max_poise = base_stats.max_poise
 		
-	# 初始補滿狀態
 	health = max_health
 	energy = max_energy
-	max_poise = base_stats.max_poise if base_stats else 100.0
 	poise = max_poise
 	
 func _process(delta: float) -> void:
 	if energy < max_energy:
 		energy += energy_regen * delta
 	
-	# 虛弱時自動回充韌性
 	if is_broken:
 		poise += poise_recharge_speed * delta
 		if poise >= max_poise:
 			_exit_broken_state()
 
 # ==========================================
-# 🛡️ 狀態控制 (State Control)
+# 🛡️ 狀態控制
 # ==========================================
-func _enter_broken_state():
+func _enter_broken_state() -> void:
 	is_broken = true
 	poise_broken.emit(true)
 	print("🛡️ BOSS 韌性崩潰！進入虛弱狀態")
 
-func _exit_broken_state():
+func _exit_broken_state() -> void:
 	is_broken = false
 	poise = max_poise
 	poise_broken.emit(false)

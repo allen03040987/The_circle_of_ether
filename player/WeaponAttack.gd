@@ -1,7 +1,7 @@
 extends State
 class_name WeaponAttackState
 ## 戰鬥總監狀態 (Weapon Attack State)
-## 處理所有武器攻擊期間的轉向、連段派生 (Combo)、打斷與物理委託。
+## 職責：處理所有武器攻擊期間的轉向、連段派生 (Combo)、打斷，並將物理移動委託給武器計算。
 
 var _frames_in_state: int = 0
 
@@ -22,13 +22,12 @@ func enter() -> void:
 	if player.scabbard:
 		player.scabbard.fade_out() 
 		
-	# 武器有效性防呆
+	# 防呆：沒武器直接踢回 Idle
 	if not is_instance_valid(player.current_weapon):
 		state_machine.transition_to("Idle")
 		return
 		
-	# --- 輸入雙重判定與緩衝清理 ---
-	# 嚴格禁止長按偷渡，一切只聽從 Player 的「點按緩衝 (is_requested)」
+	# --- 嚴格輸入緩衝判定 ---
 	var wants_heavy = player.is_heavy_requested 
 	var wants_light = player.is_combo_requested
 	
@@ -41,14 +40,14 @@ func enter() -> void:
 	_update_facing()
 	
 	# --- 攻擊優先級派發 ---
-	# 優先度 0：大招
+	# 👑 優先度 0：大招 (Ultimate)
 	if player.is_ult_requested:
 		player.is_ult_requested = false
 		if player.current_weapon.has_method("start_ultimate"):
 			player.current_weapon.start_ultimate()
 		return
 		
-	# 優先度 1：極限閃避反擊 (魔女時間派生)
+	# ⚡ 優先度 1：極限閃避反擊 (魔女時間派生)
 	if (player.is_counter_requested or player.counter_pickup_timer > 0) and wants_light and not wants_heavy:
 		player.is_counter_requested = false
 		player.counter_pickup_timer = 0.0
@@ -56,21 +55,19 @@ func enter() -> void:
 			player.current_weapon.start_counter_attack()
 		return
 
-	# 優先度 2：常規輕重擊
+	# ⚔️ 優先度 2：常規輕重擊
 	if wants_heavy:
 		player.current_weapon.start_heavy_attack()
 	elif wants_light:
 		player.current_weapon.start_light_attack()
 	else:
-		# 如果什麼按鍵緩衝都沒有卻進來了，直接踢回待機！
 		state_machine.transition_to("Idle")
 		
 # ==========================================
-# 🏃 物理更新 (Physics Update)
+# 🏃 物理更新與特權判定 (Physics Update)
 # ==========================================
 func physics_update(delta: float) -> void:
 	if not is_instance_valid(player.current_weapon): return
-
 	_frames_in_state += 1
 
 	# --- 🛑 鎖死判定：未鎖死才允許派生與打斷 ---
@@ -86,15 +83,11 @@ func physics_update(delta: float) -> void:
 				player.heavy_buffer_time = 0.0
 				
 				_update_facing() 
-				
-				# 這裡會觸發 cancel_attack()，導致刀鞘被誤叫出來 (fade_in)
 				player.current_weapon.cancel_attack() 
 				player.current_weapon.start_ultimate()
 				
-				# 🌟 核心修復：直接無條件把它藏回去！不要再去管 requires_sheath 了！
 				if player.scabbard:
 					player.scabbard.fade_out()
-						
 				return
 			else:
 				player.is_ult_requested = false 
@@ -127,16 +120,20 @@ func physics_update(delta: float) -> void:
 				state_machine.transition_to("Slide")
 				return
 
-	# --- 🏃 物理移動委託 (最高位移原則) ---
+	# ==========================================
+	# 🏃 物理移動委託 (最高位移原則)
+	# ==========================================
 	var target_velocity: Vector2 = player.current_weapon.get_current_velocity(delta)
 	player.velocity = target_velocity
 	
 	if not player.current_weapon.is_handling_gravity():
 		player.velocity.y += player.default_gravity * delta
 		
-	player.custom_move_and_slide()
+	player.custom_move_and_slide() # ✅ 嚴格遵守最高指導原則
 	
-	# --- 🎬 招式結束判定 ---
+	# ==========================================
+	# 🎬 招式結束判定
+	# ==========================================
 	if player.current_weapon.is_attack_finished():
 		if player.is_on_floor():
 			if player.current_weapon.has_method("requires_sheath") and player.current_weapon.requires_sheath():
@@ -152,5 +149,5 @@ func physics_update(delta: float) -> void:
 # ==========================================		
 func exit() -> void:
 	if is_instance_valid(player.current_weapon):
-		if player.current_weapon.is_attacking:
+		if player.current_weapon.get("is_attacking"):
 			player.current_weapon.cancel_attack()

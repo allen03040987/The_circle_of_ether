@@ -1,17 +1,24 @@
 class_name Slime
 extends Enemy
+## 史萊姆雜兵 AI
+## 採用高效能的 Code-based FSM (輕量級狀態機) 實現群體管理。
 
 enum SlimeState { IDLE, WALK, RUN, PREPARE, ATTACK, HURT, LAUNCHED, DYING }
 const KEEP_CURRENT := -1
 
 # ==========================================
-# 🎛️ AI 特有參數 (AI Properties)
+# 🎛️ AI 與攻擊設定 
 # ==========================================
-@export_group("AI 攻擊設定")
+@export_group("AI 行為設定")
 @export var attack_dash_speed: float = 600.0   
 @export var attack_dash_duration: float = 0.3  
 @export var attack_prepare_time: float = 2.0 
 @export var attack_cooldown_time: float = 2.5   
+
+# 🌟 解耦：把傷害參數提取到外部，方便面板調整
+@export_group("史萊姆攻擊力")
+@export var base_damage: int = 10
+@export var base_knockback: Vector2 = Vector2(400.0, 0.0)
 
 # --- 內部狀態 ---
 var current_state: SlimeState = SlimeState.IDLE
@@ -20,7 +27,7 @@ var attack_cooldown: float = 0.0
 var warning_tween: Tween
 
 # ==========================================
-# 🔗 節點參考 (Node References)
+# 🔗 節點參考
 # ==========================================
 @onready var wall_checker: RayCast2D = $Graphics/WallChecker
 @onready var floor_checker: RayCast2D = $Graphics/FloorChecker
@@ -31,9 +38,10 @@ var warning_tween: Tween
 @onready var hitbox: Hitbox = $Graphics/Hitbox 
 
 # ==========================================
-# ⚙️ 初始化與主循環 (Lifecycle)
+# ⚙️ 核心生命週期與大腦輪詢
 # ==========================================
 func _ready() -> void:
+	super._ready() # 確保繼承的 Enemy._ready() 被呼叫
 	hitbox_shape.disabled = true
 	if warning_icon: warning_icon.visible = false
 
@@ -56,36 +64,33 @@ func _physics_process(delta: float) -> void:
 	state_time += delta
 
 # ==========================================
-# 🧠 AI 決策大腦 (State Transitions)
+# 🧠 AI 狀態轉移判定 (State Logic)
 # ==========================================
 func get_next_state(state: SlimeState) -> int:
-	# --- 1. 死亡優先 ---
+	# 1. 死亡優先
 	if stats.health <= 0:
 		if state == SlimeState.DYING: return KEEP_CURRENT
 		return SlimeState.DYING
 		
-	# --- 2. 受傷打斷判定 ---
+	# 2. 受傷打斷判定
 	if pending_damage != null:
 		var p_type = pending_damage["type"]
 		var p_kb = pending_damage["knockback_force"]
 		
-		# 霸體判定 (無視硬直)
 		if p_type == Damage.Type.NO_STUN:
 			pending_damage = null
 			return KEEP_CURRENT
 			
-		# 史萊姆特有動作霸體 (準備與衝刺期間免疫輕擊)
 		if (state == SlimeState.ATTACK or state == SlimeState.PREPARE) and p_type == Damage.Type.LIGHT:
 			pending_damage = null 
 			return KEEP_CURRENT
 			
-		# 正常受傷分流 (Juggling 浮空修復)
 		if p_type == Damage.Type.HEAVY or p_kb.y < 0: 
 			return SlimeState.LAUNCHED
 		else: 
 			return SlimeState.HURT
 			
-	# --- 3. 日常行為樹 ---
+	# 3. 日常行為樹
 	match state:
 		SlimeState.IDLE:
 			if can_see_player() and attack_cooldown <= 0: return SlimeState.PREPARE 
@@ -99,13 +104,9 @@ func get_next_state(state: SlimeState) -> int:
 			if state_time >= attack_prepare_time: return SlimeState.ATTACK
 		SlimeState.ATTACK:
 			if state_time >= attack_dash_duration: return SlimeState.RUN
-			
-		# 🛑 受傷狀態解除條件
 		SlimeState.HURT:
 			if not animation_player.is_playing() and is_on_floor(): return SlimeState.RUN
-				
 		SlimeState.LAUNCHED:
-			# 必須往下掉、踩到地板且動畫播完
 			if velocity.y >= 0 and is_on_floor() and not animation_player.is_playing(): return SlimeState.RUN
 			
 	return KEEP_CURRENT
@@ -125,7 +126,7 @@ func tick_physics(state: SlimeState, delta: float) -> void:
 			else:
 				velocity.x = move_toward(velocity.x, 0.0, acceleration * delta)
 			velocity.y += default_gravity * delta
-			custom_move_and_slide() # 🌟 修復：套用最高位移原則
+			custom_move_and_slide()
 			
 		SlimeState.WALK:
 			if is_on_floor() and (wall_checker.is_colliding() or not floor_checker.is_colliding()):
@@ -144,25 +145,19 @@ func tick_physics(state: SlimeState, delta: float) -> void:
 		SlimeState.ATTACK:
 			velocity.x = direction * attack_dash_speed
 			velocity.y += default_gravity * delta
-			custom_move_and_slide() # 🌟 修復：套用最高位移原則
+			custom_move_and_slide()
 			
-		SlimeState.HURT:
+		SlimeState.HURT, SlimeState.LAUNCHED:
 			var knockback_friction = max_speed * 3.0 
 			velocity.x = move_toward(velocity.x, 0.0, knockback_friction * delta)
 			velocity.y += default_gravity * delta
-			custom_move_and_slide() # 🌟 修復：套用最高位移原則
-			
-		SlimeState.LAUNCHED:
-			var knockback_friction = max_speed * 3.0 
-			velocity.x = move_toward(velocity.x, 0.0, knockback_friction * delta)
-			velocity.y += default_gravity * delta
-			custom_move_and_slide() # 🌟 修復：套用最高位移原則
+			custom_move_and_slide()
 
 # ==========================================
 # 🎬 狀態切換與特效控制 (Transitions)
 # ==========================================
 func transition_state(from: SlimeState, to: SlimeState) -> void:
-	# --- 離開當前狀態的清理 ---
+	# --- 離開狀態的清理 ---
 	match from:
 		SlimeState.PREPARE:
 			if warning_icon: warning_icon.visible = false
@@ -172,7 +167,7 @@ func transition_state(from: SlimeState, to: SlimeState) -> void:
 			velocity.x = 0 
 			attack_cooldown = attack_cooldown_time
 
-	# --- 進入新狀態的初始化 ---
+	# --- 進入狀態的初始化 ---
 	match to:
 		SlimeState.IDLE:
 			animation_player.play("idle")
@@ -200,33 +195,28 @@ func transition_state(from: SlimeState, to: SlimeState) -> void:
 				)
 		SlimeState.ATTACK:
 			animation_player.play("run")
-			
 			if hitbox:
-				hitbox.damage_amount = 1
+				hitbox.damage_amount = base_damage
 				hitbox.attack_type = Damage.Type.LIGHT
-				hitbox.knockback_force = Vector2(400.0, 0.0) 
+				hitbox.knockback_force = base_knockback 
 				if "shake_intensity" in hitbox: hitbox.shake_intensity = 3.0 
-					
 			hitbox_shape.set_deferred("disabled", false)
 			
 		SlimeState.HURT, SlimeState.LAUNCHED:
 			animation_player.stop()
 			animation_player.play("hit")
-			
 			var p_knockback: Vector2 = pending_damage["knockback_force"]
 			velocity.x = p_knockback.x
 			velocity.y = p_knockback.y
-			
 			if not is_zero_approx(p_knockback.x):
 				direction = Direction.LEFT if p_knockback.x > 0 else Direction.RIGHT
-				
 			pending_damage = null
 			
 		SlimeState.DYING:
 			animation_player.play("die")
 
 # ==========================================
-# 💥 受擊接收 (Damage Reception)
+# 💥 受擊接收 
 # ==========================================
-func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
-	take_damage(hitbox)
+func _on_hurtbox_hurt(hb: Hitbox) -> void:
+	take_damage(hb)

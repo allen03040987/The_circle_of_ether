@@ -91,7 +91,10 @@ func change_scene(path: String, params := {}) -> void:
 	
 	
 	# --- 2. 儲存舊地圖狀態 ---
-	if tree.current_scene is World: 
+	var is_loading = params.get("is_loading_save", false)
+	
+	# 🚨 如果正在讀檔，絕對不准觸發「離開前存檔」，否則會把剛讀出來的資料洗掉！
+	if tree.current_scene is World and not is_loading: 
 		var old_name = tree.current_scene.scene_file_path.get_basename().get_file()
 		world_stats[old_name] = tree.current_scene.to_dict()
 		
@@ -185,11 +188,15 @@ func save_game() -> void:
 		"combat_state": player_combat_state # 🌟 核心修復：把戰鬥背包真正寫入 JSON 存檔中！
 	}
 	
+	# 🚨 關鍵偵測：檢查到底存了什麼鬼東西進去！
+	print("💾 [存檔偵測] 武器清單內容: ", player_combat_state.get("equipped_weapon_ids"))
+	
 	var json := JSON.stringify(data, "\t")
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if not file: return
 	file.store_string(json)
 	
+## 讀取 user://data.sav 並恢復世界
 ## 讀取 user://data.sav 並恢復世界
 func load_game() -> void:
 	var file := FileAccess.open(SAVE_PATH, FileAccess.READ) 
@@ -203,6 +210,7 @@ func load_game() -> void:
 	change_scene(data.scene, {
 		"direction": data.player.direction,
 		"position": Vector2(data.player.position.x, data.player.position.y),
+		"is_loading_save": true, # 🚨 核心防呆：告訴轉場系統「我是讀檔，絕對不要洗掉我的資料！」
 		"init": func (): 
 			world_stats = data.world_stats
 			player_stats.from_dict(data.stats)

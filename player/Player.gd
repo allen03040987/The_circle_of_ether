@@ -797,17 +797,18 @@ func _perform_swap(next_weapon: Node, is_intro_skill: bool) -> void:
 # ==========================================
 # 👻 殘影代打系統核心 (Phantom Striker)
 # ==========================================
-# 記得把路徑換成你剛剛存檔 PhantomStriker.tscn 的正確路徑！
 const PHANTOM_SCENE = preload("res://player/PhantomStriker.tscn") 
 
 func spawn_phantom_striker(outgoing_weapon: Weapon) -> void:
 	if not PHANTOM_SCENE: return
 	
 	var phantom = PHANTOM_SCENE.instantiate()
-	get_tree().current_scene.add_child(phantom)
 	
-	# 將所有繁雜的複製與設定工作，交給殘影自己處理！
+	# 🌟 核心修復：先在「離線狀態」下完成所有設定！(致敬原版邏輯)
 	phantom.setup(self, outgoing_weapon)
+	
+	# 🌟 設定完畢後，最後一步才把它加進遊戲世界！
+	get_tree().current_scene.add_child(phantom)
 
 # ==========================================
 # ✨ 視覺與 Hitbox 接口 (Proxy Methods)
@@ -823,14 +824,14 @@ func _flash_character() -> void:
 # ==========================================
 func export_combat_state() -> Dictionary:
 	var state = {
+		# 🌟 核心修復 1：把身上的武器清單打包帶走！
+		"equipped_weapon_ids": equipped_weapon_ids, 
 		"weapon_resources": weapon_resources,
 		"weapon_switch_cooldown_timer": weapon_switch_cooldown_timer,
-		# 紀錄當前拿的是第幾把武器 (索引值)
 		"current_weapon_index": current_weapon.get_index() if is_instance_valid(current_weapon) else 0,
 		"weapons_data": {}
 	}
 	
-	# 讓每一把武器自己打包專屬數據 (例如太刀的居合值)
 	for weapon in weapon_slot.get_children():
 		if weapon.has_method("export_weapon_data"):
 			state["weapons_data"][weapon.name] = weapon.export_weapon_data()
@@ -838,6 +839,20 @@ func export_combat_state() -> Dictionary:
 	return state
 
 func import_combat_state(state: Dictionary) -> void:
+	# ==========================================
+	# 🌟 核心修復：解決 JSON 弱型別與 Godot 強型別的衝突
+	# ==========================================
+	if state.has("equipped_weapon_ids"):
+		var raw_array = state["equipped_weapon_ids"]
+		var safe_array: Array[String] = []
+		
+		# 手動把無型別的內容，一個一個轉成字串塞進安全陣列裡
+		for item in raw_array:
+			safe_array.append(str(item))
+			
+		# 現在這個陣列是純粹的 Array[String]，不會再報錯了！
+		equip_loadout(safe_array)
+		
 	if state.has("weapon_resources"): weapon_resources = state["weapon_resources"]
 	if state.has("weapon_switch_cooldown_timer"): weapon_switch_cooldown_timer = state["weapon_switch_cooldown_timer"]
 	
@@ -847,9 +862,9 @@ func import_combat_state(state: Dictionary) -> void:
 			if state["weapons_data"].has(weapon.name) and weapon.has_method("import_weapon_data"):
 				weapon.import_weapon_data(state["weapons_data"][weapon.name])
 				
-	# 恢復原本拿在手上的武器 (無聲強制切換，不播殘影)
+	# 恢復原本拿在手上的武器 (無聲強制切換)
 	if state.has("current_weapon_index"):
-		var target_idx = state["current_weapon_index"]
+		var target_idx = int(state["current_weapon_index"]) # 🌟 強制轉為整數，防 JSON 浮點數報錯
 		if target_idx >= 0 and target_idx < weapon_slot.get_child_count():
 			_force_equip_weapon(weapon_slot.get_child(target_idx))
 

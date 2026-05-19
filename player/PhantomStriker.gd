@@ -14,6 +14,8 @@ var is_input_locked: bool = false
 var default_gravity: float = 980.0
 var FLOOR_ACCELERATION: float = 8000.0
 
+var _frames_alive: int = 0
+var can_play_sfx: bool = false
 # ==========================================
 # 🧬 靈魂轉移與初始化 (由 Player 呼叫)
 # ==========================================
@@ -86,8 +88,12 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 			if "current_active_hitbox" in outgoing_weapon and outgoing_weapon.get("current_active_hitbox") != null:
 				var orig_hb = outgoing_weapon.get("current_active_hitbox")
 				var hb_path = outgoing_weapon.get_path_to(orig_hb)
-				child.set("current_active_hitbox", child.get_node(hb_path))
-
+				var cloned_hb = child.get_node(hb_path)
+				child.set("current_active_hitbox", cloned_hb)
+				
+				if "hit_targets" in orig_hb and "hit_targets" in cloned_hb:
+					cloned_hb.hit_targets = orig_hb.hit_targets.duplicate()
+					
 	outgoing_weapon = cloned_weapon # 替換為複製品
 
 	# 4. 靜音處理 (塞住 AnimationPlayer 的嘴)
@@ -117,7 +123,6 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 		animation_player.play(current_anim)
 		animation_player.seek(current_pos, true)
 		
-		# 使用 unbind(1) 自動忽略 animation_finished 傳來的參數
 		animation_player.animation_finished.connect(die_gracefully.unbind(1))
 		
 		var max_lifespan: float = 2.0
@@ -126,13 +131,11 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 			if anim_data.loop_mode == Animation.LOOP_NONE:
 				max_lifespan = max(0.5, anim_data.length - current_pos + 0.2)
 				
-		get_tree().create_timer(max_lifespan, false).timeout.connect(die_gracefully)
+			# 🌟 核心修復：借用本體玩家的場景樹來建立計時器！
+			player.get_tree().create_timer(max_lifespan, false).timeout.connect(die_gracefully)
 	else:
 		die_gracefully()
 
-# ==========================================
-# 🏃 物理與代理功能 (Proxy Functions)
-# ==========================================
 func _physics_process(delta: float) -> void:
 	if is_instance_valid(outgoing_weapon):
 		if outgoing_weapon.has_method("get_current_velocity"):
@@ -220,6 +223,4 @@ func _apply_vfx_colors(node: Node, main_color: Color, aura_color: Color) -> void
 
 
 func trigger_swing_sfx(sfx_type: String) -> void:
-	
-	if AudioManager.has_method("play_action_sfx"):
-		AudioManager.play_action_sfx(sfx_type, -12.0)
+	AudioManager.play_action_sfx(sfx_type, -8.0)

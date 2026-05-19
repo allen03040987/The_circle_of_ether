@@ -53,6 +53,16 @@ var _camera_tween: Tween
 var is_wave_fired: bool = false 
 # 長按計時器
 var light_hold_timer: float = 0.0
+
+# ==========================================
+# 🌟 專屬資源記憶體 (解耦 Hitbox 用)
+# ==========================================
+var _current_energy_reward: float = 0.0
+var _current_switch_reward: float = 0.0
+var _current_pozhen_reward: int = 0
+var _multi_hit_energy: bool = false
+var _has_granted_resources_this_step: bool = false
+
 # ==========================================
 # 🌀 破陣迴路 (Po-Zhen System)
 # ==========================================
@@ -530,6 +540,34 @@ func _play_attack(config: Dictionary) -> void:
 		if "shake_intensity" in hitbox: hitbox.shake_intensity = config.get("shake", 2.5) 
 		if "shake_on_hit_only" in hitbox: hitbox.shake_on_hit_only = config.get("shake_on_hit_only", true)
 		
+		# ==========================================
+		# 🌟 核心解耦 1：由長槍自己記住這招的獎勵
+		# ==========================================
+		_current_energy_reward = float(config.get("energy", 0))
+		_current_switch_reward = float(config.get("switch", 0))
+		_current_pozhen_reward = int(config.get("pozhen", 0))
+		_multi_hit_energy = config.get("multi_hit_energy", false)
+		_has_granted_resources_this_step = false
+		
+		# --- 長槍專屬大地色系火花 (RAW HDR) ---
+		hitbox.spark_type = 0
+		hitbox.spark_scale = 0.3
+		hitbox.spark_color = Color(1.0, 0.4, 0.2, 1.0)
+		hitbox.aura_color = Color(1.0, 0.6, 0.2, 1.0)
+		
+		hitbox.hit_targets.clear()
+		
+		# ==========================================
+		# 🌟 核心解耦 2：切斷舊信號，接管新信號
+		# ==========================================
+		if current_active_hitbox and current_active_hitbox.hit.is_connected(_on_hitbox_hit):
+			current_active_hitbox.hit.disconnect(_on_hitbox_hit)
+			
+		current_active_hitbox = hitbox 
+		
+		if not current_active_hitbox.hit.is_connected(_on_hitbox_hit):
+			current_active_hitbox.hit.connect(_on_hitbox_hit)
+			
 		if "energy_reward" in hitbox: hitbox.energy_reward = float(config.get("energy", 0))
 		if "switch_reward" in hitbox: hitbox.switch_reward = float(config.get("switch", 0))
 		
@@ -547,6 +585,24 @@ func _play_attack(config: Dictionary) -> void:
 	
 	if player.animation_player.current_animation == config["anim"]: player.animation_player.stop()
 	player.play_safe_anim(config["anim"])
+	
+# ==========================================
+# 🎯 命中回饋處理 (由 Hitbox 信號觸發)
+# ==========================================
+func _on_hitbox_hit(hurtbox: Node) -> void:
+	if is_instance_valid(player) and is_instance_valid(hurtbox.owner) and hurtbox.owner == player: 
+		return
+
+	if _multi_hit_energy or not _has_granted_resources_this_step:
+		if _current_pozhen_reward > 0:
+			gain_pozhen(_current_pozhen_reward)
+			
+		if _current_energy_reward > 0 or _current_switch_reward > 0:
+			if player.has_method("add_weapon_resource"):
+				player.add_weapon_resource(WEAPON_ID, _current_energy_reward, _current_switch_reward)
+				
+		_has_granted_resources_this_step = true
+		
 
 # 🌟 空戰專用發招與物理推進
 func _play_air_step(step: int) -> void:
@@ -765,10 +821,21 @@ func spawn_boomerang() -> void:
 	boomerang.hitbox.shake_intensity = 1.5
 	boomerang.hitbox.shake_on_hit_only = true
 	
-	# 讓迴旋鏢打中人也能獲得資源！(數值你可以自己微調)
-	boomerang.hitbox.energy_reward = 2.0  # 每次命中給 2 點大招能量
-	boomerang.hitbox.switch_reward = 3.0  # 每次命中給 3 點合軸值
-	boomerang.hitbox.pozhen_reward = 10    # 順便讓戰技也能累積破陣值！
+	var w_energy = 2.0
+	var w_switch = 3.0
+	var w_pozhen = 10
+	var b_state = [false] # 利用陣列當作參照，確保 Lambda 內的布林值能正確被修改
+	
+	boomerang.hitbox.hit.connect(func(hurtbox: Node):
+		if is_instance_valid(player) and is_instance_valid(hurtbox.owner) and hurtbox.owner == player: return
+		
+		# 如果迴旋鏢打到敵人，給予對應的破陣與能量
+		if not b_state[0]:
+			gain_pozhen(w_pozhen)
+			if player.has_method("add_weapon_resource"):
+				player.add_weapon_resource(WEAPON_ID, w_energy, w_switch)
+			b_state[0] = true
+	)
 	
 	boomerang.hitbox.spark_type = 0
 	boomerang.hitbox.spark_scale = 0.4  
