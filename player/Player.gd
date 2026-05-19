@@ -362,12 +362,12 @@ func take_damage(temp_damage: Damage) -> void:
 		Damage.Type.NO_STUN:
 			pending_damage = null
 		Damage.Type.HEAVY:
-			grant_invincibility(0.5) # 挑飛給 0.5 秒無敵！
+			grant_invincibility(0.6) # 挑飛給 0.6 秒無敵！
 			state_machine.call_deferred("transition_to", "Launched") 
 		Damage.Type.THROW:
 			pending_damage = null
 		_: # 預設與 LIGHT
-			grant_invincibility(0.25) # 輕受擊給 0.25 秒無敵！
+			grant_invincibility(0.35) # 輕受擊給 0.35 秒無敵！
 			state_machine.call_deferred("transition_to", "Hurt")
 			
 	if stats.health <= 0:
@@ -839,9 +839,8 @@ func export_combat_state() -> Dictionary:
 	return state
 
 func import_combat_state(state: Dictionary) -> void:
-	# ==========================================
-	# 🌟 核心修復：解決 JSON 弱型別與 Godot 強型別的衝突
-	# ==========================================
+	print("📥 [時空法術] 偵測到跨場景背包，正在強制覆蓋預設武器！") # 加這行
+	
 	if state.has("equipped_weapon_ids"):
 		var raw_array = state["equipped_weapon_ids"]
 		var safe_array: Array[String] = []

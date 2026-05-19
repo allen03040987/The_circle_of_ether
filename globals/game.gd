@@ -121,7 +121,9 @@ func change_scene(path: String, params := {}) -> void:
 		await tree.process_frame
 		
 		tree.change_scene_to_packed(next_scene_pack)
-		await tree.tree_changed  
+		
+	
+		await tree.process_frame 
 	else:
 		printerr("❌ 場景載入失敗: ", path)
 		tree.paused = false

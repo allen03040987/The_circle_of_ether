@@ -15,10 +15,10 @@ var player: Node
 # ==========================================
 @export_group("技能圖標配置")
 @export var skill_1_icon: Texture2D
-@export var skill_1_enhanced_icon: Texture2D
 @export var skill_2_icon: Texture2D
 @export var skill_3_icon: Texture2D
 @export var ult_icon: Texture2D
+
 
 @export_group("技能冷卻時間")
 @export var skill_1_cd: float = 8.0 
@@ -32,6 +32,7 @@ var skill_2_timer: float = 0.0
 var skill_3_timer: float = 0.0
 var ult_timer: float = 0.0
 
+
 # ==========================================
 # ⚙️ 初始化
 # ==========================================
@@ -43,6 +44,17 @@ func _ready() -> void:
 			await owner.ready
 		player = owner
 
+# ==========================================
+# 🎬 UI 專用接口：取得當前該顯示的技能圖標
+# ==========================================
+func get_dynamic_skill_icon(slot: int) -> Texture2D:
+	match slot:
+		1: return skill_1_icon
+		2: return skill_2_icon
+		3: return skill_3_icon
+		4: return ult_icon
+	return null
+	
 # ==========================================
 # 🎬 總監 (WeaponAttackState) 呼叫標準介面
 # ==========================================

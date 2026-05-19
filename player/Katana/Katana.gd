@@ -42,7 +42,11 @@ const LIGHT_ATTACK_CONFIG = {
 
 # [戰技與大招字典] 
 const SKILL_CONFIG = {
-	21: { "anim": "katana/attack_c3", "hitbox_name": "None", "type": Damage.Type.HEAVY, "knockback": Vector2.ZERO, "shake": 20.0, "shake_on_hit_only": true, "base_dmg": 932, "energy": 15, "switch": 20, "iai_reward": 10 },
+	# --- 🌟 新版戰技下：三段連斬 (20 -> 21 -> 22) ---
+	20: { "anim": "katana/attack_c3", "hitbox_name": "C3", "type": Damage.Type.LIGHT,"max_hits": 3, "interval": 0.1, "knockback": Vector2(-100.0, -200.0), "shake": 15.0, "shake_on_hit_only": true, "base_dmg": 300, "energy": 5, "switch": 5, "iai_reward": 5,"hit_sfx_type": "hit" },
+	21: { "anim": "katana/attack_c3_2", "hitbox_name": "C3", "type": Damage.Type.LIGHT,"max_hits": 6, "interval": 0.1,"sticky": true, "knockback": Vector2(100.0, -200.0), "shake": 20.0, "shake_on_hit_only": true, "base_dmg": 450, "energy": 5, "switch": 5, "iai_reward": 5,"hit_sfx_type": "hit" },
+	# 原本的劍氣招式變成最後一段 (22)
+	22: { "anim": "katana/attack_c3_3", "hitbox_name": "None", "type": Damage.Type.HEAVY, "knockback": Vector2.ZERO, "shake": 30.0, "shake_on_hit_only": true, "base_dmg": 932, "energy": 15, "switch": 20, "iai_reward": 10 },
 	30: { "anim": "katana/attack_c0_charge_start", "hitbox_name": "None", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 0, "energy": 0, "switch": 0, "iai_reward": 0 },
 	34: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2(50.0, 0.0), "shake": 6.0, "shake_on_hit_only": true, "base_dmg": 200,"hit_sfx_type": "hit", "energy": 1, "switch": 2, "iai_reward": 0 },
 	32: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 325,"hit_sfx_type": "hit", "energy": 1, "switch": 2, "iai_reward": 0, },
@@ -124,6 +128,24 @@ var _camera_tween: Tween
 var _is_hitbox_locked: bool = false
 
 # ==========================================
+# 🌟 多段戰技連段系統 (Combo Skill Cooldown)
+# ==========================================
+var skill_2_combo_timer: float = 0.0
+var skill_2_current_step: int = 11  # 紀錄「挑飛」目前的段數 (11->12)
+
+var skill_3_combo_timer: float = 0.0
+var skill_3_current_step: int = 20  # 紀錄「下砸」目前的段數 (20->21->22)
+
+# ==========================================
+# 🎨 太刀專屬動態圖標
+# ==========================================
+@export_group("太刀動態圖標")
+@export var skill_1_tsubame_icon: Texture2D
+@export var skill_2_step2_icon: Texture2D
+@export var skill_3_step2_icon: Texture2D
+@export var skill_3_step3_icon: Texture2D
+
+# ==========================================
 # 🌀 5. 共鳴迴路邏輯 (Resonance Circuit)
 # ==========================================
 func gain_iai(amount: int) -> void:
@@ -201,8 +223,20 @@ func start_heavy_attack() -> void:
 			is_tsubame_ready = false
 			current_tsubame = 0
 		elif Input.is_action_pressed("move_down"):
-			_play_skill_step(21) 
-			skill_3_timer = skill_3_cd
+			# 🌟 將原本死板的 21 替換為連段進度
+			combo_step = skill_3_current_step
+			_play_skill_step(combo_step)
+			
+			if combo_step == 20:
+				skill_3_current_step = 21
+				skill_3_combo_timer = 5.0 
+			elif combo_step == 21:
+				skill_3_current_step = 22
+				skill_3_combo_timer = 5.0 
+			else:
+				skill_3_current_step = 20
+				skill_3_combo_timer = 0.0
+				skill_3_timer = skill_3_cd
 		else:
 			is_attacking = false 
 		return
@@ -210,22 +244,40 @@ func start_heavy_attack() -> void:
 	# ==========================================
 	# 🗡️ 地面方向派生
 	# ==========================================
-	if combo_step == 11:
-		_play_skill_step(12)
-		skill_2_timer = skill_2_cd
-		return
-		
-	# 🌟 修復：燕返擁有絕對第一優先級
 	if is_tsubame_ready:
 		_play_skill_step(42) 
 		is_tsubame_ready = false
 		current_tsubame = 0 
+		
 	elif Input.is_action_pressed("move_up"): 
-		_play_skill_step(11) 
-		skill_2_timer = skill_2_cd
+		# 🌟 戰技上 (11 -> 12)
+		combo_step = skill_2_current_step
+		_play_skill_step(combo_step)
+		
+		if combo_step == 11:
+			skill_2_current_step = 12
+			skill_2_combo_timer = 5.0 # 進入 5 秒寬限期
+		else:
+			skill_2_current_step = 11
+			skill_2_combo_timer = 0.0
+			skill_2_timer = skill_2_cd # 最後一段打完，立刻進入真正冷卻
+			
 	elif Input.is_action_pressed("move_down"): 
-		_play_skill_step(21) 
-		skill_3_timer = skill_3_cd 
+		# 🌟 戰技下 (20 -> 21 -> 22)
+		combo_step = skill_3_current_step
+		_play_skill_step(combo_step)
+		
+		if combo_step == 20:
+			skill_3_current_step = 21
+			skill_3_combo_timer = 5.0 # 進入 5 秒寬限期
+		elif combo_step == 21:
+			skill_3_current_step = 22
+			skill_3_combo_timer = 5.0 # 刷新 5 秒寬限期
+		else:
+			skill_3_current_step = 20
+			skill_3_combo_timer = 0.0
+			skill_3_timer = skill_3_cd # 最後一段打完，立刻進入真正冷卻
+			
 	else:
 		_play_skill_step(41)
 		skill_1_timer = skill_1_cd
@@ -278,9 +330,22 @@ func start_intro_skill() -> void:
 func update_timers_only(delta: float) -> void:
 	if step_cooldown > 0: step_cooldown -= delta 
 	if skill_1_timer > 0: skill_1_timer -= delta
-	if skill_2_timer > 0: skill_2_timer -= delta # 🌟 挑飛冷卻
-	if skill_3_timer > 0: skill_3_timer -= delta # 🌟 下砸冷卻
+	if skill_2_timer > 0: skill_2_timer -= delta 
+	if skill_3_timer > 0: skill_3_timer -= delta 
 	if ult_timer > 0: ult_timer -= delta
+
+	# 🌟 多段戰技的 5 秒寬限期倒數
+	if skill_2_combo_timer > 0:
+		skill_2_combo_timer -= delta
+		if skill_2_combo_timer <= 0:
+			skill_2_timer = skill_2_cd     # 寬限期結束，進入真正冷卻！
+			skill_2_current_step = 11      # 進度重置回第一段
+
+	if skill_3_combo_timer > 0:
+		skill_3_combo_timer -= delta
+		if skill_3_combo_timer <= 0:
+			skill_3_timer = skill_3_cd     # 寬限期結束，進入真正冷卻！
+			skill_3_current_step = 20      # 進度重置回第一段
 
 # ==========================================
 # 🏃 物理與特效場控核心 (The Stage Director)
@@ -435,17 +500,22 @@ func get_current_velocity(delta: float) -> Vector2:
 			new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
 	
 	# ----------------------------------------
-	# 🌊 劍氣發射 (Sword Wave)
+	# 🌊 戰技下：三段式連斬與劍氣發射 (20, 21, 22)
 	# ----------------------------------------
-	elif combo_step == 21: 
-		var anim_time = player.animation_player.current_animation_position
-		if anim_time >= 0.32 and not is_wave_fired:
-			is_wave_fired = true
-			if CombatManager.has_method("apply_camera_shake"): CombatManager.apply_camera_shake(20.0) 
-			spawn_sword_wave("skill_down")
-			
+	elif combo_step in [20, 21, 22]: 
+		
+		# 第三段專屬：發射劍氣與震動
+		if combo_step == 22:
+			var anim_time = player.animation_player.current_animation_position
+			if anim_time >= 0.32 and not is_wave_fired:
+				is_wave_fired = true
+				if CombatManager.has_method("apply_camera_shake"): CombatManager.apply_camera_shake(20.0) 
+				spawn_sword_wave("skill_down")
+				
+		# 三段共用的物理減速與滯空邏輯
 		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
-		if not player.is_on_floor(): new_y += (player.default_gravity * air_skill_gravity_rate) * delta
+		if not player.is_on_floor(): 
+			new_y += (player.default_gravity * air_skill_gravity_rate) * delta
 
 	elif combo_step == 41: 
 		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * skill_neutral_friction_rate * delta)
@@ -554,7 +624,7 @@ func get_current_velocity(delta: float) -> Vector2:
 # 武器是否接管重力 (True 時總監不干涉 Y 軸)
 func is_handling_gravity() -> bool:
 	if combo_step == 12 and is_launch_triggered: return true
-	if not player.is_on_floor() and combo_step in [21, 42]: return true
+	if not player.is_on_floor() and combo_step in [20, 21, 22, 42]: return true
 	if combo_step == 80: return true
 	return false
 
@@ -686,7 +756,7 @@ func _play_skill_step(step: int) -> void:
 		elif step == 42: current_active_hitbox.spark_scale = 0.6
 		elif step == 80: current_active_hitbox.spark_scale = 1.0
 	
-	if not player.is_on_floor() and step in [21, 42]:
+	if not player.is_on_floor() and step in [20, 21, 22, 42]:
 		player.velocity.y = air_thrust_force * 0.5
 		
 	combo_step = step
@@ -834,7 +904,7 @@ func spawn_sword_wave(wave_type: String) -> void:
 			# 鎖死劍氣的絕對方向！
 			wave.hitbox.absolute_knockback = Vector2(400.0 * player.direction, 0.0)
 			
-			wave.hitbox.knockback_force = Vector2(400.0, 0.0)
+			wave.hitbox.knockback_force = Vector2(400.0, -400.0)
 			wave.hitbox.attack_type = Damage.Type.LIGHT
 			wave.hitbox.spark_scale = 0.3
 			
@@ -859,6 +929,7 @@ func spawn_sword_wave(wave_type: String) -> void:
 					wave_state[0] = true
 			)
 			
+
 # ==========================================
 # 🛡️ 狀態機防護名單 (The Bouncer's List)
 # ==========================================
@@ -911,7 +982,21 @@ func can_use_ultimate() -> bool:
 			
 	return true
 
-
+# ==========================================
+# 🎬 實作與覆寫 Weapon.gd 的圖標接口
+# ==========================================
+func get_dynamic_skill_icon(slot: int) -> Texture2D:
+	match slot:
+		1:
+			if is_tsubame_ready and skill_1_tsubame_icon: return skill_1_tsubame_icon
+		2:
+			if skill_2_current_step == 12 and skill_2_step2_icon: return skill_2_step2_icon
+		3:
+			if skill_3_current_step == 21 and skill_3_step2_icon: return skill_3_step2_icon
+			if skill_3_current_step == 22 and skill_3_step3_icon: return skill_3_step3_icon
+			
+	# 如果沒有任何特殊狀態，就呼叫老爸 (Weapon.gd) 的預設邏輯拿基本圖標！
+	return super.get_dynamic_skill_icon(slot)
 
 # ==========================================
 # 💾 武器狀態保存與繼承

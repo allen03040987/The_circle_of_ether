@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3 uid="uid://c18ugfjxauur6"]
+[gd_scene load_steps=24 format=3 uid="uid://c18ugfjxauur6"]
 
 [ext_resource type="Script" path="res://player/Katana/Katana.gd" id="1_8dhj7"]
 [ext_resource type="Texture2D" uid="uid://cffvkmas3ihmr" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (2).png" id="2_awpfg"]
@@ -36,6 +36,12 @@ size = Vector2(174, 89.125)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_k02j6"]
 size = Vector2(102, 62.75)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ieios"]
+size = Vector2(242, 86.75)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_c562v"]
+size = Vector2(102, 106.75)
+
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_npnyr"]
 size = Vector2(127, 77)
 
@@ -51,9 +57,12 @@ size = Vector2(680.318, 292.263)
 [node name="Katana" type="Node2D"]
 script = ExtResource("1_8dhj7")
 charge_time_per_tier = 0.3
+skill_1_tsubame_icon = ExtResource("3_pa6tr")
+skill_2_step2_icon = ExtResource("2_awpfg")
+skill_3_step2_icon = ExtResource("2_awpfg")
+skill_3_step3_icon = ExtResource("2_awpfg")
 scabbard_texture = ExtResource("2_cocv7")
 skill_1_icon = ExtResource("2_awpfg")
-skill_1_enhanced_icon = ExtResource("3_pa6tr")
 skill_2_icon = ExtResource("4_jdmsc")
 skill_3_icon = ExtResource("5_x6d44")
 ult_icon = ExtResource("6_pdw6q")
@@ -138,6 +147,24 @@ spark_random_offset = Vector2(0, 0)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="C2"]
 position = Vector2(19, -31.625)
 shape = SubResource("RectangleShape2D_k02j6")
+disabled = true
+
+[node name="C3" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("2_ieebl")
+spark_base_offset = Vector2(-5, 0)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="C3"]
+position = Vector2(89, -43.625)
+shape = SubResource("RectangleShape2D_ieios")
+disabled = true
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="C3"]
+position = Vector2(30, -53.625)
+shape = SubResource("RectangleShape2D_c562v")
 disabled = true
 
 [node name="Air_J" type="Area2D" parent="."]

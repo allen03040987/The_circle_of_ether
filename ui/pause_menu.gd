@@ -50,16 +50,50 @@ func _ready() -> void:
 # ==========================================
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
-		if get_tree().current_scene != null and get_tree().current_scene.name == "TitleScreen":
+		
+		var current_scene = get_tree().current_scene
+		if not current_scene: return
+		
+		# ==========================================
+		# 🛡️ 出場限制防護牆 (The Bouncer's List)
+		# ==========================================
+		# 1. 標題畫面絕對不准暫停！
+		if current_scene.name == "TitleScreen":
+			return
+			
+		if current_scene.name == "Select":
+			return
+			
+		
+			
+		# 2. 轉場期間 (Game.is_transitioning) 絕對不准暫停！
+		if Game.is_transitioning:
+			print("🚫 [PauseMenu] 轉場中，拒絕暫停！")
 			return
 			
 		var players = get_tree().get_nodes_in_group("Player")
 		if players.size() > 0:
 			var p = players[0]
+			
+			# 3. 領域展開 (時停/大招) 期間拒絕暫停！
 			if p.get("is_input_locked") == true:
 				print("🚫 [PauseMenu] 領域展開中，系統拒絕暫停！")
 				return 
-			
+				
+			# 4. 玩家死掉 (Dying/Death) 時絕對不准暫停！(防止死亡畫面被暫停卡死)
+			if p.has_node("StateMachine") and p.state_machine.current_state:
+				var p_state = p.state_machine.current_state.name.to_lower()
+				if p_state in ["dying", "death"]:
+					print("🚫 [PauseMenu] 玩家已陣亡，拒絕暫停！")
+					return
+					
+			# 5. 如果有 GameOverScreen 且正在顯示，拒絕暫停！
+			if p.has_node("CanvasLayer/GameOverScreen") and p.get_node("CanvasLayer/GameOverScreen").visible:
+				return
+		
+		# ==========================================
+		# 🚦 放行區 (進入選單邏輯)
+		# ==========================================
 		# 如果在設定或裝備介面，按 Esc 就退回暫停主選單
 		if settings_panel.visible:
 			_on_back_from_settings()

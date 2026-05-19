@@ -29,13 +29,15 @@ var action_sfx_bank: Dictionary = {
 	
 	"Earthquake": preload("res://sound/SFX/attack/Earthquake.wav"),
 	"Earthquake_2": preload("res://sound/SFX/attack/Earthquake_2.wav"),
-	
+	"wind": preload("res://sound/SFX/attack/wind.wav"),
 	"hit": preload("res://sound/SFX/hit/hit.wav"), 
 	"hit_2": preload("res://sound/SFX/hit/hit_2.wav"), 
 	"hit_3": preload("res://sound/SFX/hit/hit_3.wav"), 
 	"hit_4": preload("res://sound/SFX/hit/hit_4.wav"),
 	"hit_5": preload("res://sound/SFX/hit/hit_5.wav"),
 	"uit": preload("res://sound/SFX/uit.wav") ,
+	
+	"Sheath": preload("res://sound/SFX/attack/Sheath.wav"), 
 }
 # 負責接收各個角色傳來的「點歌標籤」
 func play_action_sfx(sfx_key: String, volume_db: float = -8.0) -> void:
