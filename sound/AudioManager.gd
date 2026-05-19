@@ -30,11 +30,13 @@ var action_sfx_bank: Dictionary = {
 	"Earthquake": preload("res://sound/SFX/attack/Earthquake.wav"),
 	"Earthquake_2": preload("res://sound/SFX/attack/Earthquake_2.wav"),
 	
-	# 💡 如果 hit_4 是武器「打中肉」的聲音，未來建議把它移到我們之前寫的 hit_sfx_bank 裡
-	# 但如果它是砸地板或特殊動作的碰撞聲，放在這裡完全沒問題！
-	"hit_4": preload("res://sound/SFX/hit/hit_4.wav") 
+	"hit": preload("res://sound/SFX/hit/hit.wav"), 
+	"hit_2": preload("res://sound/SFX/hit/hit_2.wav"), 
+	"hit_3": preload("res://sound/SFX/hit/hit_3.wav"), 
+	"hit_4": preload("res://sound/SFX/hit/hit_4.wav"),
+	"hit_5": preload("res://sound/SFX/hit/hit_5.wav"),
+	"uit": preload("res://sound/SFX/uit.wav") ,
 }
-
 # 負責接收各個角色傳來的「點歌標籤」
 func play_action_sfx(sfx_key: String, volume_db: float = -8.0) -> void:
 	if sfx_key == "" or not action_sfx_bank.has(sfx_key):
