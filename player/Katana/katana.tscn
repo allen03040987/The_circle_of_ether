@@ -37,10 +37,10 @@ size = Vector2(174, 89.125)
 size = Vector2(102, 62.75)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ieios"]
-size = Vector2(242, 86.75)
+size = Vector2(242, 147)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_c562v"]
-size = Vector2(102, 106.75)
+size = Vector2(102, 165)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_npnyr"]
 size = Vector2(127, 77)
@@ -158,12 +158,12 @@ spark_random_angle = 360.0
 spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="C3"]
-position = Vector2(89, -43.625)
+position = Vector2(89, -13.5)
 shape = SubResource("RectangleShape2D_ieios")
 disabled = true
 
 [node name="CollisionShape2D2" type="CollisionShape2D" parent="C3"]
-position = Vector2(30, -53.625)
+position = Vector2(30, -24.5)
 shape = SubResource("RectangleShape2D_c562v")
 disabled = true
 

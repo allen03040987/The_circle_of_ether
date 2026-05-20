@@ -221,7 +221,7 @@ func load_game() -> void:
 ## 初始化世界並開始新遊戲
 func new_game() -> void:
 	player_combat_state = {} # 🌟 開新遊戲時，清空記憶背包
-	change_scene("res://Worlds/forest.tscn", {
+	change_scene("res://Worlds/home.tscn", {
 		"init": func ():
 			world_stats = {}
 			player_stats.from_dict(default_player_stats)

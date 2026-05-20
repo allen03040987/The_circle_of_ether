@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cywuc6ekx3idq"
-path="res://.godot/imported/Hit Sparks-3.png-c227cfddfa9448a386aac59f833409ae.ctex"
+uid="uid://bwojiae0erj84"
+path="res://.godot/imported/Yellow-Tree.png-961d00ed5a00ad5006f5116e2f1b7de7.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://PixelBaker/Hit Sparks-3.png"
-dest_files=["res://.godot/imported/Hit Sparks-3.png-c227cfddfa9448a386aac59f833409ae.ctex"]
+source_file="res://map/Trees/Yellow-Tree.png"
+dest_files=["res://.godot/imported/Yellow-Tree.png-961d00ed5a00ad5006f5116e2f1b7de7.ctex"]
 
 [params]
 

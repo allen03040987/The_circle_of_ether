@@ -44,7 +44,7 @@ const LIGHT_ATTACK_CONFIG = {
 const SKILL_CONFIG = {
 	# --- 🌟 新版戰技下：三段連斬 (20 -> 21 -> 22) ---
 	20: { "anim": "katana/attack_c3", "hitbox_name": "C3", "type": Damage.Type.LIGHT,"max_hits": 3, "interval": 0.1, "knockback": Vector2(-100.0, -200.0), "shake": 15.0, "shake_on_hit_only": true, "base_dmg": 300, "energy": 5, "switch": 5, "iai_reward": 5,"hit_sfx_type": "hit" },
-	21: { "anim": "katana/attack_c3_2", "hitbox_name": "C3", "type": Damage.Type.LIGHT,"max_hits": 6, "interval": 0.1,"sticky": true, "knockback": Vector2(100.0, -200.0), "shake": 20.0, "shake_on_hit_only": true, "base_dmg": 450, "energy": 5, "switch": 5, "iai_reward": 5,"hit_sfx_type": "hit" },
+	21: { "anim": "katana/attack_c3_2", "hitbox_name": "C3", "type": Damage.Type.LIGHT,"max_hits": 6, "interval": 0.1,"sticky": true, "knockback": Vector2(100.0, -100.0), "shake": 20.0, "shake_on_hit_only": true, "base_dmg": 450, "energy": 5, "switch": 5, "iai_reward": 5,"hit_sfx_type": "hit" },
 	# 原本的劍氣招式變成最後一段 (22)
 	22: { "anim": "katana/attack_c3_3", "hitbox_name": "None", "type": Damage.Type.HEAVY, "knockback": Vector2.ZERO, "shake": 30.0, "shake_on_hit_only": true, "base_dmg": 932, "energy": 15, "switch": 20, "iai_reward": 10 },
 	30: { "anim": "katana/attack_c0_charge_start", "hitbox_name": "None", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 0, "energy": 0, "switch": 0, "iai_reward": 0 },
@@ -215,15 +215,11 @@ func start_heavy_attack() -> void:
 	is_wave_fired = false
 	is_time_stop_triggered = false 
 
+	# ==========================================
 	# 🪽 空戰派生處理
+	# ==========================================
 	if not player.is_on_floor():
-		# 🌟 修復：燕返擁有絕對第一優先級
-		if is_tsubame_ready:
-			_play_skill_step(42) 
-			is_tsubame_ready = false
-			current_tsubame = 0
-		elif Input.is_action_pressed("move_down"):
-			# 🌟 將原本死板的 21 替換為連段進度
+		if Input.is_action_pressed("move_down"):
 			combo_step = skill_3_current_step
 			_play_skill_step(combo_step)
 			
@@ -237,6 +233,11 @@ func start_heavy_attack() -> void:
 				skill_3_current_step = 20
 				skill_3_combo_timer = 0.0
 				skill_3_timer = skill_3_cd
+		# 🌟 方向鍵判定完，才輪到空中燕返
+		elif is_tsubame_ready:
+			_play_skill_step(42) 
+			is_tsubame_ready = false
+			current_tsubame = 0
 		else:
 			is_attacking = false 
 		return
@@ -244,23 +245,18 @@ func start_heavy_attack() -> void:
 	# ==========================================
 	# 🗡️ 地面方向派生
 	# ==========================================
-	if is_tsubame_ready:
-		_play_skill_step(42) 
-		is_tsubame_ready = false
-		current_tsubame = 0 
-		
-	elif Input.is_action_pressed("move_up"): 
+	if Input.is_action_pressed("move_up"): 
 		# 🌟 戰技上 (11 -> 12)
 		combo_step = skill_2_current_step
 		_play_skill_step(combo_step)
 		
 		if combo_step == 11:
 			skill_2_current_step = 12
-			skill_2_combo_timer = 5.0 # 進入 5 秒寬限期
+			skill_2_combo_timer = 5.0 
 		else:
 			skill_2_current_step = 11
 			skill_2_combo_timer = 0.0
-			skill_2_timer = skill_2_cd # 最後一段打完，立刻進入真正冷卻
+			skill_2_timer = skill_2_cd 
 			
 	elif Input.is_action_pressed("move_down"): 
 		# 🌟 戰技下 (20 -> 21 -> 22)
@@ -269,18 +265,24 @@ func start_heavy_attack() -> void:
 		
 		if combo_step == 20:
 			skill_3_current_step = 21
-			skill_3_combo_timer = 5.0 # 進入 5 秒寬限期
+			skill_3_combo_timer = 5.0 
 		elif combo_step == 21:
 			skill_3_current_step = 22
-			skill_3_combo_timer = 5.0 # 刷新 5 秒寬限期
+			skill_3_combo_timer = 5.0 
 		else:
 			skill_3_current_step = 20
 			skill_3_combo_timer = 0.0
-			skill_3_timer = skill_3_cd # 最後一段打完，立刻進入真正冷卻
+			skill_3_timer = skill_3_cd 
 			
 	else:
-		_play_skill_step(41)
-		skill_1_timer = skill_1_cd
+		# 🌟 中立鍵位 (什麼都沒按)：有燕返出燕返，沒燕返出普通戰技(41)
+		if is_tsubame_ready:
+			_play_skill_step(42) 
+			is_tsubame_ready = false
+			current_tsubame = 0 
+		else:
+			_play_skill_step(41)
+			skill_1_timer = skill_1_cd
 
 func start_counter_attack() -> void:
 	if step_cooldown > 0: return
@@ -898,7 +900,7 @@ func spawn_sword_wave(wave_type: String) -> void:
 	match wave_type:
 		"skill_down":
 			var config = SKILL_CONFIG[21] 
-			wave.speed = 900.0; wave.max_distance = 150.0; wave.scale = Vector2(2.0 * player.direction, 2.0)
+			wave.speed = 1200.0; wave.max_distance = 150.0; wave.scale = Vector2(2.0 * player.direction, 2.0)
 			wave.hitbox.damage_amount = max(1, roundi(float(config["base_dmg"])))
 			
 			# 鎖死劍氣的絕對方向！
@@ -907,7 +909,7 @@ func spawn_sword_wave(wave_type: String) -> void:
 			wave.hitbox.knockback_force = Vector2(400.0, -400.0)
 			wave.hitbox.attack_type = Damage.Type.LIGHT
 			wave.hitbox.spark_scale = 0.3
-			
+			wave.hitbox.hit_sfx_type = "hit_4"
 			# ==========================================
 			# 🌟 核心解耦 3：讓劍氣自己掛載獨立的監視器！
 			# ==========================================
@@ -939,19 +941,18 @@ func can_air_light() -> bool:
 
 # 🌟 全新的智慧方向防護網
 func can_use_heavy() -> bool:
-	# 燕返最高優先級：只要準備好，無視所有冷卻！
-	if is_tsubame_ready: return true 
-	
-	# 🌟 核心修復：如果現在是挑飛第一段 (11)，代表玩家要派生第二段 (12)，無條件放行！
 	if combo_step == 11: return true 
 	
-	# 1. 處理空戰限制 (空中只能放下砸)
+	# 1. 處理空戰限制
 	if not player.is_on_floor():
 		if Input.is_action_pressed("move_down"):
 			if skill_3_timer > 0:
 				print("⏳ [防護網攔截] 下砸戰技冷卻中！")
 				return false
 			return true 
+		# 空中中立鍵位：有燕返就給過，沒有就攔截
+		elif is_tsubame_ready:
+			return true
 		return false 
 			
 	# 2. 處理地面方向冷卻限制
@@ -964,7 +965,9 @@ func can_use_heavy() -> bool:
 			print("⏳ [防護網攔截] 下砸戰技冷卻中！")
 			return false
 	else:
-		# 什麼都沒按，就是中立戰技
+		# 🌟 中立鍵位：如果有燕返，無視冷卻直接放行！沒有的話才檢查 41 的冷卻
+		if is_tsubame_ready:
+			return true
 		if skill_1_timer > 0:
 			print("⏳ [防護網攔截] 中立戰技冷卻中！")
 			return false

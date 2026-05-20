@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bnlb1xxone74m"
-path="res://.godot/imported/Green-Tree.aseprite-0e91e6eb017576c2cf0e537b2b94bba0.ctex"
+uid="uid://ec6c8nqho0mg"
+path="res://.godot/imported/Golden-Tree.png-cc1b43ef98cc735613ca79c817922107.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Trees/Green-Tree.aseprite"
-dest_files=["res://.godot/imported/Green-Tree.aseprite-0e91e6eb017576c2cf0e537b2b94bba0.ctex"]
+source_file="res://map/Trees/Golden-Tree.png"
+dest_files=["res://.godot/imported/Golden-Tree.png-cc1b43ef98cc735613ca79c817922107.ctex"]
 
 [params]
 

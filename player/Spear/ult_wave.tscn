@@ -1,0 +1,212 @@
+[gd_scene load_steps=12 format=3 uid="uid://cblpunt7jwvaf"]
+
+[ext_resource type="Script" path="res://player/Katana/SwordWave.gd" id="1_1gy5u"]
+[ext_resource type="Script" path="res://classes/Hitbox.gd" id="3_3whne"]
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_oggvt"]
+blend_mode = 1
+
+[sub_resource type="Gradient" id="Gradient_lpaet"]
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_cjltk"]
+gradient = SubResource("Gradient_lpaet")
+width = 120
+height = 80
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.6, 0.6)
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_y7a0e"]
+load_path = "res://.godot/imported/Sprite-0004.png-c5d3ac1cf9889b95efc8a63f00d00404.ctex"
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_0b1ms"]
+size = Vector2(61, 30.5)
+
+[sub_resource type="Animation" id="Animation_qga20"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Graphics/Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [0]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Graphics/Aura:modulate")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 1, 1, 0.254902)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Graphics/Sprite2D:modulate")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.001),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Color(1, 0.454902, 0.101961, 1), Color(0.913725, 0.145098, 0, 0.980392)]
+}
+
+[sub_resource type="Animation" id="Animation_kbkqx"]
+resource_name = "fade_out"
+length = 0.15
+step = 0.05
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Graphics/Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.05, 0.1),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": [0, 1, 2]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Graphics/Aura:modulate")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.15),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Color(1, 1, 1, 0.254902), Color(1, 1, 1, 0)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Graphics/Sprite2D:modulate")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.15),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Color(1, 0.227451, 0.0588235, 0.92549), Color(1, 0.133333, 0.0117647, 0)]
+}
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.15),
+"transitions": PackedFloat32Array(1),
+"values": [{
+"args": [],
+"method": &"queue_free"
+}]
+}
+
+[sub_resource type="Animation" id="Animation_4cxeo"]
+resource_name = "fly"
+length = 0.3
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Graphics/Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": [0, 1, 2]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Graphics/Aura:modulate")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 1, 1, 0.254902)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Graphics/Sprite2D:modulate")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 0.454902, 0.101961, 1)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_ebjrr"]
+_data = {
+"RESET": SubResource("Animation_qga20"),
+"fade_out": SubResource("Animation_kbkqx"),
+"fly": SubResource("Animation_4cxeo")
+}
+
+[node name="C3_Wave" type="Node2D"]
+modulate = Color(1, 0.615686, 0.192157, 1)
+light_mask = 0
+scale = Vector2(2, 2)
+script = ExtResource("1_1gy5u")
+
+[node name="Graphics" type="Node2D" parent="."]
+scale = Vector2(0.25, 0.25)
+
+[node name="Aura" type="Sprite2D" parent="Graphics"]
+modulate = Color(1, 1, 1, 0.254902)
+material = SubResource("CanvasItemMaterial_oggvt")
+position = Vector2(-4, 3)
+rotation = -0.0132612
+scale = Vector2(7.5, 7.5)
+texture = SubResource("GradientTexture2D_cjltk")
+
+[node name="Sprite2D" type="Sprite2D" parent="Graphics"]
+modulate = Color(1, 0.454902, 0.101961, 1)
+position = Vector2(-4, 3)
+scale = Vector2(2.5, 2.5)
+texture = SubResource("CompressedTexture2D_y7a0e")
+hframes = 2
+vframes = 2
+region_enabled = true
+region_rect = Rect2(0, 0, 200, 200)
+
+[node name="Hitbox" type="Area2D" parent="."]
+visible = false
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("3_3whne")
+spark_base_offset = Vector2(-5, 0)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(-7, -1)
+shape = SubResource("RectangleShape2D_0b1ms")
+debug_color = Color(0.94902, 0.0470588, 0, 0.419608)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+"": SubResource("AnimationLibrary_ebjrr")
+}

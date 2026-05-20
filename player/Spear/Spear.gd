@@ -4,7 +4,7 @@ extends Weapon
 
 const WEAPON_ID: String = "spear"
 
-const SPEAR_WAVE_SCENE = preload("res://player/Katana/c_3_wave.tscn") # 可以暫時借用太刀的劍氣場景
+const SPEAR_WAVE_SCENE = preload("res://player/Spear/ult_wave.tscn") 
 const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.05, 1.05), 2: Vector2(1.1, 1.1), 3: Vector2(1.15, 1.15) }
 
 # ==========================================
@@ -23,7 +23,7 @@ const SKILL_CONFIG = {
 	# 戰技 21：大範圍聚怪 (多次判定、輕微上浮與強烈橫向拉力)
 	21: {"anim": "spear/c2", "hitbox_name": "C2", "type": Damage.Type.LIGHT, "max_hits": 4, "interval": 0.12, "knockback": Vector2(220.0, -30.0), "pull": true, "shake": 15.0, "base_dmg": 50, "energy": 3, "switch": 3, "pozhen": 10, "sticky": true,"hit_sfx_type": "hit"},
 	# 戰技 22：向上挑飛 (Skill 2)
-	22: {"anim": "spear/c3", "hitbox_name": "C3", "type": Damage.Type.HEAVY, "max_hits": 1, "interval": 0.0, "knockback": Vector2(0.0, -600.0), "shake": 60.0, "base_dmg": 500, "energy": 10, "switch": 15, "pozhen": 10,"hit_sfx_type": "hit"},
+	22: {"anim": "spear/c3", "hitbox_name": "C3", "type": Damage.Type.HEAVY, "max_hits": 1, "interval": 0.0, "knockback": Vector2(0.0, -600.0), "shake": 60.0, "base_dmg": 500, "energy": 10, "switch": 15, "pozhen": 10,"hit_sfx_type": "hit_2"},
 	# 強化普攻 (30)：消耗 40 點破陣值發動
 	30: {"anim": "spear/attack_enhanced", "hitbox_name": "attack_enhanced", "type": Damage.Type.HEAVY, "max_hits": 4, "interval": 0.1, "knockback": Vector2(100.0, -100.0), "shake": 15.0, "base_dmg": 800, "energy": 10, "switch": 20, "pozhen": 0, "sticky": true,"hit_sfx_type": "hit"},
 	# 新增：大招啟動演出 (80)
@@ -783,8 +783,8 @@ func spawn_spear_wave(wave_type: String) -> void:
 	match wave_type:
 		"ult_wave":
 			# 🌟 長槍大招氣刃專屬設定 (威力更大、速度更快、體積更巨)
-			wave.speed = 1200.0
-			wave.max_distance = 350.0
+			wave.speed = 800.0
+			wave.max_distance = 800.0
 			wave.scale = Vector2(3.0 * player.direction, 3.0) # 放得比太刀更大！
 			
 			wave.hitbox.damage_amount = 800 # 基礎傷害
@@ -796,7 +796,7 @@ func spawn_spear_wave(wave_type: String) -> void:
 			wave.hitbox.spark_scale = 1.0
 			wave.hitbox.spark_color = Color(1.0, 0.8, 0.2, 1.0) # 長槍專屬金色/橘色火花
 			wave.hitbox.aura_color = Color(1.0, 0.5, 0.0, 1.0)
-			
+			wave.hitbox.hit_sfx_type = "hit_4"
 # ==========================================
 # 🌪️ 長槍戰技：迴旋投射物發射
 # ==========================================
@@ -820,6 +820,7 @@ func spawn_boomerang() -> void:
 	boomerang.hitbox.knockback_force = Vector2(20.0, -300.0) 
 	boomerang.hitbox.shake_intensity = 1.5
 	boomerang.hitbox.shake_on_hit_only = true
+	boomerang.hitbox.hit_sfx_type = "hit"
 	
 	var w_energy = 2.0
 	var w_switch = 3.0
