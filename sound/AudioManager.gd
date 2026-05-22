@@ -38,7 +38,15 @@ var action_sfx_bank: Dictionary = {
 	"uit": preload("res://sound/SFX/uit.wav") ,
 	
 	"Sheath": preload("res://sound/SFX/attack/Sheath.wav"), 
+
+	# ==========================================
+	# 場景音效庫 (Action SFX Bank)
+	# ==========================================
+	"ding": preload("res://sound/Scene sound/ding.wav"), 
+
 }
+
+
 # 負責接收各個角色傳來的「點歌標籤」
 func play_action_sfx(sfx_key: String, volume_db: float = -8.0) -> void:
 	if sfx_key == "" or not action_sfx_bank.has(sfx_key):

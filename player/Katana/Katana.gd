@@ -37,7 +37,8 @@ const LIGHT_ATTACK_CONFIG = {
 	1: {"anim": "katana/attack_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(100.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit_3", "energy": 200, "switch": 5, "iai_reward": 2,},
 	2: {"anim": "katana/attack_2", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(150.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "iai_reward": 2,},
 	3: {"anim": "katana/attack_3", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5,"iai_reward": 2,},
-	4: {"anim": "katana/attack_4", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(400.0, 0.0), "shake": 30.0, "hit_sfx_type": "hit", "base_dmg": 645, "energy": 2, "switch": 5, "iai_reward": 2, },
+	4: {"anim": "katana/attack_4", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5,"iai_reward": 2,},
+	5: {"anim": "katana/attack_5", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(400.0, 0.0), "shake": 30.0, "hit_sfx_type": "hit_5", "base_dmg": 645, "energy": 2, "switch": 5, "iai_reward": 2, },
 }
 
 # [戰技與大招字典] 
@@ -51,8 +52,8 @@ const SKILL_CONFIG = {
 	34: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2(50.0, 0.0), "shake": 6.0, "shake_on_hit_only": true, "base_dmg": 200,"hit_sfx_type": "hit", "energy": 1, "switch": 2, "iai_reward": 0 },
 	32: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 325,"hit_sfx_type": "hit", "energy": 1, "switch": 2, "iai_reward": 0, },
 	33: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 3.0, "shake_on_hit_only": true, "base_dmg": 325,"hit_sfx_type": "hit", "energy": 1, "switch": 2, "iai_reward": 0,  },
-	11: { "anim": "katana/attack_c1", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -500.0), "shake": 20.0, "shake_on_hit_only": false, "base_dmg": 560,"hit_sfx_type": "hit_2", "energy": 10, "switch": 15, "iai_reward": 5 },
-	12: { "anim": "katana/attack_c1_2", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -300.0), "shake": 30.0, "shake_on_hit_only": true, "base_dmg": 720,"hit_sfx_type": "hit", "energy": 10, "switch": 15, "iai_reward": 5 },
+	11: { "anim": "katana/attack_c1", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -400.0), "shake": 20.0, "shake_on_hit_only": false, "base_dmg": 560,"hit_sfx_type": "hit_2", "energy": 10, "switch": 15, "iai_reward": 5 },
+	12: { "anim": "katana/attack_c1_2", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -400.0), "shake": 30.0, "shake_on_hit_only": true, "base_dmg": 720,"hit_sfx_type": "hit", "energy": 10, "switch": 15, "iai_reward": 5 },
 	41: { "anim": "katana/skill_down", "hitbox_name": "C2", "type": Damage.Type.LIGHT, "knockback": Vector2(100.0, 0.0), "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 200,"hit_sfx_type": "hit", "energy": 10, "switch": 15, "iai_reward": 10 },
 	
 	# 🌟 強化戰技 (42) - 燕返：第一段配置為 12 連擊的黏著攻擊
@@ -80,7 +81,7 @@ const AIR_ATTACK_CONFIG = {
 # 🚀 4. 物理運算與手感參數
 # ==========================================
 @export_group("重擊(蓄力拔刀)設定")
-@export var charge_time_per_tier: float = 0.5   
+@export var charge_time_per_tier: float = 0.4   
 @export var max_charge_tiers: int = 3           
 @export var thrust_speed: float = 200.0         
 
@@ -900,7 +901,7 @@ func spawn_sword_wave(wave_type: String) -> void:
 	match wave_type:
 		"skill_down":
 			var config = SKILL_CONFIG[21] 
-			wave.speed = 1200.0; wave.max_distance = 150.0; wave.scale = Vector2(2.0 * player.direction, 2.0)
+			wave.speed = 1500.0; wave.max_distance = 1200.0; wave.scale = Vector2(2.0 * player.direction, 2.0)
 			wave.hitbox.damage_amount = max(1, roundi(float(config["base_dmg"])))
 			
 			# 鎖死劍氣的絕對方向！

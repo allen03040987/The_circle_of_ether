@@ -13,16 +13,16 @@
 size = Vector2(71, 45)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_je2b4"]
-size = Vector2(114, 39)
+size = Vector2(87, 39)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_tol8k"]
-size = Vector2(80, 45)
+size = Vector2(93, 45)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_m0urb"]
-size = Vector2(93, 44)
+size = Vector2(124, 44)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_p41qw"]
-size = Vector2(92, 45.75)
+size = Vector2(243, 38.75)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_51jwg"]
 size = Vector2(76, 45)
@@ -85,22 +85,22 @@ shape = SubResource("RectangleShape2D_kqkt2")
 disabled = true
 
 [node name="CollisionShape2D2" type="CollisionShape2D" parent="Hitbox"]
-position = Vector2(9, -23.5)
+position = Vector2(22.5, -23.5)
 shape = SubResource("RectangleShape2D_je2b4")
 disabled = true
 
 [node name="CollisionShape2D3" type="CollisionShape2D" parent="Hitbox"]
-position = Vector2(26, -23.5)
+position = Vector2(32.5, -23.5)
 shape = SubResource("RectangleShape2D_tol8k")
 disabled = true
 
 [node name="CollisionShape2D4" type="CollisionShape2D" parent="Hitbox"]
-position = Vector2(32.5, -24)
+position = Vector2(48, -24)
 shape = SubResource("RectangleShape2D_m0urb")
 disabled = true
 
 [node name="CollisionShape2D5" type="CollisionShape2D" parent="Hitbox"]
-position = Vector2(32, -24.125)
+position = Vector2(1.5, -20.625)
 shape = SubResource("RectangleShape2D_p41qw")
 disabled = true
 
