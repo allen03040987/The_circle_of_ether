@@ -49,6 +49,7 @@ func interact() -> void:
 	# 🎬 階段 1：進電梯 (精準凍結大腦與物理)
 	# ==========================================
 	player.velocity = Vector2.ZERO
+	AudioManager.play_action_sfx("elevator") 
 	if player.has_node("AnimationPlayer"):
 		player.get_node("AnimationPlayer").play("idle")
 	
@@ -60,6 +61,7 @@ func interact() -> void:
 	
 	anim.play("open")
 	await anim.animation_finished
+	
 	
 	player.hide() 
 	
@@ -83,6 +85,8 @@ func interact() -> void:
 	# ==========================================
 	# 🎬 階段 3：出電梯 (瞬間出現與喚醒玩家)
 	# ==========================================
+	AudioManager.play_action_sfx("ding") # 🌟 加在這裡！電梯抵達，叮一聲！
+	AudioManager.play_action_sfx("elevator") 
 	dest_elevator.anim.play("open")
 	await dest_elevator.anim.animation_finished
 	
@@ -112,9 +116,12 @@ func interact() -> void:
 	temp_cam.queue_free()
 	
 	dest_elevator.anim.play("close")
+	
 	await dest_elevator.anim.animation_finished
 	
 	
 	
 	_is_operating = false
 	dest_elevator._is_operating = false
+	
+

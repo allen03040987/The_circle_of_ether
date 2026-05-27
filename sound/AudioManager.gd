@@ -35,7 +35,7 @@ var action_sfx_bank: Dictionary = {
 	"hit_3": preload("res://sound/SFX/hit/hit_3.wav"), 
 	"hit_4": preload("res://sound/SFX/hit/hit_4.wav"),
 	"hit_5": preload("res://sound/SFX/hit/hit_5.wav"),
-	"uit": preload("res://sound/SFX/uit.wav") ,
+	"ult": preload("res://sound/SFX/uit.wav") ,
 	
 	"Sheath": preload("res://sound/SFX/attack/Sheath.wav"), 
 
@@ -43,6 +43,7 @@ var action_sfx_bank: Dictionary = {
 	# 場景音效庫 (Action SFX Bank)
 	# ==========================================
 	"ding": preload("res://sound/Scene sound/ding.wav"), 
+	"elevator": preload("res://sound/Scene sound/elevator.wav"), 
 
 }
 

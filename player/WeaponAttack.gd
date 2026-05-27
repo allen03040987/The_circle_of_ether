@@ -27,6 +27,14 @@ func enter() -> void:
 		state_machine.transition_to("Idle")
 		return
 		
+	# 🌟 新增：還原由閃避偏移（Dodge Offset）保留下來的武器連段段數
+	if player.has_meta("dodge_offset") and player.has_meta("saved_combo_step"):
+		if "combo_step" in player.current_weapon:
+			player.current_weapon.combo_step = player.get_meta("saved_combo_step")
+			print("🔥 [Dodge Offset] 成功接續連段！當前段數還原為：", player.current_weapon.combo_step)
+		player.remove_meta("dodge_offset")
+		player.remove_meta("saved_combo_step")
+		
 	# --- 嚴格輸入緩衝判定 ---
 	var wants_heavy = player.is_heavy_requested 
 	var wants_light = player.is_combo_requested
@@ -40,21 +48,13 @@ func enter() -> void:
 	_update_facing()
 	
 	# --- 攻擊優先級派發 ---
-	# 👑 優先度 0：大招 (Ultimate)
+	# 👑 優先度 1：大招 (Ultimate)
 	if player.is_ult_requested:
 		player.is_ult_requested = false
 		if player.current_weapon.has_method("start_ultimate"):
 			player.current_weapon.start_ultimate()
 		return
 		
-	# ⚡ 優先度 1：極限閃避反擊 (魔女時間派生)
-	if (player.is_counter_requested or player.counter_pickup_timer > 0) and wants_light and not wants_heavy:
-		player.is_counter_requested = false
-		player.counter_pickup_timer = 0.0
-		if player.current_weapon.has_method("start_counter_attack"):
-			player.current_weapon.start_counter_attack()
-		return
-
 	# ⚔️ 優先度 2：常規輕重擊
 	if wants_heavy:
 		player.current_weapon.start_heavy_attack()
@@ -117,6 +117,18 @@ func physics_update(delta: float) -> void:
 		# ⚡ 特權 3：閃避取消 (Dodge Cancel)
 		if player.slide_request_timer.time_left > 0 and player.stats.energy >= 3:
 			if player.current_weapon.can_be_canceled_by_dodge():
+				
+				# 🌟 1. 啟用連段偏移標記 (讓本體閃避完可以接續下一刀)
+				player.set_meta("dodge_offset", true)
+				
+				# 🌟 2. 核心修正：呼叫真正的「代打殘影系統」！讓分身留在原地把這刀砍完！
+				if player.has_method("spawn_phantom_striker"):
+					player.spawn_phantom_striker(player.current_weapon)
+					
+				# 🌟 3. (選擇性) 加上跟切換武器一樣的閃白光特效，讓閃避取消的打擊感更強烈
+				if player.has_method("_flash_character"):
+					player._flash_character()
+				
 				state_machine.transition_to("Slide")
 				return
 
@@ -149,5 +161,9 @@ func physics_update(delta: float) -> void:
 # ==========================================		
 func exit() -> void:
 	if is_instance_valid(player.current_weapon):
+		# 如果是因閃避而取消，先將武器當前的連段段數備份起來
+		if player.has_meta("dodge_offset") and "combo_step" in player.current_weapon:
+			player.set_meta("saved_combo_step", player.current_weapon.combo_step)
+			
 		if player.current_weapon.get("is_attacking"):
 			player.current_weapon.cancel_attack()

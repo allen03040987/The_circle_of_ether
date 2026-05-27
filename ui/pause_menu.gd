@@ -221,16 +221,31 @@ func _on_weapon_toggle(weapon_id: String) -> void:
 
 # 2. 更新面板上的文字提示 (與按鈕狀態)
 func _update_loadout_ui() -> void:
-	if status_label:
-		# 把陣列轉成逗號分隔的字串，方便玩家看
-		var display_text = ", ".join(selected_weapons)
-		if selected_weapons.size() == 0:
-			display_text = "無"
-		status_label.text = "目前選擇：" + display_text
+	# 🌟 新增：重置按鈕文字 (根據你原本按鈕上的字自己微調)
+	btn_katana.text = "太刀"
+	btn_spear.text = "長槍"
+	btn_talisman.text = "靈符"
+	
+	# 🌟 新增：直覺化標記！誰是主武器？誰是副武器？
+	for i in range(selected_weapons.size()):
+		var w_id = selected_weapons[i]
+		var slot_text = " [主]" if i == 0 else " [副]"
 		
+		match w_id:
+			"katana": btn_katana.text += slot_text
+			"spear": btn_spear.text += slot_text
+			"talisman": btn_talisman.text += slot_text
+
+	if status_label:
+		if selected_weapons.size() == 0:
+			status_label.text = "⚠️ 請選擇主副武器！"
+		elif selected_weapons.size() == 1:
+			status_label.text = "目前裝備：主武器-" + selected_weapons[0] + " (還可再選一把)"
+		else:
+			status_label.text = "目前裝備：主武器-" + selected_weapons[0] + " | 副武器-" + selected_weapons[1]
+
 # 3. 按下「確認裝備」時觸發
 func _on_apply_loadout_pressed() -> void:
-	# 防呆：不准空手出門！
 	if selected_weapons.size() == 0:
 		status_label.text = "⚠️ 請至少選擇一把武器！"
 		return
@@ -238,11 +253,18 @@ func _on_apply_loadout_pressed() -> void:
 	var players = get_tree().get_nodes_in_group("Player")
 	if players.size() > 0:
 		var p = players[0]
-		# 🌟 呼叫 Player 的裝備函數，把陣列傳進去！
+		
+		# 🌟 核心防護 1：比對陣列！如果玩家根本沒換裝備(連順序都沒變)，直接關閉面板，不扣任何能量！
+		var current_equipped = p.get("equipped_weapon_ids")
+		if current_equipped == selected_weapons:
+			print("♻️ [系統] 裝備沒有更動，保留所有能量與狀態！")
+			_on_back_from_loadout()
+			return
+			
+		# 如果真的有改動，才呼叫 Player 的大腦去換武器
 		p.equip_loadout(selected_weapons.duplicate())
 		print("✅ 裝備更新成功：", selected_weapons)
 		
-		# 換裝完畢，自動關閉裝備介面退回暫停主選單
 		_on_back_from_loadout()
 		
 func _on_back_from_loadout() -> void:

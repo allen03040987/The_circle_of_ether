@@ -11,7 +11,7 @@ const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.05, 1.05), 2: Vector2(1
 # 📖 招式數據庫 (Data-Driven Combat Config)
 # ==========================================
 const LIGHT_ATTACK_CONFIG = {
-	1: {"anim": "spear/attack_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(50.0, 0.0), "base_dmg": 300, "energy": 500, "switch": 5, "pozhen": 10,"hit_sfx_type": "hit"},
+	1: {"anim": "spear/attack_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(50.0, 0.0), "base_dmg": 300, "energy": 500, "switch": 500, "pozhen": 10,"hit_sfx_type": "hit"},
 	2: {"anim": "spear/attack_2", "hitbox_name": "Hitbox", "max_hits": 2, "interval": 0.1, "knockback": Vector2(50.0, 0.0), "base_dmg": 350, "energy": 5, "switch": 5, "pozhen": 10,"hit_sfx_type": "hit"},
 	3: {"anim": "spear/attack_3", "hitbox_name": "Hitbox", "max_hits": 3, "interval": 0.1, "knockback": Vector2(20.0, 0.0), "base_dmg": 150, "energy": 5, "switch": 4, "pozhen": 10,"hit_sfx_type": "hit"},
 	4: {"anim": "spear/attack_4", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(600.0, 0.0), "shake": 20.0, "base_dmg": 600, "energy": 10, "switch": 15, "pozhen": 10,"hit_sfx_type": "hit"}
@@ -29,8 +29,12 @@ const SKILL_CONFIG = {
 	# 新增：大招啟動演出 (80)
 	80: {"anim": "spear/attack_ult", "hitbox_name": "None", "max_hits": 1, "interval": 0.0, "knockback": Vector2.ZERO, "base_dmg": 0, "energy": 0, "switch": 0},
 	# 大招氣刃發射與後搖 (81)
-	81: {"anim": "spear/attack_ult_end", "hitbox_name": "None", "max_hits": 1, "interval": 0.0, "knockback": Vector2.ZERO, "base_dmg": 0, "energy": 0, "switch": 0}
+	81: {"anim": "spear/attack_ult_end", "hitbox_name": "None", "max_hits": 1, "interval": 0.0, "knockback": Vector2.ZERO, "base_dmg": 0, "energy": 0, "switch": 0},
+	
+	# 🌟 補上缺失的拼圖：變奏技能前搖 (90) - 純演出，無傷害
+	90: {"anim": "spear/90", "hitbox_name": "None", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 0, "energy": 0, "switch": 0, "pozhen": 0 }
 }
+
 # [空戰字典] (數值與動畫名稱你可以後續再微調)
 const AIR_ATTACK_CONFIG = {
 	61: { "anim": "spear/air_attack_1", "hitbox_name": "Air_J", "max_hits": 4, "interval": 0.15, "shake": 10.0, "type": Damage.Type.LIGHT, "knockback": Vector2(10.0, -150.0), "base_dmg": 50, "energy": 1, "switch": 2, "pozhen": 10, "sticky": true,"hit_sfx_type": "hit"},
@@ -215,33 +219,11 @@ func start_intro_skill() -> void:
 	is_attacking = true
 	
 	is_spear_thrown = false 
-	combo_step = 30 
+	# 🌟 核心修正：這裡必須是 90！才會跑特寫與時停！
+	combo_step = 90 
 	
 	_play_attack(SKILL_CONFIG[combo_step])
 	print("🌪️ [長槍] 變奏技能發動")
-
-# ==========================================
-# ⚡ 極限閃避反擊 (Dodge Counter)
-# ==========================================
-func start_counter_attack() -> void:
-	if step_cooldown > 0: return
-	
-	if not player.is_on_floor():
-		is_attacking = false
-		return
-		
-	step_cooldown = 0.15
-	is_attacking = true
-	combo_step = 3 # 🌟 核心設定：直接從普攻第三段 (A3) 開始派生！
-	
-	# 🌟 賦予極限轉向特權：閃避後經常會與敵人擦身而過，
-	# 這裡允許玩家在按下攻擊的瞬間推方向鍵轉身，確保反擊絕對命中！
-	var input_dir = Input.get_axis("move_left", "move_right")
-	if input_dir != 0:
-		player.direction = 1 if input_dir > 0 else -1
-		
-	_play_attack(LIGHT_ATTACK_CONFIG[combo_step])
-	print("✨ 極限閃避成功！長槍直接派生 A3 連刺！")
 	
 func start_ultimate() -> void:
 	if player.has_method("consume_weapon_energy"):
@@ -437,6 +419,51 @@ func get_current_velocity(delta: float) -> Vector2:
 			is_spear_thrown = true
 			
 			spawn_boomerang()
+			
+	# ----------------------------------------
+	# 🌟 變奏技能前搖 (90) - 全局時停、玩家特寫緩速與震動
+	# ----------------------------------------
+	elif combo_step == 90:
+		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 2.0 * (speed_mult * speed_mult) * delta)
+		
+		var anim_time = player.animation_player.current_animation_position
+		
+		if anim_time >= 0.02 and not is_time_stop_triggered:
+			is_time_stop_triggered = true
+			
+			# 觸發時停 (流速 0.05，持續 0.8 秒)
+			if player.has_method("trigger_time_stop"):
+				player.trigger_time_stop(0.8, 0.05)
+				
+			# 玩家自身進入 0.2 倍速慢動作特寫
+			player.animation_player.speed_scale = 4.0 
+			player.invincible_time_left = 1.5
+			
+			# ==========================================
+			# 🌟 新增：變奏入場逆時停特效與音效
+			# ==========================================
+			# 呼叫音效 (這裡暫時填 "wind"，你可以換成 action_sfx_bank 裡喜歡的標籤)
+			AudioManager.play_action_sfx("ult", -2.0)
+			
+			# 呼叫特效 (因為在 trigger_time_stop 之後呼叫，它會自動抓取 0.05 的時停倍率並進行逆時停！)
+			player.spawn_anim_vfx(
+				"Aggregation ring", 
+				0, -20,           
+				Vector2(2.5, 2.5),
+				0,                 
+				Color.WHITE,      
+				Color.WHITE,     
+				false,             
+				2,                 
+				1.0                
+			)
+		# 🎥 [鏡頭特寫]
+		if anim_time >= 0.02 and _ult_zoom_phase == 0:
+			_ult_zoom_phase = 1
+			_apply_charge_zoom(Vector2(1.15, 1.15), 1.2)
+			
+				
 	# ----------------------------------------
 	# 🌌 大招前半段 (80) - 領域展開與準備特寫
 	# ----------------------------------------
@@ -451,8 +478,8 @@ func get_current_velocity(delta: float) -> Vector2:
 		if anim_time >= 0.05 and not is_time_stop_triggered:
 			is_time_stop_triggered = true 
 			if player.has_method("trigger_time_stop"):
-				player.trigger_time_stop(3.0, 0.05) 
-			player.animation_player.speed_scale = 1.0 / 0.05 
+				player.trigger_time_stop(3.0, 0.001) 
+			player.animation_player.speed_scale = 1.0 / 0.001 
 			player.invincible_time_left = 3.0 # 賦予 80 期間的無敵
 			
 		# 🎥 [鏡頭 1] 0.05s 推進特寫 (主角準備動作)
@@ -654,11 +681,30 @@ func is_attack_finished() -> bool:
 			# 🌟 核心改動：一進入 81，立刻打碎時停並恢復鏡頭！
 			if player.has_method("clear_time_stop"): 
 				player.clear_time_stop()
-			_apply_charge_zoom(ZOOM_LEVELS[0], 0.15) # 0.15秒內快速將特寫拉回原狀
+			_apply_charge_zoom(ZOOM_LEVELS[0], 0.15)
 			_ult_zoom_phase = 0 
 			is_time_stop_triggered = false
 			
+			# 🌟 補上大招後搖的安全無敵時間！
+			player.invincible_time_left = 1.0 
+			
 			_play_attack(SKILL_CONFIG[81])
+			return false
+		
+		# --- 變奏無縫銜接 (長槍版) ---
+		if combo_step == 90:
+			combo_step = 30 # 長槍的變奏是接強化普攻！
+			_play_attack(SKILL_CONFIG[combo_step])
+			print("🌪️ 變奏前搖結束，長槍化作狂風連刺突進！")
+			
+			_ult_zoom_phase = 0
+			_apply_charge_zoom(ZOOM_LEVELS[0], 0.2)
+			
+			# 🌟 恢復正常速度並解除時停
+			player.animation_player.speed_scale = 1.0 
+			if player.has_method("clear_time_stop"):
+				player.clear_time_stop()
+				
 			return false
 		
 		# ==========================================

@@ -128,6 +128,16 @@ func _ready() -> void:
 # 🎒 動態裝備系統 (Loadout System)
 # ==========================================
 func equip_loadout(weapon_ids: Array[String]) -> void:
+	# 🌟 核心修復 1：在清空舊武器節點之前，先抓取「依然保留在新名單中」的武器內部數據（如居合/破陣值）
+	var saved_weapons_data = {}
+	for i in range(weapon_slot.get_child_count()):
+		if i < equipped_weapon_ids.size():
+			var old_w_id = equipped_weapon_ids[i]
+			var old_weapon = weapon_slot.get_child(i)
+			# 如果這把武器在新的 weapon_ids 裡面也有，就呼叫它的 export 函數備份
+			if old_w_id in weapon_ids and old_weapon.has_method("export_weapon_data"):
+				saved_weapons_data[old_w_id] = old_weapon.export_weapon_data()
+
 	equipped_weapon_ids = weapon_ids
 	
 	# 1. 清空目前的 WeaponSlot
@@ -154,6 +164,11 @@ func equip_loadout(weapon_ids: Array[String]) -> void:
 			weapon_slot.add_child(new_weapon)
 			new_weapon.hide() 
 			new_weapon.player = self 
+			
+			# 🌟 核心修復 2：如果新生成的武器有剛才備份的數據，立刻將遺產還原給它！
+			if saved_weapons_data.has(w_id) and new_weapon.has_method("import_weapon_data"):
+				new_weapon.import_weapon_data(saved_weapons_data[w_id])
+				print("♻️ [系統] 武器 [", w_id, "] 成功繼承內部資源狀態（居合/破陣值等）。")
 			
 			if not weapon_resources.has(w_id):
 				weapon_resources[w_id] = {"energy": 0.0, "switch": 0.0}

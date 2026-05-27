@@ -9,6 +9,21 @@ extends Node
 var _hitstop_end_time: float = 0.0
 var _is_hitstopping: bool = false
 
+# ==========================================
+# ⚙️ 初始化與設定同步
+# ==========================================
+func _ready() -> void:
+	# 初始化時先對齊一次存檔設定
+	_sync_settings()
+	
+	# 綁定 Game 的全域廣播，只要玩家一改設定，就立刻刷新！
+	if not Game.settings_changed.is_connected(_sync_settings):
+		Game.settings_changed.connect(_sync_settings)
+
+func _sync_settings() -> void:
+	# 將 CombatManager 內部的開關，對齊玩家設定檔
+	enable_screen_shake = Game.config_enable_screen_shake
+	
 func apply_hitstop(duration: float, time_scale: float = 0.05) -> void:
 	var current_time = Time.get_ticks_msec() / 1000.0
 	var requested_end_time = current_time + duration
@@ -240,3 +255,4 @@ func _tween_camera_zoom(target_zoom: Vector2, duration: float) -> void:
 		
 	_zoom_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
 	_zoom_tween.tween_property(camera, "zoom", target_zoom, duration)
+

@@ -16,7 +16,10 @@ signal settings_changed
 
 ## 玩家在設定選單中選擇的預設模式 (false=跑步, true=行走)
 var config_default_walking: bool = false 
-
+## 預設開啟螢幕震動
+var config_enable_screen_shake: bool = true
+## 預設開啟受擊白光
+var config_enable_hit_flash: bool = true
 # ==========================================
 # 🌍 全域狀態與節點參考 (State & References)
 # ==========================================
@@ -53,6 +56,11 @@ func save_settings() -> void:
 	var config = ConfigFile.new()
 	# 設定寫法：設定區塊(Section), 鍵名(Key), 數值(Value)
 	config.set_value("Controls", "default_walking", config_default_walking)
+	
+	# 🌟 新增：將震動與白光設定存入 "Visuals" (視覺) 區塊
+	config.set_value("Visuals", "enable_screen_shake", config_enable_screen_shake)
+	config.set_value("Visuals", "enable_hit_flash", config_enable_hit_flash)
+	
 	config.save(SETTINGS_PATH)
 
 ## 讀取玩家偏好設定 (遊戲啟動時自動呼叫)
@@ -61,8 +69,12 @@ func load_settings() -> void:
 	var err = config.load(SETTINGS_PATH)
 	
 	if err == OK:
-		# 讀取成功：套用設定檔裡的數值 (找不到則預設給 false)
+		# 讀取成功：套用設定檔裡的數值 (最後一個參數是找不到時的預設值)
 		config_default_walking = config.get_value("Controls", "default_walking", false)
+		
+		# 🌟 新增：讀取震動與白光設定 (找不到時預設給 true)
+		config_enable_screen_shake = config.get_value("Visuals", "enable_screen_shake", true)
+		config_enable_hit_flash = config.get_value("Visuals", "enable_hit_flash", true)
 	else:
 		# 讀取失敗 (例如第一次玩)：自動建一個預設的並存起來
 		save_settings()

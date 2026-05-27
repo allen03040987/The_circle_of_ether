@@ -6,11 +6,11 @@
 [sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_tewop"]
 blend_mode = 1
 
-[sub_resource type="Gradient" id="Gradient_c1ubx"]
+[sub_resource type="Gradient" id="Gradient_qrigc"]
 colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
 
 [sub_resource type="GradientTexture2D" id="GradientTexture2D_4n6ao"]
-gradient = SubResource("Gradient_c1ubx")
+gradient = SubResource("Gradient_qrigc")
 width = 300
 height = 286
 fill = 1

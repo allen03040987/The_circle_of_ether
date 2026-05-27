@@ -1,13 +1,55 @@
-[gd_scene load_steps=3 format=3 uid="uid://cv7qein1mmn2f"]
+[gd_scene load_steps=9 format=3 uid="uid://cv7qein1mmn2f"]
 
 [ext_resource type="Script" path="res://player/Talisman/Talisman.gd" id="1_wghj6"]
+[ext_resource type="Texture2D" uid="uid://cm1hg1jt811rr" path="res://player/Talisman/Talisman.png" id="2_242wf"]
 [ext_resource type="Texture2D" uid="uid://cffvkmas3ihmr" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (2).png" id="2_cd140"]
+[ext_resource type="Script" path="res://classes/Hitbox.gd" id="4_5pdgr"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_t18ap"]
+size = Vector2(168, 54)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_kpb2e"]
+size = Vector2(186, 73)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hay2i"]
+size = Vector2(133, 57)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_edh7a"]
+size = Vector2(123, 69)
 
 [node name="Talisman" type="Node2D"]
 script = ExtResource("1_wghj6")
-scabbard_texture = ExtResource("2_cd140")
+scabbard_texture = ExtResource("2_242wf")
 skill_1_icon = ExtResource("2_cd140")
-skill_1_enhanced_icon = ExtResource("2_cd140")
 skill_2_icon = ExtResource("2_cd140")
 skill_3_icon = ExtResource("2_cd140")
 ult_icon = ExtResource("2_cd140")
+
+[node name="Hitbox" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("4_5pdgr")
+knockback_force = Vector2(50, 0)
+spark_base_offset = Vector2(0, -5)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(70, -28)
+shape = SubResource("RectangleShape2D_t18ap")
+disabled = true
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(79, -32.5)
+shape = SubResource("RectangleShape2D_kpb2e")
+disabled = true
+
+[node name="CollisionShape2D3" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(23.5, -29.5)
+shape = SubResource("RectangleShape2D_hay2i")
+disabled = true
+
+[node name="CollisionShape2D4" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(28.5, -30.5)
+shape = SubResource("RectangleShape2D_edh7a")
+disabled = true

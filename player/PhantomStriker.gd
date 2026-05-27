@@ -16,6 +16,8 @@ var FLOOR_ACCELERATION: float = 8000.0
 
 var _frames_alive: int = 0
 var can_play_sfx: bool = false
+
+var _death_retries: int = 0
 # ==========================================
 # 🧬 靈魂轉移與初始化 (由 Player 呼叫)
 # ==========================================
@@ -34,10 +36,14 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 	default_gravity = player.default_gravity
 	FLOOR_ACCELERATION = player.FLOOR_ACCELERATION
 	velocity = player.velocity
+	
 
 	# 物理隔離：不碰撞怪物，只踩地板
 	collision_layer = 0
 	collision_mask = 1
+	
+	# 🌟 絕對抗時停：讓這個節點及所有子節點無視 Engine.time_scale！
+	self.process_mode = Node.PROCESS_MODE_ALWAYS
 
 	# 2. 複製碰撞體
 	for child in player.get_children():
@@ -109,6 +115,8 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 	animation_player = player.animation_player.duplicate()
 	add_child(animation_player)
 	
+	animation_player.speed_scale = 1.0
+	
 	var nodes_to_process = [self]
 	while nodes_to_process.size() > 0:
 		var current = nodes_to_process.pop_back()
@@ -132,10 +140,17 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 				max_lifespan = max(0.5, anim_data.length - current_pos + 0.2)
 				
 			# 🌟 核心修復：借用本體玩家的場景樹來建立計時器！
-			player.get_tree().create_timer(max_lifespan, false).timeout.connect(die_gracefully)
+			player.get_tree().create_timer(max_lifespan, true, false, true).timeout.connect(die_gracefully)
 	else:
 		die_gracefully()
 
+func _process(_delta: float) -> void:
+	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+	
+	# 動態維持動畫的真實速度 (絕對不慢動作)
+	if is_instance_valid(animation_player):
+		animation_player.speed_scale = speed_mult
+		
 func _physics_process(delta: float) -> void:
 	if is_instance_valid(outgoing_weapon):
 		if outgoing_weapon.has_method("get_current_velocity"):
@@ -146,12 +161,20 @@ func _physics_process(delta: float) -> void:
 				velocity.y += default_gravity * delta
 			else:
 				if velocity.y > 0: velocity.y = 0 
-					
-		move_and_slide()
+		
+	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+	var original_velocity = velocity
+	
+	# ✅ 只放大 X 軸，確保殘影能平滑往前削過去
+	velocity.x *= speed_mult 
+	# ❌ 絕對不要寫 velocity *= speed_mult！放過 Y 軸，不讓挑飛變火箭！
+	
+	move_and_slide()
+	
+	velocity = original_velocity # 算完後立刻還原
 
 func strike_impulse(strength: float) -> void:
-	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-	velocity.x = direction * (strength * speed_mult)
+	velocity.x = direction * strength
 
 func enable_weapon_hitbox(shape_name: String = "") -> void:
 	if outgoing_weapon and outgoing_weapon.has_method("enable_hitbox"):
@@ -174,8 +197,12 @@ func add_weapon_resource(w_id: String, e: float, s: float) -> void:
 
 func die_gracefully() -> void:
 	var hb = outgoing_weapon.get("current_active_hitbox") if is_instance_valid(outgoing_weapon) else null
-	if is_instance_valid(hb) and hb.get("sticky_multi_hit") and hb.get("hit_targets") and not hb.hit_targets.is_empty():
-		get_tree().create_timer(0.1, false).timeout.connect(die_gracefully)
+	
+	# 🌟 核心修復：加上 _death_retries < 5 的限制！
+	# 如果等了 0.5 秒 (5次) 打擊清單還是沒清空，就不管了，強制銷毀！防範無限迴圈！
+	if is_instance_valid(hb) and hb.get("sticky_multi_hit") and hb.get("hit_targets") and not hb.hit_targets.is_empty() and _death_retries < 5:
+		_death_retries += 1
+		get_tree().create_timer(0.1, true, false, true).timeout.connect(die_gracefully)
 	else:
 		queue_free()
 
@@ -191,10 +218,9 @@ func spawn_anim_vfx(vfx_name: String, offset_x: float = 0.0, offset_y: float = 0
 	if vfx_scene == null: return
 
 	var vfx = vfx_scene.instantiate()
-	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-	if vfx.has_node("AnimationPlayer"): vfx.get_node("AnimationPlayer").speed_scale = speed_mult
-	if vfx is GPUParticles2D: vfx.speed_scale = speed_mult
-	elif vfx.has_node("GPUParticles2D"): vfx.get_node("GPUParticles2D").speed_scale = speed_mult
+	if vfx.has_node("AnimationPlayer"): vfx.get_node("AnimationPlayer").speed_scale = 1.0
+	if vfx is GPUParticles2D: vfx.speed_scale = 1.0
+	elif vfx.has_node("GPUParticles2D"): vfx.get_node("GPUParticles2D").speed_scale = 1.0
 
 	if detach:
 		get_parent().add_child(vfx)

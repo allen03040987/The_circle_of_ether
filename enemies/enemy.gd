@@ -152,6 +152,10 @@ func strike_impulse(strength: float) -> void:
 # ✨ 視覺特效輔助 
 # ==========================================
 func _trigger_white_flash() -> void:
+	# 🌟 新增：如果設定檔說不閃白光，就直接結束這個函數！
+	if not Game.config_enable_hit_flash:
+		return 
+
 	if _flash_mat == null:
 		_flash_mat = ShaderMaterial.new()
 		var shader = Shader.new()

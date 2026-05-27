@@ -10,7 +10,6 @@ extends Weapon
 @export var combo_timeout: float = 0.3      # 普攻連段超時重置時間
 @export var no_sheath_steps: Array[int] = [1, 11, 12, 30, 42, 80, 81] # 不需播收刀動畫的黑名單招式
 @export var ult_energy_cost: float = 100.0  # 大招能量成本
-@export var dodge_counter_step: int = 4     # 極限閃避後派生的起始段數
 
 const WEAPON_ID: String = "katana"          
 const DIMENSIONAL_SLASH_SCENE = preload("res://Explod/tscn/Dimensional Slash.tscn")
@@ -34,7 +33,7 @@ var is_tsubame_ready: bool = false          # 強化戰技 (燕返) 是否就緒
 # [普攻字典]
 const LIGHT_ATTACK_CONFIG = {
 	# 格式：招式編號: { 動畫名稱, 開啟哪個判定框, 最大連擊數, 打擊間隔, 擊退力, 基礎傷害, 大招能量回復, 切換值回復, 專屬居合值回復 }
-	1: {"anim": "katana/attack_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(100.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit_3", "energy": 200, "switch": 5, "iai_reward": 2,},
+	1: {"anim": "katana/attack_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(100.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit_3", "energy": 200, "switch": 500, "iai_reward": 2,},
 	2: {"anim": "katana/attack_2", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(150.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "iai_reward": 2,},
 	3: {"anim": "katana/attack_3", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5,"iai_reward": 2,},
 	4: {"anim": "katana/attack_4", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5,"iai_reward": 2,},
@@ -285,13 +284,6 @@ func start_heavy_attack() -> void:
 			_play_skill_step(41)
 			skill_1_timer = skill_1_cd
 
-func start_counter_attack() -> void:
-	if step_cooldown > 0: return
-	step_cooldown = 0.15
-	is_attacking = true
-	combo_step = 4 
-	_play_light_step(combo_step)
-
 func start_ultimate() -> void:
 	if player.has_method("consume_weapon_energy"):
 		player.consume_weapon_energy(WEAPON_ID, ult_energy_cost)
@@ -523,9 +515,59 @@ func get_current_velocity(delta: float) -> Vector2:
 	elif combo_step == 41: 
 		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * skill_neutral_friction_rate * delta)
 	
-	elif combo_step == 90: 
-		# 變奏前搖雙倍煞車
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 2.0 * delta)
+	# ----------------------------------------
+	# 🌟 變奏技能前搖 (90) - 全局時停、玩家特寫緩速與震動
+	# ----------------------------------------
+	elif combo_step == 90:
+		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 2.0 * (speed_mult * speed_mult) * delta)
+		
+		var anim_time = player.animation_player.current_animation_position
+		
+		# 🌟 攔截點：在 0.02 秒時觸發時停與慢動作
+		if anim_time >= 0.02 and not is_time_stop_triggered:
+			is_time_stop_triggered = true
+			
+			# 1. 觸發真實的「魔女時間」，讓世界與怪物完全定格 (流速 0.05，持續 0.8 秒)
+			if player.has_method("trigger_time_stop"):
+				player.trigger_time_stop(0.8, 0.05)
+				
+			# 2. 玩家自身也進入慢動作！
+			# 引擎流速 0.05 * 動畫倍率 4.0 = 實際視覺速度 0.2 倍速！(完美還原你最滿意的定格感)
+			player.animation_player.speed_scale = 4.0 
+			player.invincible_time_left = 1.5
+			
+			# ==========================================
+			# 🌟 新增：變奏入場逆時停特效與音效
+			# ==========================================
+			# 呼叫音效 (這裡暫時填 "wind"，你可以換成 action_sfx_bank 裡喜歡的標籤)
+			AudioManager.play_action_sfx("ult", -2.0)
+			
+			# 呼叫特效 (因為在 trigger_time_stop 之後呼叫，它會自動抓取 0.05 的時停倍率並進行逆時停！)
+			player.spawn_anim_vfx(
+				"Aggregation ring", 
+				0, -20,           
+				Vector2(2.5, 2.5),
+				0,                 
+				Color.WHITE,      
+				Color.WHITE,     
+				false,             
+				2,                 
+				1.0                
+			)
+			
+		# 🎥 [鏡頭特寫]
+		if anim_time >= 0.02 and _tsubame_zoom_phase == 0:
+			_tsubame_zoom_phase = 1
+			# 推進特寫 (Tween 本身有抗時停，所以 0.2 是真實時間)
+			_apply_charge_zoom(Vector2(1.15, 1.15), 1.2)
+			
+			
+		# 💥 [追加：拔刀前的極致緊繃震動]
+		# 0.18 秒左右 (動畫接近結尾，突進前一刻) 給予震動
+		if anim_time >= 0.18 and _tsubame_zoom_phase == 1:
+			_tsubame_zoom_phase = 2
+			
 		
 	# ----------------------------------------
 	# 🦅 強化戰技 (42) - 燕返：二段式變身邏輯
@@ -584,9 +626,9 @@ func get_current_velocity(delta: float) -> Vector2:
 		if anim_time >= 0.05 and not is_time_stop_triggered:
 			is_time_stop_triggered = true 
 			if player.has_method("trigger_time_stop"):
-				player.trigger_time_stop(3.0, 0.05) 
+				player.trigger_time_stop(3.0, 0.001) 
 			# 動畫反向加速維持原速
-			player.animation_player.speed_scale = 1.0 / 0.05 
+			player.animation_player.speed_scale = 1.0 / 0.001 
 			player.invincible_time_left = 3.0
 			
 		# 🎥 [鏡頭 1] 0.05s 推進特寫
@@ -648,15 +690,28 @@ func is_attack_finished() -> bool:
 			# 立即強制切換到 81 號「結尾動畫」
 			combo_step = 81
 			_play_skill_step(81) 
+			
+			# 🌟 新增：給予大招後搖專屬的無敵時間，確保帥氣收刀絕對不會被小怪偷襲打斷！
+			# (這裡給 1.0 秒，你可以根據 attack_ult_end 動畫的實際長度微調)
+			player.invincible_time_left = 0.4 
 		
-			return false 
+			return false
 		
 		# --- 變奏無縫銜接 ---
 		if combo_step == 90:
 			combo_step = 33
 			_play_skill_step(combo_step)
 			print("🌪️ 前搖結束，化作閃電拔刀突進！")
-			return false 
+			
+			_tsubame_zoom_phase = 0
+			_apply_charge_zoom(ZOOM_LEVELS[0], 0.2)
+			
+			# 🌟 恢復正常速度並解除時停，化作正常的高速閃電！
+			player.animation_player.speed_scale = 1.0 
+			if player.has_method("clear_time_stop"):
+				player.clear_time_stop()
+				
+			return false
 			
 		# --- 蓄力無縫預輸入 (Hold-to-Chain Buffer) ---
 		if Input.is_action_pressed("attack"):

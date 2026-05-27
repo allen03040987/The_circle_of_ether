@@ -21,8 +21,8 @@ var buffered_direction: int = 0
 # 🎬 狀態生命週期：進入狀態
 # ==========================================
 func enter() -> void:
-	if sliding_SFX:
-		AudioManager.play_sfx(sliding_SFX, -10.0, 1.0)
+	# 🌟 改動：不要馬上播，呼叫延遲播放函數
+	_play_delayed_sfx()
 		
 	if player.scabbard:
 		player.scabbard.fade_in()
@@ -82,12 +82,8 @@ func physics_update(delta: float) -> void:
 	
 	# ⚔️ 核心預輸入：劫持攻擊判定
 	if Input.is_action_just_pressed("attack"):
-		if has_perfect_dodged: 
-			# 如果觸發了魔女時間，這個普攻會被「升格」成反擊請求
-			player.is_counter_requested = true
-		else:
-			# 如果是一般閃避，就當作一般的連段請求
-			player.is_combo_requested = true
+		# 🌟 修改：廢除獨立的反擊衍生，無論是一般閃避還是完美閃避，全部視為常規連段預輸入！
+		player.is_combo_requested = true
 			
 	# ==========================================
 	# 🚦 狀態切換決策 (狀態結算)
@@ -107,11 +103,11 @@ func exit() -> void:
 	player.velocity.x *= 0.5
 	player.is_perfect_dodging = false
 
-	# 🌟 慈悲設計：如果觸發了魔女時間，但在閃避動畫內玩家沒來得及按攻擊
-	# 給予 0.2 秒的寬限期 (Coyote Counter Timer)，讓他們回到 Idle 也能按出反擊！
-	if has_perfect_dodged:
-		player.counter_pickup_timer = 0.2
-		
+	# 🌟 新增：如果閃避結束時玩家沒有按下攻擊（沒有預輸入連段），則清除連段偏移快取
+	if not player.is_combo_requested:
+		player.remove_meta("dodge_offset")
+		player.remove_meta("saved_combo_step")
+
 # ==========================================
 # ⚡ 極限閃避觸發器 (由 Player.gd 裡的受擊系統呼叫)
 # ==========================================
@@ -158,3 +154,15 @@ func trigger_perfect_dodge() -> void:
 	
 	if CombatManager.has_method("spawn_dodge_spark"):
 		CombatManager.spawn_dodge_spark(player.global_position)
+
+# ==========================================
+# 🎵 延遲音效處理
+# ==========================================
+func _play_delayed_sfx() -> void:
+	# 稍微等待 0.05 秒 (大約 3 幀)
+	await get_tree().create_timer(0.01).timeout
+	
+	# 🌟 核心防護：確保過了這 3 幀之後，玩家「還在閃避狀態」，且「沒有觸發魔女時間」，才播一般的閃避聲！
+	if state_machine.current_state == self and not has_perfect_dodged:
+		if sliding_SFX:
+			AudioManager.play_sfx(sliding_SFX, -10.0, 1.0)
