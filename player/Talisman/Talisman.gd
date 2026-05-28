@@ -3,7 +3,8 @@ extends Weapon
 ## 武器腳本：符咒 (Talisman)
 
 const WEAPON_ID: String = "talisman"
-
+# 不需播收招動畫的黑名單招式 (可依需求自行把不要收招的編號填進去)
+@export var no_sheath_steps: Array[int] = []
 # 🌟 武器自己管理專屬的美術資源，絕對不污染全局 VFX 字典！
 const TALISMAN_VFX_SCENE = preload("res://player/Talisman/TalismanVFX.tscn")
 const TRUE_PROJ_SCENE = preload("res://player/Talisman/TrueProjectile.tscn") # 留給重擊的真投射物
@@ -12,27 +13,44 @@ const TRUE_PROJ_SCENE = preload("res://player/Talisman/TrueProjectile.tscn") # �
 # 📖 招式數據庫 (加入專屬視覺設定)
 # ==========================================
 const LIGHT_ATTACK_CONFIG = {
-	# A1: 原地靜止的符咒
 	1: {
 		"anim": "talisman/attack_1", "hitbox_name": "Hitbox", 
-		"base_dmg": 100, "energy": 5, "switch": 5,
-		"vfx_anim": "a1",    # VFX 要播的動畫
-		"vfx_fly_dist": 0.0       # 飛行距離 0 = 原地不動
+		"base_dmg": 100, "energy": 5, "switch": 5, "charge_reward": 10, # 🌟 補上回能
+		"vfx_anim": "a1", "vfx_fly_dist": 0.0 
 	},
-	# A2: 往前飛行的符咒
 	2: {
 		"anim": "talisman/attack_2", "hitbox_name": "Hitbox", 
-		"base_dmg": 120, "energy": 5, "switch": 5,
-		"vfx_anim": "a2",     # VFX 要播的動畫
+		"base_dmg": 120, "energy": 5, "switch": 5, "charge_reward": 10,
+		"vfx_anim": "a2", "vfx_fly_dist": 0.0 
+	},
+	3: {
+		"anim": "talisman/attack_3", "hitbox_name": "Hitbox", 
+		"base_dmg": 40, "energy": 2, "switch": 2,       # 單發傷害與回能調低，因為會連爆 3 次
+		"max_hits": 3, "interval": 0.1, "sticky": true, # 🌟 啟動黏著性 3 連擊，間隔 0.1 秒
+		"vfx_anim": "a3",     
 		"vfx_fly_dist": 0.0 
 	}
 }
+
 
 var combo_step: int = 0
 var is_attacking: bool = false
 var step_cooldown: float = 0.0
 var is_vfx_fired: bool = false # 防止同一段攻擊重複生成特效的鎖
 
+# ==========================================
+# 🌀 2. 共鳴迴路 (Resonance Circuit) 變數
+# ==========================================
+var current_talisman_charge: int = 0      # 當前靈符值
+const MAX_TALISMAN_CHARGE: int = 100      # 靈符值上限
+var _current_charge_reward: int = 0       # 當前招式給予的靈符值
+var _multi_hit_energy: bool = false       # 是否允許多次判定給資源
+
+func gain_talisman_charge(amount: int) -> void:
+	if amount > 0:
+		current_talisman_charge = mini(current_talisman_charge + amount, MAX_TALISMAN_CHARGE)
+		print("🟢 命中！獲得靈符值: ", amount, " | 目前靈符: ", current_talisman_charge, "/", MAX_TALISMAN_CHARGE)
+		
 var last_attack_time: float = 0.0
 const COMBO_TIMEOUT: float = 0.3
 
@@ -54,6 +72,13 @@ func _ready() -> void:
 func start_light_attack() -> void:
 	if step_cooldown > 0: return
 	step_cooldown = 0.15
+	
+	# 加入超時重置普攻段數的邏輯！
+	if not is_attacking:
+		var current_time = Time.get_ticks_msec() / 1000.0
+		if current_time - last_attack_time > COMBO_TIMEOUT:
+			combo_step = 0
+			
 	is_attacking = true
 	is_vfx_fired = false # 換招時解鎖
 	
@@ -135,7 +160,8 @@ func _play_attack(config: Dictionary) -> void:
 		hitbox.knockback_force = config.get("knockback", Vector2.ZERO)
 		hitbox.attack_type = config.get("type", Damage.Type.LIGHT)
 		hitbox.hit_sfx_type = config.get("hit_sfx_type", "hit")
-		
+		if "sticky_multi_hit" in hitbox:
+			hitbox.sticky_multi_hit = config.get("sticky", false)
 		# 符咒專屬火花 (例如靈能青藍色)
 		hitbox.spark_type = 0
 		hitbox.spark_scale = 0.3
@@ -144,8 +170,13 @@ func _play_attack(config: Dictionary) -> void:
 		
 		hitbox.hit_targets.clear()
 		
+		# ==========================================
+		# 🌟 核心解耦 1：由符咒自己記住這招能賺多少錢
+		# ==========================================
 		_current_energy_reward = float(config.get("energy", 0))
 		_current_switch_reward = float(config.get("switch", 0))
+		_current_charge_reward = int(config.get("charge_reward", 0)) # 🌟 讀取專屬靈符值
+		_multi_hit_energy = config.get("multi_hit_energy", false)
 		_has_granted_resources_this_step = false
 		
 		if current_active_hitbox and current_active_hitbox.hit.is_connected(_on_hitbox_hit):
@@ -163,7 +194,11 @@ func _on_hitbox_hit(hurtbox: Node) -> void:
 	if is_instance_valid(player) and is_instance_valid(hurtbox.owner) and hurtbox.owner == player: 
 		return
 
-	if not _has_granted_resources_this_step:
+	# 判斷是否為多次給予，或者這招還沒給過資源
+	if _multi_hit_energy or not _has_granted_resources_this_step:
+		if _current_charge_reward > 0:
+			gain_talisman_charge(_current_charge_reward)
+			
 		if _current_energy_reward > 0 or _current_switch_reward > 0:
 			if player.has_method("add_weapon_resource"):
 				player.add_weapon_resource(WEAPON_ID, _current_energy_reward, _current_switch_reward)
@@ -199,11 +234,44 @@ func cancel_attack() -> void:
 	disable_hitbox()
 
 func requires_sheath() -> bool:
-	return false
+	if combo_step == 0:
+		return false
+	# 如果目前的招式「不在」黑名單裡面，就代表需要收招！
+	return combo_step not in no_sheath_steps
 
 func update_timers_only(delta: float) -> void:
 	if step_cooldown > 0: step_cooldown -= delta
 
+# ==========================================
+# 🛡️ 狀態機防護名單 (The Bouncer's List)
+# ==========================================
+var air_attack_locked: bool = false
+
+func can_air_light() -> bool:
+	if air_attack_locked: return false
+	return true
+
+func can_use_heavy() -> bool:
+	# 如果你在天上，不准放重擊 (視乎你的設計而定)
+	if not player.is_on_floor(): return false
+	return true
+
+func can_use_ultimate() -> bool:
+	# ... (請確保這裡的 ult_timer 或 ult_energy_cost 變數有在頂部宣告)
+	if not player.is_on_floor(): return false 
+	return true
+
+# ==========================================
+# 💾 武器狀態保存與繼承
+# ==========================================
+func export_weapon_data() -> Dictionary:
+	return {
+		"current_talisman_charge": current_talisman_charge
+	}
+
+func import_weapon_data(data: Dictionary) -> void:
+	current_talisman_charge = data.get("current_talisman_charge", 0)
+	
 # ==========================================
 # 🛡️ Hitbox 開關實作
 # ==========================================

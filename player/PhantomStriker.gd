@@ -18,6 +18,9 @@ var _frames_alive: int = 0
 var can_play_sfx: bool = false
 
 var _death_retries: int = 0
+
+var _target_anim: String = ""
+var _target_pos: float = 0.0
 # ==========================================
 # 🧬 靈魂轉移與初始化 (由 Player 呼叫)
 # ==========================================
@@ -84,7 +87,12 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 				"is_launch_triggered", "launch_timer",
 				"current_charge_timer", "current_charge_tier", "light_hold_timer",
 				"is_wave_fired", "air_attack_locked", "is_time_stop_triggered",
-				"_tsubame_zoom_phase", "_is_hitbox_locked", "is_spear_thrown"
+				"_tsubame_zoom_phase", "_is_hitbox_locked", "is_spear_thrown",
+				
+				# 🌟 核心修復：治好殘影的失憶症！把我們近期新增的變數全部補上！
+				"is_vfx_fired", "is_proj_fired",                # 符咒：防止重複發射的鎖
+				"skill_2_current_step", "skill_3_current_step", # 太刀：多段戰技進度
+				"skill_2_combo_timer", "skill_3_combo_timer"    # 太刀：多段戰技計時器
 			]
 			for prop in props_to_copy:
 				if prop in outgoing_weapon:
@@ -123,27 +131,38 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 		if current != self: current.owner = self
 		nodes_to_process.append_array(current.get_children())
 
-	# 6. 接力播放殘影演出
+	# 6. 紀錄接力播放數據 (延遲到進入場景樹後才安全播放)
 	var current_anim = player.animation_player.current_animation
 	var current_pos = player.animation_player.current_animation_position
 
 	if current_anim != "":
-		animation_player.play(current_anim)
-		animation_player.seek(current_pos, true)
+		_target_anim = current_anim
+		_target_pos = current_pos
+	else:
+		die_gracefully()
+
+# ==========================================
+# 🌟 當殘影被 add_child 正式加入世界時自動觸發
+# ==========================================
+func _ready() -> void:
+	if _target_anim != "" and is_instance_valid(animation_player):
+		# 此時節點已在場景樹中，打包版也能完美、立刻解析動畫路徑！
+		animation_player.play(_target_anim)
+		animation_player.seek(_target_pos, true)
+		
+		# 強制動畫引擎在這一幀物理運算前完成渲染校正，消滅 0.0 秒時差
+		animation_player.advance(0)
 		
 		animation_player.animation_finished.connect(die_gracefully.unbind(1))
 		
 		var max_lifespan: float = 2.0
-		if animation_player.has_animation(current_anim):
-			var anim_data = animation_player.get_animation(current_anim)
+		if animation_player.has_animation(_target_anim):
+			var anim_data = animation_player.get_animation(_target_anim)
 			if anim_data.loop_mode == Animation.LOOP_NONE:
-				max_lifespan = max(0.5, anim_data.length - current_pos + 0.2)
+				max_lifespan = max(0.5, anim_data.length - _target_pos + 0.2)
 				
-			# 🌟 核心修復：借用本體玩家的場景樹來建立計時器！
-			player.get_tree().create_timer(max_lifespan, true, false, true).timeout.connect(die_gracefully)
-	else:
-		die_gracefully()
-
+		get_tree().create_timer(max_lifespan, true, false, true).timeout.connect(die_gracefully)
+		
 func _process(_delta: float) -> void:
 	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
 	
@@ -249,4 +268,6 @@ func _apply_vfx_colors(node: Node, main_color: Color, aura_color: Color) -> void
 
 
 func trigger_swing_sfx(sfx_type: String) -> void:
+	# 🌟 核心修復：嚴格遵守 can_play_sfx 的設定
+	if not can_play_sfx: return 
 	AudioManager.play_action_sfx(sfx_type, -8.0)
