@@ -3,63 +3,87 @@ extends Weapon
 ## 武器腳本：符咒 (Talisman)
 
 const WEAPON_ID: String = "talisman"
-# 不需播收招動畫的黑名單招式 (可依需求自行把不要收招的編號填進去)
-@export var no_sheath_steps: Array[int] = []
-# 🌟 武器自己管理專屬的美術資源，絕對不污染全局 VFX 字典！
-const TALISMAN_VFX_SCENE = preload("res://player/Talisman/TalismanVFX.tscn")
-const TRUE_PROJ_SCENE = preload("res://player/Talisman/TrueProjectile.tscn") # 留給重擊的真投射物
 
 # ==========================================
-# 📖 招式數據庫 (加入專屬視覺設定)
+# 🎛️ 1. 武器核心參數與資源
+# ==========================================
+@export_group("武器核心參數")
+@export var combo_timeout: float = 0.3      
+@export var no_sheath_steps: Array[int] = [] 
+@export var ult_energy_cost: float = 100.0  
+
+const TALISMAN_VFX_SCENE = preload("res://player/Talisman/TalismanVFX.tscn")
+const HEALING_TOWER_SCENE = preload("res://player/Talisman/HealingTower.tscn") 
+const TRUE_PROJ_SCENE = preload("res://player/Talisman/TrueProjectile.tscn") 
+
+# ==========================================
+# 📖 2. 招式數據庫 (Data-Driven Combat Config)
 # ==========================================
 const LIGHT_ATTACK_CONFIG = {
 	1: {
 		"anim": "talisman/attack_1", "hitbox_name": "Hitbox", 
-		"base_dmg": 100, "energy": 5, "switch": 5, "charge_reward": 10, # 🌟 補上回能
+		"base_dmg": 100, "energy": 5, "switch": 5, "charge_reward": 0,
 		"vfx_anim": "a1", "vfx_fly_dist": 0.0 
 	},
 	2: {
 		"anim": "talisman/attack_2", "hitbox_name": "Hitbox", 
-		"base_dmg": 120, "energy": 5, "switch": 5, "charge_reward": 10,
+		"base_dmg": 120, "energy": 5, "switch": 5, "charge_reward": 0,
 		"vfx_anim": "a2", "vfx_fly_dist": 0.0 
 	},
 	3: {
 		"anim": "talisman/attack_3", "hitbox_name": "Hitbox", 
-		"base_dmg": 40, "energy": 2, "switch": 2,       # 單發傷害與回能調低，因為會連爆 3 次
-		"max_hits": 3, "interval": 0.1, "sticky": true, # 🌟 啟動黏著性 3 連擊，間隔 0.1 秒
-		"vfx_anim": "a3",     
+		"base_dmg": 40, "energy": 2, "switch": 2,        
+		"max_hits": 3, "interval": 0.1, "sticky": true, 
+		"vfx_anim": "a3", "shake": 7.0,
+		"charge_reward": 10,    
 		"vfx_fly_dist": 0.0 
 	}
 }
 
-
-var combo_step: int = 0
-var is_attacking: bool = false
-var step_cooldown: float = 0.0
-var is_vfx_fired: bool = false # 防止同一段攻擊重複生成特效的鎖
+const SKILL_CONFIG = {
+	20: {
+		"anim": "talisman/c1", "hitbox_name": "C0", 
+		"base_dmg": 50, "energy": 5, "switch": 10, "charge_reward": 10, 
+		"max_hits": 5, "interval": 0.1, "sticky": true,                 
+		"vfx_anim": "c0", "vfx_fly_dist": 0.0 
+	}
+}
 
 # ==========================================
-# 🌀 2. 共鳴迴路 (Resonance Circuit) 變數
+# 🌀 3. 共鳴迴路 (Resonance Circuit) 變數
 # ==========================================
-var current_talisman_charge: int = 0      # 當前靈符值
-const MAX_TALISMAN_CHARGE: int = 100      # 靈符值上限
-var _current_charge_reward: int = 0       # 當前招式給予的靈符值
-var _multi_hit_energy: bool = false       # 是否允許多次判定給資源
+var current_talisman_charge: int = 0      
+const MAX_TALISMAN_CHARGE: int = 50     
 
 func gain_talisman_charge(amount: int) -> void:
 	if amount > 0:
 		current_talisman_charge = mini(current_talisman_charge + amount, MAX_TALISMAN_CHARGE)
 		print("🟢 命中！獲得靈符值: ", amount, " | 目前靈符: ", current_talisman_charge, "/", MAX_TALISMAN_CHARGE)
-		
-var last_attack_time: float = 0.0
-const COMBO_TIMEOUT: float = 0.3
 
-# 專屬資源記憶體 (解耦 Hitbox 用)
+# ==========================================
+# 🎛️ 內部狀態變數
+# ==========================================
+@export_group("空戰設定 (Air Combat)")
+@export var min_air_attack_height: float = 40.0 
+@export var air_thrust_force: float = -150.0    
+var air_attack_locked: bool = false 
+
+var combo_step: int = 0
+var last_attack_time: float = 0.0
+var is_attacking: bool = false
+var step_cooldown: float = 0.0
+
+var is_vfx_fired: bool = false 
+var is_tower_spawned: bool = false 
+
 var current_active_hitbox: Hitbox = null
+var _is_hitbox_locked: bool = false
+
 var _current_energy_reward: float = 0.0
 var _current_switch_reward: float = 0.0
+var _current_charge_reward: int = 0       
+var _multi_hit_energy: bool = false       
 var _has_granted_resources_this_step: bool = false
-var _is_hitbox_locked: bool = false
 
 func _ready() -> void:
 	if owner != null:
@@ -70,17 +94,21 @@ func _ready() -> void:
 # 🎬 實作 Weapon.gd 合約接口
 # ==========================================
 func start_light_attack() -> void:
+	if is_attacking and combo_step >= 20: return 
+	
 	if step_cooldown > 0: return
 	step_cooldown = 0.15
 	
-	# 加入超時重置普攻段數的邏輯！
 	if not is_attacking:
 		var current_time = Time.get_ticks_msec() / 1000.0
-		if current_time - last_attack_time > COMBO_TIMEOUT:
+		if current_time - last_attack_time > combo_timeout:
 			combo_step = 0
 			
+	if combo_step >= 20:
+		combo_step = 0
+			
 	is_attacking = true
-	is_vfx_fired = false # 換招時解鎖
+	is_vfx_fired = false 
 	
 	combo_step += 1
 	if not LIGHT_ATTACK_CONFIG.has(combo_step): combo_step = 1
@@ -88,63 +116,121 @@ func start_light_attack() -> void:
 	_play_attack(LIGHT_ATTACK_CONFIG[combo_step])
 
 func start_heavy_attack() -> void:
-	# ... (保留你原本的重擊真投射物邏輯)
-	pass
+	if is_attacking and combo_step >= 20: return 
+	
+	if step_cooldown > 0:
+		is_attacking = false
+		return
+		
+	step_cooldown = 0.15
+	is_attacking = true
+	is_vfx_fired = false 
+	is_tower_spawned = false 
+	
+	combo_step = 0 
+	
+	if player.is_on_floor():
+		if Input.is_action_pressed("move_up"):
+			pass # 預留戰技上
+		elif Input.is_action_pressed("move_down"):
+			pass # 預留戰技下
+		else:
+			combo_step = 20
+			_play_attack(SKILL_CONFIG[combo_step])
+			skill_1_timer = skill_1_cd
+
+func update_timers_only(delta: float) -> void:
+	if step_cooldown > 0: step_cooldown -= delta
+	if skill_1_timer > 0: skill_1_timer -= delta 
+	if skill_2_timer > 0: skill_2_timer -= delta 
+	if skill_3_timer > 0: skill_3_timer -= delta 
+	if ult_timer > 0: ult_timer -= delta
+	
+	if player.is_on_floor():
+		air_attack_locked = false 
 
 # ==========================================
-# 🏃 物理與專屬視覺生成
+# 🏃 物理與特效場控核心
 # ==========================================
 func get_current_velocity(delta: float) -> Vector2:
 	if not is_attacking: return player.velocity
-	var new_x = move_toward(player.velocity.x, 0.0, player.FLOOR_ACCELERATION * delta)
 	
-	# 🌟 在合適的動畫幀生成專屬視覺符咒！
-	if LIGHT_ATTACK_CONFIG.has(combo_step):
-		var anim_time = player.animation_player.current_animation_position
-		# 假設動畫播到 0.1 秒時，手已經揮出去了，此時生成符咒
+	if player.is_on_floor(): air_attack_locked = false
+	
+	var new_x = player.velocity.x
+	var new_y = player.velocity.y
+	
+	var anim_time = player.animation_player.current_animation_position
+	
+	# ----------------------------------------
+	# 物理摩擦力分流 (對齊太刀與長槍)
+	# ----------------------------------------
+	if combo_step in [1, 2, 3]:
+		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+		
 		if anim_time >= 0.1 and not is_vfx_fired:
 			is_vfx_fired = true
-			_spawn_weapon_vfx(LIGHT_ATTACK_CONFIG[combo_step])
+			_spawn_weapon_vfx(LIGHT_ATTACK_CONFIG[combo_step]) # 🌟 拔除防護網，殘影必須發射特效！
+				
+	elif combo_step == 20:
+		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+		
+		if anim_time >= 0.1 and not is_vfx_fired:
+			is_vfx_fired = true
+			_spawn_weapon_vfx(SKILL_CONFIG[combo_step]) # 🌟 拔除防護網，殘影必須發射特效！
+				
+		if anim_time >= 1.15 and not is_tower_spawned:
+			is_tower_spawned = true
 			
-	return Vector2(new_x, player.velocity.y)
+			# 🌟 鏡頭震動防護 (完全對齊太刀劍氣寫法，殘影不准震動鏡頭)
+			if not player.name.begins_with("Phantom"): 
+				if CombatManager.has_method("apply_camera_shake"): 
+					CombatManager.apply_camera_shake(50.0)
+			
+			_spawn_healing_tower() # 🌟 拔除防護網，讓代打的殘影把塔蓋出來！
+				
+		# 🌟 玩家無敵防護 (只有本體才需要無敵，殘影不需要)
+		if not player.name.begins_with("Phantom"):
+			if anim_time >= 0.0 and anim_time <= 1.0:
+				player.invincible_time_left = max(player.invincible_time_left, 0.1) 
+			elif anim_time > 1.0 and anim_time < 1.1:
+				if player.invincible_timer.time_left == 0:
+					player.invincible_time_left = 0.0
+					
+	return Vector2(new_x, new_y)
 
-# 🌟 武器獨立的美術生成器 (輕量化 Node2D + Tween 飛行)
 func _spawn_weapon_vfx(config: Dictionary) -> void:
 	if not TALISMAN_VFX_SCENE: return
 	
 	var vfx = TALISMAN_VFX_SCENE.instantiate()
-	# 🌟 脫離玩家層級，加到世界場景，這樣符咒就不會跟著玩家亂動
 	get_tree().current_scene.add_child(vfx)
-	
-	# 決定生成位置 (稍微在玩家前方)
 	vfx.global_position = player.global_position + Vector2(30 * player.direction, -30)
 	vfx.scale.x = player.direction
-	
-	# ==========================================
-	# 🌟 核心修復：把圖層設定為玩家的圖層 + 1
-	# ==========================================
-	# 假設你的玩家 Z-index 是 0 或更高，這裡強制讓 VFX 永遠在玩家上面一層
 	vfx.z_index = player.z_index + 1
 	
-	# 抗時停倍率
 	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
 	
-	# 呼叫我們寫在 TalismanVFX.gd 裡的方法來播動畫
 	var vfx_anim_name = config.get("vfx_anim", "")
 	if vfx.has_method("play_and_free") and vfx_anim_name != "":
 		vfx.play_and_free(vfx_anim_name, speed_mult)
 	
-	# 🚀 輕量級飛行邏輯：如果字典有設定要飛 (A2)
 	var fly_dist = config.get("vfx_fly_dist", 0.0)
 	if fly_dist > 0.0:
 		var target_pos = vfx.global_position + Vector2(fly_dist * player.direction, 0)
 		var tween = create_tween()
-		tween.set_speed_scale(speed_mult) # 飛行也能抗時停！
-		# 花 0.3 秒平滑飛到目標位置
+		tween.set_speed_scale(speed_mult) 
 		tween.tween_property(vfx, "global_position", target_pos, 0.3).set_ease(Tween.EASE_OUT)
 
+func _spawn_healing_tower() -> void:
+	if not HEALING_TOWER_SCENE: return
+	var tower = HEALING_TOWER_SCENE.instantiate()
+	get_tree().current_scene.add_child(tower)
+	tower.global_position = player.global_position + Vector2(40 * player.direction, 0)
+	tower.z_index = 1
+	print("✨ [符咒] 釋放中立戰技，已生成回血塔！")
+
 # ==========================================
-# ⚙️ 內部實作與 Hitbox 屬性灌注
+# ⚙️ 內部實作與 Hitbox 屬性灌注 (對齊長槍防呆寫法)
 # ==========================================
 func _play_attack(config: Dictionary) -> void:
 	_is_hitbox_locked = false 
@@ -156,13 +242,18 @@ func _play_attack(config: Dictionary) -> void:
 	if hitbox:
 		hitbox.damage_amount = config.get("base_dmg", 100)
 		hitbox.max_hits = config.get("max_hits", 1)
-		hitbox.hit_interval = config.get("interval", 0.0)
-		hitbox.knockback_force = config.get("knockback", Vector2.ZERO)
-		hitbox.attack_type = config.get("type", Damage.Type.LIGHT)
 		hitbox.hit_sfx_type = config.get("hit_sfx_type", "hit")
-		if "sticky_multi_hit" in hitbox:
-			hitbox.sticky_multi_hit = config.get("sticky", false)
-		# 符咒專屬火花 (例如靈能青藍色)
+		
+		if "hit_interval" in hitbox: hitbox.hit_interval = config.get("interval", 0.0)
+		if "knockback_force" in hitbox: hitbox.knockback_force = config.get("knockback", Vector2.ZERO)
+		if "attack_type" in hitbox: hitbox.attack_type = config.get("type", Damage.Type.LIGHT)
+		if "sticky_multi_hit" in hitbox: hitbox.sticky_multi_hit = config.get("sticky", false)
+		if "shake_intensity" in hitbox: hitbox.shake_intensity = config.get("shake", 2.5) 
+		if "shake_on_hit_only" in hitbox: hitbox.shake_on_hit_only = config.get("shake_on_hit_only", true)
+		
+		if "energy_reward" in hitbox: hitbox.energy_reward = float(config.get("energy", 0))
+		if "switch_reward" in hitbox: hitbox.switch_reward = float(config.get("switch", 0))
+		
 		hitbox.spark_type = 0
 		hitbox.spark_scale = 0.3
 		hitbox.spark_color = Color(0.2, 0.8, 1.5, 1.0)
@@ -170,12 +261,9 @@ func _play_attack(config: Dictionary) -> void:
 		
 		hitbox.hit_targets.clear()
 		
-		# ==========================================
-		# 🌟 核心解耦 1：由符咒自己記住這招能賺多少錢
-		# ==========================================
 		_current_energy_reward = float(config.get("energy", 0))
 		_current_switch_reward = float(config.get("switch", 0))
-		_current_charge_reward = int(config.get("charge_reward", 0)) # 🌟 讀取專屬靈符值
+		_current_charge_reward = int(config.get("charge_reward", 0)) 
 		_multi_hit_energy = config.get("multi_hit_energy", false)
 		_has_granted_resources_this_step = false
 		
@@ -194,7 +282,6 @@ func _on_hitbox_hit(hurtbox: Node) -> void:
 	if is_instance_valid(player) and is_instance_valid(hurtbox.owner) and hurtbox.owner == player: 
 		return
 
-	# 判斷是否為多次給予，或者這招還沒給過資源
 	if _multi_hit_energy or not _has_granted_resources_this_step:
 		if _current_charge_reward > 0:
 			gain_talisman_charge(_current_charge_reward)
@@ -206,7 +293,7 @@ func _on_hitbox_hit(hurtbox: Node) -> void:
 		_has_granted_resources_this_step = true
 
 # ==========================================
-# 🎬 狀態機防呆與收招結算
+# 🎬 狀態機防呆與收招結算 (對齊收刀邏輯)
 # ==========================================
 func is_handling_gravity() -> bool:
 	return false
@@ -214,6 +301,12 @@ func is_handling_gravity() -> bool:
 func is_attack_finished() -> bool:
 	if not is_attacking: return true
 	if not player.animation_player.is_playing():
+		
+		# 🌟 統一使用 begins_with 對齊太刀
+		if combo_step == 20 and not player.name.begins_with("Phantom"):
+			if player.invincible_timer.time_left == 0:
+				player.invincible_time_left = 0.0
+				
 		player.is_input_locked = false
 		is_attacking = false
 		step_cooldown = 0.0
@@ -221,60 +314,97 @@ func is_attack_finished() -> bool:
 		
 		_is_hitbox_locked = true 
 		disable_hitbox()
+		
+		var p_scabbard = player.get("scabbard")
+		if not requires_sheath() and p_scabbard:
+			p_scabbard.fade_in()
+			
 		return true
 	return false
 
 func cancel_attack() -> void:
+	# 🌟 統一使用 begins_with 對齊太刀
+	if combo_step == 20 and is_attacking and not player.name.begins_with("Phantom"):
+		if player.invincible_timer.time_left == 0:
+			player.invincible_time_left = 0.0
+
 	player.is_input_locked = false
 	is_attacking = false
 	combo_step = 0
 	step_cooldown = 0.0
 	is_vfx_fired = false
+	is_tower_spawned = false 
 	_is_hitbox_locked = true 
 	disable_hitbox()
+	
+	var p_scabbard = player.get("scabbard")
+	if p_scabbard: 
+		p_scabbard.fade_in()
 
 func requires_sheath() -> bool:
 	if combo_step == 0:
 		return false
-	# 如果目前的招式「不在」黑名單裡面，就代表需要收招！
 	return combo_step not in no_sheath_steps
-
-func update_timers_only(delta: float) -> void:
-	if step_cooldown > 0: step_cooldown -= delta
 
 # ==========================================
 # 🛡️ 狀態機防護名單 (The Bouncer's List)
 # ==========================================
-var air_attack_locked: bool = false
-
 func can_air_light() -> bool:
-	if air_attack_locked: return false
+	if air_attack_locked or _get_ground_distance() < min_air_attack_height: return false
 	return true
 
 func can_use_heavy() -> bool:
-	# 如果你在天上，不准放重擊 (視乎你的設計而定)
 	if not player.is_on_floor(): return false
+	
+	if Input.is_action_pressed("move_up"):
+		pass 
+	elif Input.is_action_pressed("move_down"):
+		pass 
+	else:
+		if skill_1_timer > 0:
+			print("⏳ [防護網攔截] 符咒中立戰技冷卻中！")
+			return false
+			
 	return true
 
 func can_use_ultimate() -> bool:
-	# ... (請確保這裡的 ult_timer 或 ult_energy_cost 變數有在頂部宣告)
+	if ult_timer > 0: return false 
 	if not player.is_on_floor(): return false 
+	
+	if player.has_method("get_weapon_energy"):
+		if player.get_weapon_energy(WEAPON_ID) < ult_energy_cost:
+			print("⚠️ [", WEAPON_ID, "] 大招能量不足！需要: ", ult_energy_cost)
+			return false 
+			
 	return true
 
 # ==========================================
-# 💾 武器狀態保存與繼承
+# 💾 輔助工具與儲存
 # ==========================================
+func _get_ground_distance() -> float:
+	var space_state = player.get_world_2d().direct_space_state
+	var query = PhysicsRayQueryParameters2D.create(player.global_position, player.global_position + Vector2(0, 1000))
+	query.collision_mask = 1 
+	var result = space_state.intersect_ray(query)
+	if result: return player.global_position.distance_to(result.position)
+	return 1000.0 
+
 func export_weapon_data() -> Dictionary:
 	return {
-		"current_talisman_charge": current_talisman_charge
+		"current_talisman_charge": current_talisman_charge,
+		"skill_1_timer": skill_1_timer if "skill_1_timer" in self else 0.0,
+		"skill_2_timer": skill_2_timer if "skill_2_timer" in self else 0.0,
+		"skill_3_timer": skill_3_timer if "skill_3_timer" in self else 0.0,
+		"ult_timer": ult_timer if "ult_timer" in self else 0.0
 	}
 
 func import_weapon_data(data: Dictionary) -> void:
 	current_talisman_charge = data.get("current_talisman_charge", 0)
+	if "skill_1_timer" in self: skill_1_timer = data.get("skill_1_timer", 0.0)
+	if "skill_2_timer" in self: skill_2_timer = data.get("skill_2_timer", 0.0)
+	if "skill_3_timer" in self: skill_3_timer = data.get("skill_3_timer", 0.0)
+	if "ult_timer" in self: ult_timer = data.get("ult_timer", 0.0)
 	
-# ==========================================
-# 🛡️ Hitbox 開關實作
-# ==========================================
 func enable_hitbox(shape_name: String = "") -> void:
 	if _is_hitbox_locked: return
 	if current_active_hitbox:
@@ -289,4 +419,3 @@ func disable_hitbox(shape_name: String = "") -> void:
 			if child is CollisionShape2D:
 				if shape_name == "" or child.name == shape_name:
 					child.set_deferred("disabled", true)
-					

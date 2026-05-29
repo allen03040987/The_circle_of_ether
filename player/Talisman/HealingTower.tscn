@@ -1,0 +1,78 @@
+[gd_scene load_steps=9 format=3 uid="uid://craxta0dix42b"]
+
+[ext_resource type="Script" path="res://player/Talisman/HealingTower.gd" id="1_07qtt"]
+[ext_resource type="Texture2D" uid="uid://dstjkrpse6uuo" path="res://player/Talisman/HealingTower.png" id="2_ny3nf"]
+[ext_resource type="Script" path="res://classes/Hitbox.gd" id="3_cyce0"]
+
+[sub_resource type="Animation" id="Animation_olbi4"]
+resource_name = "pulse"
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Hitbox/CollisionShape2D:disabled")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [false, true]
+}
+
+[sub_resource type="Animation" id="Animation_41vkq"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Hitbox/CollisionShape2D:disabled")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [true]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_57wp5"]
+_data = {
+"RESET": SubResource("Animation_41vkq"),
+"pulse": SubResource("Animation_olbi4")
+}
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ty0a8"]
+size = Vector2(305, 88.5)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_h62bu"]
+size = Vector2(305, 89.5)
+
+[node name="HealingTower" type="Node2D"]
+z_index = -1
+script = ExtResource("1_07qtt")
+
+[node name="Talisman" type="Sprite2D" parent="."]
+position = Vector2(0, -33)
+texture = ExtResource("2_ny3nf")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+"": SubResource("AnimationLibrary_57wp5")
+}
+
+[node name="Hitbox" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("3_cyce0")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(0, -45.75)
+shape = SubResource("RectangleShape2D_ty0a8")
+disabled = true
+
+[node name="HealArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 8
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="HealArea"]
+position = Vector2(0, -46.25)
+shape = SubResource("RectangleShape2D_h62bu")
