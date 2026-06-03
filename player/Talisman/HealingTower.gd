@@ -5,13 +5,14 @@ extends Node2D
 # 📊 數值設定面板
 # ==========================================
 @export var lifespan: float = 10.0          # 存在總時間 (秒)
-@export var pulse_interval: float = 2.5     # 每次爆發間隔 (秒)
-@export var heal_amount: int = 5           # 每次爆發的回血量
+@export var pulse_interval: float = 1.0     # 每次爆發間隔 (秒)
+@export var heal_amount: int = 2           # 每次爆發的回血量
 @export var damage_amount: int = 50         # 每次爆發的傷害量
 
 # 內部計時器
 var _life_timer: float = 0.0
 var _pulse_timer: float = 0.0
+var direction: int = 1
 
 # ==========================================
 # 🔗 節點參考
@@ -25,13 +26,13 @@ func _ready() -> void:
 	if hitbox:
 		hitbox.damage_amount = damage_amount
 		hitbox.attack_type = Damage.Type.LIGHT 
-		hitbox.knockback_force = Vector2(80, -200) 
+		hitbox.knockback_force = Vector2(80 * direction, -200) 
 		hitbox.hit_interval = 0.0 
 		
 		# ==========================================
 		# 🌟 核心修復：完全仿照符咒 A1 的打擊火花與音效！
 		# ==========================================
-		hitbox.hit_sfx_type = "hit_4" # 確保打到怪時播的是清脆的 Hit 音效
+		hitbox.hit_sfx_type = "hit" # 確保打到怪時播的是清脆的 Hit 音效
 		hitbox.spark_type = 0
 		hitbox.spark_scale = 0.3
 		hitbox.spark_color = Color(0.2, 0.8, 1.5, 1.0) # 靈能青藍色
@@ -61,7 +62,8 @@ func _process(delta: float) -> void:
 func trigger_pulse() -> void:
 	# (保留音效與動畫邏輯)
 	if AudioManager.has_method("play_action_sfx"):
-		AudioManager.play_action_sfx("Earthquake_2", -5.0)
+		AudioManager.play_action_sfx("Earthquake", -0.0)
+		AudioManager.play_action_sfx("Get_notification", -10.0)
 
 	if animation_player.has_animation("pulse"):
 		animation_player.stop() 

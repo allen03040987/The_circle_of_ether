@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dsvnpg2eo8nc2"
+path="res://.godot/imported/Energy Beam.wav-5d6dad633240deacbba75786f2ccf0bf.sample"
+
+[deps]
+
+source_file="res://sound/SFX/attack/Energy Beam.wav"
+dest_files=["res://.godot/imported/Energy Beam.wav-5d6dad633240deacbba75786f2ccf0bf.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=0

@@ -1,23 +1,23 @@
-[gd_scene load_steps=9 format=3 uid="uid://craxta0dix42b"]
+[gd_scene load_steps=12 format=3 uid="uid://craxta0dix42b"]
 
 [ext_resource type="Script" path="res://player/Talisman/HealingTower.gd" id="1_07qtt"]
 [ext_resource type="Texture2D" uid="uid://dstjkrpse6uuo" path="res://player/Talisman/HealingTower.png" id="2_ny3nf"]
 [ext_resource type="Script" path="res://classes/Hitbox.gd" id="3_cyce0"]
 
-[sub_resource type="Animation" id="Animation_olbi4"]
-resource_name = "pulse"
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath("Hitbox/CollisionShape2D:disabled")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.2),
-"transitions": PackedFloat32Array(1, 1),
-"update": 1,
-"values": [false, true]
-}
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_c4yfi"]
+blend_mode = 1
+
+[sub_resource type="Gradient" id="Gradient_g8lnv"]
+offsets = PackedFloat32Array(0.00738007, 0.0405904, 1)
+colors = PackedColorArray(1, 1, 1, 1, 0.6926, 0.837896, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_duejm"]
+gradient = SubResource("Gradient_g8lnv")
+width = 200
+height = 200
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.6, 0.6)
 
 [sub_resource type="Animation" id="Animation_41vkq"]
 length = 0.001
@@ -33,6 +33,117 @@ tracks/0/keys = {
 "update": 1,
 "values": [true]
 }
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Talisman:frame")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [6]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Aura6:texture:width")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [200]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Aura6:texture:height")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [200]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Aura6:modulate")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(0.839216, 0.266667, 1, 0.552941)]
+}
+
+[sub_resource type="Animation" id="Animation_olbi4"]
+resource_name = "pulse"
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Hitbox/CollisionShape2D:disabled")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.1),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [false, true]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Talisman:frame")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [6, 7, 8, 9, 0, 1, 2, 3, 4, 5]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Aura6:texture:width")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.3, 1),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [1000, 400, 300]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Aura6:texture:height")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.3, 1),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [1000, 400, 300]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Aura6:modulate")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.4),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Color(0.341176, 0.266667, 1, 0.552941), Color(0.839216, 0.266667, 1, 0.552941)]
+}
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_57wp5"]
 _data = {
@@ -40,19 +151,31 @@ _data = {
 "pulse": SubResource("Animation_olbi4")
 }
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_ty0a8"]
-size = Vector2(305, 88.5)
+[sub_resource type="CircleShape2D" id="CircleShape2D_mffy4"]
+radius = 177.268
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_h62bu"]
-size = Vector2(305, 89.5)
+[sub_resource type="CircleShape2D" id="CircleShape2D_qjiqb"]
+radius = 177.004
 
 [node name="HealingTower" type="Node2D"]
 z_index = -1
 script = ExtResource("1_07qtt")
 
 [node name="Talisman" type="Sprite2D" parent="."]
-position = Vector2(0, -33)
+position = Vector2(0, -32)
 texture = ExtResource("2_ny3nf")
+hframes = 4
+vframes = 3
+frame = 6
+region_enabled = true
+region_rect = Rect2(0, 0, 256, 192)
+
+[node name="Aura6" type="Sprite2D" parent="."]
+modulate = Color(0.839216, 0.266667, 1, 0.552941)
+material = SubResource("CanvasItemMaterial_c4yfi")
+position = Vector2(-1.52588e-05, -31.3)
+scale = Vector2(0.6, 0.6)
+texture = SubResource("GradientTexture2D_duejm")
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
 libraries = {
@@ -65,14 +188,16 @@ collision_mask = 16
 script = ExtResource("3_cyce0")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+visible = false
 position = Vector2(0, -45.75)
-shape = SubResource("RectangleShape2D_ty0a8")
+shape = SubResource("CircleShape2D_mffy4")
 disabled = true
 
 [node name="HealArea" type="Area2D" parent="."]
+visible = false
 collision_layer = 0
 collision_mask = 8
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="HealArea"]
 position = Vector2(0, -46.25)
-shape = SubResource("RectangleShape2D_h62bu")
+shape = SubResource("CircleShape2D_qjiqb")

@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bkq33q5cwth1s"
+path="res://.godot/imported/Get notification sound.wav-d3da2e3f5da0ee91db9f2833e4b6090d.sample"
+
+[deps]
+
+source_file="res://sound/Scene sound/Get notification sound.wav"
+dest_files=["res://.godot/imported/Get notification sound.wav-d3da2e3f5da0ee91db9f2833e4b6090d.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=0

@@ -4,6 +4,36 @@ extends State
 # 🎬 狀態生命週期 (State Lifecycle)
 # ==========================================
 func enter() -> void:
+	# ==========================================
+	# ⚡ 第 0 影格攔截 (Frame 0 Intercept)
+	# 在播收刀動畫前，先檢查有沒有預輸入的動作或方向鍵，
+	# 如果有，直接轉移狀態並 return，消滅 1 幀的動畫閃爍！
+	# ==========================================
+	if not player.is_on_floor():
+		state_machine.transition_to("Fall")
+		return
+	
+	if player.jump_request_timer.time_left > 0:
+		state_machine.transition_to("Jump")
+		return
+		
+	if player.slide_request_timer.time_left > 0 and player.stats.energy >= 3:
+		if player.slide_cooldown_timer.is_stopped():
+			state_machine.transition_to("Slide")
+			return
+		
+	if player.is_heavy_requested or player.is_combo_requested or player.is_counter_requested:
+		state_machine.transition_to("WeaponAttack")
+		return
+		
+	var movement := Input.get_axis("move_left", "move_right")
+	if not is_zero_approx(movement):
+		state_machine.transition_to("Run")
+		return
+
+	# ==========================================
+	# 確定真的要留下來收刀了，才開始處理動畫與變數
+	# ==========================================
 	# 動態決定收刀動畫名稱
 	var anim_name: String = "sheath" # 預設底線方案
 	

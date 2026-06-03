@@ -309,6 +309,10 @@ func start_intro_skill() -> void:
 	_tsubame_zoom_phase = 0 
 	light_hold_timer = 0.0 
 	
+	# 🌟 核心修復：太刀變奏也在第 0 影格強行注入無敵幀，拒絕被內鬼偷襲！
+	if is_instance_valid(player):
+		player.invincible_time_left = 1.5
+	
 	current_tsubame = mini(current_tsubame + 30, MAX_TSUBAME)
 	print("🌟 變奏出場！獲得 30 點燕返值，目前燕返: ", current_tsubame, "/", MAX_TSUBAME)
 	
@@ -549,7 +553,7 @@ func get_current_velocity(delta: float) -> Vector2:
 				0, -20,           
 				Vector2(2.5, 2.5),
 				0,                 
-				Color.WHITE,      
+				Color(0.7, 1.5, 0.5, 1.0),      
 				Color.WHITE,     
 				false,             
 				2,                 

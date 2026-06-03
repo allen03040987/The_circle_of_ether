@@ -1,0 +1,49 @@
+[gd_scene load_steps=8 format=3 uid="uid://c5giwm6cgso11"]
+
+[ext_resource type="Script" path="res://player/Talisman/TalismanLaser.gd" id="1_cdb3c"]
+[ext_resource type="Script" path="res://classes/Hitbox.gd" id="2_wn6qo"]
+[ext_resource type="Texture2D" uid="uid://c2ljn6wdfp8rb" path="res://player/Talisman/Projectile/laser strip.png" id="3_7ab25"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_4n6en"]
+size = Vector2(66, 20)
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_caidi"]
+blend_mode = 1
+
+[sub_resource type="Gradient" id="Gradient_g8lnv"]
+offsets = PackedFloat32Array(0.00738007, 0.0405904, 1)
+colors = PackedColorArray(1, 1, 1, 1, 0.6926, 0.837896, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_5wcny"]
+gradient = SubResource("Gradient_g8lnv")
+width = 500
+height = 200
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.6, 0.6)
+
+[node name="TalismanLaser" type="Area2D"]
+modulate = Color(0.823529, 0.372549, 1, 1)
+position = Vector2(44, -2)
+script = ExtResource("1_cdb3c")
+
+[node name="Hitbox" type="Area2D" parent="."]
+position = Vector2(16, -3.3)
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("2_wn6qo")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(4.00002, 3.3)
+shape = SubResource("RectangleShape2D_4n6en")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(20, -3.3)
+texture = ExtResource("3_7ab25")
+
+[node name="Aura4" type="Sprite2D" parent="."]
+modulate = Color(1, 1, 1, 0.552941)
+material = SubResource("CanvasItemMaterial_caidi")
+position = Vector2(20, 3.8147e-06)
+scale = Vector2(0.6, 0.6)
+texture = SubResource("GradientTexture2D_5wcny")

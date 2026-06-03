@@ -452,8 +452,8 @@ func get_current_velocity(delta: float) -> Vector2:
 				0, -20,           
 				Vector2(2.5, 2.5),
 				0,                 
-				Color.WHITE,      
-				Color.WHITE,     
+				Color(1.0, 0.4, 0.2, 1.0),      
+				Color(1.0, 0.6, 0.2, 1.0),     
 				false,             
 				2,                 
 				1.0                

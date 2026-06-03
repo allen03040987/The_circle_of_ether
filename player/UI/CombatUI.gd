@@ -26,6 +26,15 @@ extends Control
 @onready var pozhen_bar = $SpearResources/PozhenBar
 @onready var ult_buff_bar = $SpearResources/UltBuffBar 
 
+
+# --- 🌟 符咒專屬資源面版 ---
+
+@onready var talisman_ui = $TalismanResources
+@onready var talisman_charge_bar = $TalismanResources/ChargeBar # 顯示 0/50 靈符值
+@onready var talisman_enhanced_bar = $TalismanResources/EnhancedBar # 顯示強化型態狀態
+
+
+
 # --- 內部快取變數 ---
 var cached_weapon: Node = null 
 var _cached_skill_1_enhanced: bool = false 
@@ -36,6 +45,7 @@ var ui_tween: Tween
 func _ready() -> void:
 	if katana_ui: katana_ui.modulate.a = 0.0
 	if spear_ui: spear_ui.modulate.a = 0.0
+	if talisman_ui: talisman_ui.modulate.a = 0.0
 
 func _process(_delta: float) -> void:
 	if not is_instance_valid(player): return
@@ -115,7 +125,7 @@ func _process(_delta: float) -> void:
 	# ==========================================
 	if current_weapon_id == "katana": _update_katana_values(current_weapon)
 	elif current_weapon_id == "spear": _update_spear_values(current_weapon)
-
+	elif current_weapon_id == "talisman": _update_talisman_values(current_weapon)
 # ==========================================
 # 🎬 視覺過場：武器切換漸變 (Animation)
 # ==========================================
@@ -128,24 +138,44 @@ func _handle_weapon_ui_transition(new_weapon: Node) -> void:
 		ui_tween.tween_property(skill_slots, "modulate:a", 1.0, 0.3)
 	
 	var w_id = new_weapon.get("WEAPON_ID")
+	
+	# 先把所有面板淡出
 	if katana_ui: ui_tween.tween_property(katana_ui, "modulate:a", 0.0, 0.3).set_trans(Tween.TRANS_SINE)
 	if spear_ui: ui_tween.tween_property(spear_ui, "modulate:a", 0.0, 0.3).set_trans(Tween.TRANS_SINE)
+	if talisman_ui: ui_tween.tween_property(talisman_ui, "modulate:a", 0.0, 0.3).set_trans(Tween.TRANS_SINE) # 🌟 符咒也加入淡出陣列
 	
 	if w_id == "katana" and katana_ui:
 		katana_ui.show()
 		katana_ui.position.y += 5
 		ui_tween.tween_property(katana_ui, "position:y", katana_ui.position.y - 5, 0.2)
 		ui_tween.tween_property(katana_ui, "modulate:a", 1.0, 0.4).set_trans(Tween.TRANS_SINE)
+		
+		# 隱藏其他人
 		if spear_ui: ui_tween.chain().tween_callback(spear_ui.hide)
+		if talisman_ui: ui_tween.chain().tween_callback(talisman_ui.hide)
+		
 	elif w_id == "spear" and spear_ui:
 		spear_ui.show()
 		spear_ui.position.y += 5
 		ui_tween.tween_property(spear_ui, "position:y", spear_ui.position.y - 5, 0.2)
 		ui_tween.tween_property(spear_ui, "modulate:a", 1.0, 0.4).set_trans(Tween.TRANS_SINE)
+		
 		if katana_ui: ui_tween.chain().tween_callback(katana_ui.hide)
+		if talisman_ui: ui_tween.chain().tween_callback(talisman_ui.hide)
+		
+	elif w_id == "talisman" and talisman_ui:
+		talisman_ui.show()
+		talisman_ui.position.y += 5
+		ui_tween.tween_property(talisman_ui, "position:y", talisman_ui.position.y - 5, 0.2)
+		ui_tween.tween_property(talisman_ui, "modulate:a", 1.0, 0.4).set_trans(Tween.TRANS_SINE)
+		
+		if katana_ui: ui_tween.chain().tween_callback(katana_ui.hide)
+		if spear_ui: ui_tween.chain().tween_callback(spear_ui.hide)
+		
 	else:
 		if katana_ui: ui_tween.chain().tween_callback(katana_ui.hide)
 		if spear_ui: ui_tween.chain().tween_callback(spear_ui.hide)
+		if talisman_ui: ui_tween.chain().tween_callback(talisman_ui.hide)
 
 	_refresh_weapon_icons(new_weapon)
 	
@@ -173,6 +203,21 @@ func _update_katana_values(weapon: Node) -> void:
 	if iai != null and is_instance_valid(iai_bar): iai_bar.value = (float(iai) / 60.0) * 100.0
 	if tsubame != null and is_instance_valid(tsubame_bar): tsubame_bar.value = (float(tsubame) / 60.0) * 100.0
 
+func _update_talisman_values(weapon: Node) -> void:
+	var charge = weapon.get("current_talisman_charge")
+	var is_enhanced = weapon.get("is_enhanced_mode")
+	
+	# 更新 0~50 點的靈符值
+	if charge != null and is_instance_valid(talisman_charge_bar): 
+		talisman_charge_bar.value = (float(charge) / 50.0) * 100.0
+		
+	# 更新強化狀態 (滿管代表強化中，空管代表普通型態)
+	if is_enhanced != null and is_instance_valid(talisman_enhanced_bar):
+		if is_enhanced:
+			talisman_enhanced_bar.show()
+			talisman_enhanced_bar.value = 100.0 # 滿狀態
+		else:
+			talisman_enhanced_bar.hide()
 # ==========================================
 # 🛠️ 輔助功能區 (UI 控制邏輯)
 # ==========================================

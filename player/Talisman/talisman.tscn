@@ -1,9 +1,12 @@
-[gd_scene load_steps=9 format=3 uid="uid://cv7qein1mmn2f"]
+[gd_scene load_steps=13 format=3 uid="uid://cv7qein1mmn2f"]
 
 [ext_resource type="Script" path="res://player/Talisman/Talisman.gd" id="1_wghj6"]
 [ext_resource type="Texture2D" uid="uid://cm1hg1jt811rr" path="res://player/Talisman/Talisman.png" id="2_242wf"]
-[ext_resource type="Texture2D" uid="uid://cffvkmas3ihmr" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (2).png" id="2_cd140"]
+[ext_resource type="Texture2D" uid="uid://p33sdv1866xl" path="res://player/UI/talisman/Untitled 04-18-2026 12-09-12 (2).png" id="3_7dvm0"]
+[ext_resource type="Texture2D" uid="uid://bqhqgtvut3yka" path="res://player/UI/talisman/Untitled 04-18-2026 12-09-12.png" id="4_4lydl"]
 [ext_resource type="Script" path="res://classes/Hitbox.gd" id="4_5pdgr"]
+[ext_resource type="Texture2D" uid="uid://c72qei7vesse1" path="res://player/UI/talisman/Untitled 04-18-2026 12-09-12 (3).png" id="5_0ic36"]
+[ext_resource type="Texture2D" uid="uid://fe7al7pt2p8" path="res://player/UI/talisman/Untitled 04-18-2026 12-09-12 (1).png" id="6_53hdb"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_t18ap"]
 size = Vector2(216, 73)
@@ -17,15 +20,19 @@ size = Vector2(256, 57)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_p4kg1"]
 size = Vector2(278, 87)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_k1xl1"]
+size = Vector2(290, 70)
+
 [node name="Talisman" type="Node2D"]
 script = ExtResource("1_wghj6")
 scabbard_texture = ExtResource("2_242wf")
-skill_1_icon = ExtResource("2_cd140")
-skill_2_icon = ExtResource("2_cd140")
-skill_3_icon = ExtResource("2_cd140")
-ult_icon = ExtResource("2_cd140")
-skill_1_cd = 1.0
-skill_2_cd = 1.0
+skill_1_icon = ExtResource("3_7dvm0")
+skill_2_icon = ExtResource("4_4lydl")
+skill_3_icon = ExtResource("5_0ic36")
+ult_icon = ExtResource("6_53hdb")
+skill_1_cd = 2.0
+skill_2_cd = 2.0
+skill_3_cd = 2.0
 
 [node name="Hitbox" type="Area2D" parent="."]
 collision_layer = 0
@@ -51,7 +58,7 @@ position = Vector2(114, -29.5)
 shape = SubResource("RectangleShape2D_hay2i")
 disabled = true
 
-[node name="C0" type="Area2D" parent="."]
+[node name="C1" type="Area2D" parent="."]
 collision_layer = 0
 collision_mask = 16
 script = ExtResource("4_5pdgr")
@@ -60,7 +67,21 @@ spark_base_offset = Vector2(0, -5)
 spark_random_angle = 360.0
 spark_random_offset = Vector2(0, 0)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="C0"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="C1"]
 position = Vector2(0, -41.5)
 shape = SubResource("RectangleShape2D_p4kg1")
+disabled = true
+
+[node name="C2" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("4_5pdgr")
+knockback_force = Vector2(50, 0)
+spark_base_offset = Vector2(0, -5)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="C2"]
+position = Vector2(146, -33)
+shape = SubResource("RectangleShape2D_k1xl1")
 disabled = true

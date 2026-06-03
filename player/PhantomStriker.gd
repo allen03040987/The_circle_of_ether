@@ -10,17 +10,18 @@ var vfx_weapon: Dictionary = {}
 var vfx_system: Dictionary = {}
 
 var direction: int = 1
-var is_input_locked: bool = false
 var default_gravity: float = 980.0
 var FLOOR_ACCELERATION: float = 8000.0
 
-var _frames_alive: int = 0
+
 var can_play_sfx: bool = false
 
 var _death_retries: int = 0
 
 var _target_anim: String = ""
 var _target_pos: float = 0.0
+
+var _is_initializing: bool = false # 🌟 新增：快進定位保護鎖
 # ==========================================
 # 🧬 靈魂轉移與初始化 (由 Player 呼叫)
 # ==========================================
@@ -80,7 +81,8 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 			cloned_weapon = child
 			child.show()
 			child.set("player", self) # 🌟 武器的總機換成殘影！
-
+			
+			
 			# 複製武器內部狀態
 			var props_to_copy = [
 				"combo_step", "is_attacking", "step_cooldown",
@@ -91,6 +93,7 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 				
 				# 🌟 核心修復：治好殘影的失憶症！把我們近期新增的變數全部補上！
 				"is_vfx_fired", "is_proj_fired",                # 符咒：防止重複發射的鎖
+				"current_talisman_charge",                      # 🌟 符咒：把靈符值也繼承過來！
 				"skill_2_current_step", "skill_3_current_step", # 太刀：多段戰技進度
 				"skill_2_combo_timer", "skill_3_combo_timer"    # 太刀：多段戰技計時器
 			]
@@ -146,13 +149,15 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 # ==========================================
 func _ready() -> void:
 	if _target_anim != "" and is_instance_valid(animation_player):
+		# 🛡️ 啟動快進定位保護鎖
+		_is_initializing = true 
+		
 		# 此時節點已在場景樹中，打包版也能完美、立刻解析動畫路徑！
 		animation_player.play(_target_anim)
 		animation_player.seek(_target_pos, true)
-		
-		# 強制動畫引擎在這一幀物理運算前完成渲染校正，消滅 0.0 秒時差
 		animation_player.advance(0)
 		
+		# (中間綁定壽命與銷毀的邏輯維持不變)
 		animation_player.animation_finished.connect(die_gracefully.unbind(1))
 		
 		var max_lifespan: float = 2.0
@@ -162,6 +167,16 @@ func _ready() -> void:
 				max_lifespan = max(0.5, anim_data.length - _target_pos + 0.2)
 				
 		get_tree().create_timer(max_lifespan, true, false, true).timeout.connect(die_gracefully)
+		
+		# ==========================================
+		# 🌟 延遲解鎖與音效解放
+		# ==========================================
+		await get_tree().process_frame 
+		_is_initializing = false 
+		can_play_sfx = true # 🌟 垃圾清空完畢，殘影正式解除靜音！
+		
+	else:
+		die_gracefully()
 		
 func _process(_delta: float) -> void:
 	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
@@ -181,16 +196,10 @@ func _physics_process(delta: float) -> void:
 			else:
 				if velocity.y > 0: velocity.y = 0 
 		
-	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-	var original_velocity = velocity
-	
-	# ✅ 只放大 X 軸，確保殘影能平滑往前削過去
-	velocity.x *= speed_mult 
-	# ❌ 絕對不要寫 velocity *= speed_mult！放過 Y 軸，不讓挑飛變火箭！
-	
-	move_and_slide()
-	
-	velocity = original_velocity # 算完後立刻還原
+	# ==========================================
+	# 🌟 貫徹標準：主邏輯嚴禁呼叫原生方法，全部交給自定義底層！
+	# ==========================================
+	custom_move_and_slide()
 
 func strike_impulse(strength: float) -> void:
 	velocity.x = direction * strength
@@ -202,8 +211,6 @@ func enable_weapon_hitbox(shape_name: String = "") -> void:
 func disable_weapon_hitbox(shape_name: String = "") -> void:
 	if outgoing_weapon and outgoing_weapon.has_method("disable_hitbox"):
 		outgoing_weapon.disable_hitbox(shape_name)
-
-func add_ghost() -> void: pass 
 
 func play_safe_anim(anim_name: String) -> void:
 	if animation_player and animation_player.has_animation(anim_name):
@@ -229,11 +236,16 @@ func die_gracefully() -> void:
 # 🌟 殘影專屬 VFX 系統
 # ==========================================
 func spawn_anim_vfx(vfx_name: String, offset_x: float = 0.0, offset_y: float = 0.0, custom_scale: Vector2 = Vector2(1.0, 1.0), rotation_deg: float = 0.0, custom_color: Color = Color.WHITE, aura_color: Color = Color.WHITE, detach: bool = true, custom_z_index: int = 1, raw_intensity: float = 1.0) -> void:
+	
+	# 🚨 核心修復：如果是在初始化快進追趕期間被複刻呼叫的舊特效，直接安靜退出！
+	if _is_initializing: 
+		return 
+		
 	var vfx_scene = null
 	if vfx_common.has(vfx_name): vfx_scene = vfx_common[vfx_name]
 	elif vfx_weapon.has(vfx_name): vfx_scene = vfx_weapon[vfx_name]
 	elif vfx_system.has(vfx_name): vfx_scene = vfx_system[vfx_name]
-
+	
 	if vfx_scene == null: return
 
 	var vfx = vfx_scene.instantiate()
@@ -259,6 +271,23 @@ func spawn_anim_vfx(vfx_name: String, offset_x: float = 0.0, offset_y: float = 0
 	var hdr_color = Color(custom_color.r * raw_intensity, custom_color.g * raw_intensity, custom_color.b * raw_intensity, custom_color.a)
 	_apply_vfx_colors(vfx, hdr_color, aura_color)
 
+# ==========================================
+# 🏃 殘影專屬物理底層 (抗時停補償)
+# ==========================================
+func custom_move_and_slide() -> void:
+	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+	var original_velocity = velocity
+	
+	# ✅ 只放大 X 軸，確保殘影能平滑往前削過去
+	velocity.x *= speed_mult 
+	# ❌ 絕對不要寫 velocity *= speed_mult！放過 Y 軸，不讓挑飛變火箭！
+	
+	# 這裡作為底層封裝，是唯一合法呼叫原生 move_and_slide 的地方
+	move_and_slide()
+	
+	# 算完後立刻還原真實速度
+	velocity = original_velocity
+	
 func _apply_vfx_colors(node: Node, main_color: Color, aura_color: Color) -> void:
 	if node is CanvasItem and node.name != "AnimationPlayer":
 		if node.name == "Aura": node.self_modulate = aura_color
@@ -268,6 +297,9 @@ func _apply_vfx_colors(node: Node, main_color: Color, aura_color: Color) -> void
 
 
 func trigger_swing_sfx(sfx_type: String) -> void:
-	# 🌟 核心修復：嚴格遵守 can_play_sfx 的設定
+	# 🚨 核心修復：快進追趕期間被重刷出來的舊音效，一律攔截，防止炸耳朵！
+	if _is_initializing: return 
+	
+	# 🌟 嚴格遵守 can_play_sfx 的設定
 	if not can_play_sfx: return 
 	AudioManager.play_action_sfx(sfx_type, -8.0)

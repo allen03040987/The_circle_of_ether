@@ -12,6 +12,7 @@ var hit_sfx_bank: Dictionary = {
 	"hit_3": preload("res://sound/SFX/hit/hit_3.wav"), 
 	"hit_4": preload("res://sound/SFX/hit/hit_4.wav"),
 	"hit_5": preload("res://sound/SFX/hit/hit_5.wav"),
+	"hit_6": preload("res://sound/SFX/hit/hit_6.wav"),
 }
 
 # ==========================================
@@ -35,7 +36,13 @@ var action_sfx_bank: Dictionary = {
 	"hit_3": preload("res://sound/SFX/hit/hit_3.wav"), 
 	"hit_4": preload("res://sound/SFX/hit/hit_4.wav"),
 	"hit_5": preload("res://sound/SFX/hit/hit_5.wav"),
-	"ult": preload("res://sound/SFX/uit.wav") ,
+	
+	"ult": preload("res://sound/SFX/attack/uit.wav") ,
+	
+	"laser": preload("res://sound/SFX/attack/laser.wav") ,
+	"beam": preload("res://sound/SFX/attack/beam.wav") ,
+	"lightsaber": preload("res://sound/SFX/attack/lightsaber.wav") ,
+	"Energy Beam": preload("res://sound/SFX/attack/Energy Beam.wav") ,
 	
 	"Sheath": preload("res://sound/SFX/attack/Sheath.wav"), 
 
@@ -44,7 +51,7 @@ var action_sfx_bank: Dictionary = {
 	# ==========================================
 	"ding": preload("res://sound/Scene sound/ding.wav"), 
 	"elevator": preload("res://sound/Scene sound/elevator.wav"), 
-
+	"Get_notification": preload("res://sound/Scene sound/Get notification sound.wav"), 
 }
 
 

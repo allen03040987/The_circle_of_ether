@@ -227,6 +227,7 @@ func _process(delta: float) -> void:
 		combo_buffer_time -= unscaled_delta
 	else:
 		is_combo_requested = false
+		is_ult_requested = false
 
 	if heavy_buffer_time > 0 and not is_input_locked:
 		heavy_buffer_time -= unscaled_delta
@@ -246,7 +247,13 @@ func _process(delta: float) -> void:
 	# ==========================================
 	# 🔄 處理武器切換 (長短按識別)
 	# ==========================================
-	if not is_input_locked and weapon_slot.get_child_count() >= 2:
+	# 🌟 核心修復：向狀態機確認目前的物理狀態
+	var current_state = state_machine.current_state.name.to_lower() if is_instance_valid(state_machine.current_state) else ""
+	var is_in_hitstun = current_state in ["hurt", "launched", "dying"]
+	
+	# 🛡️ 絕對防護網：未鎖死、未死亡、不在受擊硬直中、且沒有正在排隊準備放的大招，才允許切換！
+	if not is_input_locked and not is_dead and not is_in_hitstun and not is_ult_requested and weapon_slot.get_child_count() >= 2:
+		
 		# 如果還在冷卻中，直接封鎖切換，並清空按鍵緩衝，防止連點卡死
 		if weapon_switch_cooldown_timer > 0:
 			switch_hold_timer = 0.0
@@ -365,6 +372,7 @@ func take_damage(temp_damage: Damage) -> void:
 	
 	is_combo_requested = false
 	is_heavy_requested = false
+	is_ult_requested = false
 	combo_buffer_time = 0.0
 	heavy_buffer_time = 0.0
 	

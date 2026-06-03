@@ -3,6 +3,8 @@ extends State
 ## 處理一般閃避位移、殘影特效，並包含遭攻擊瞬間觸發的「極限閃避 (魔女時間)」機制。
 
 const sliding_SFX = preload("res://sound/SFX/sliding.wav")
+const sliding_SFX_2 = preload("res://sound/SFX/Sprint.wav")
+const sliding_SFX_3 = preload("res://sound/SFX/attack/Wind_2.wav")
 const Successfully_SFX = preload("res://sound/SFX/Successfully_dodged.wav")
 
 # 基礎物理變數
@@ -115,7 +117,7 @@ func trigger_perfect_dodge() -> void:
 	if has_perfect_dodged: return 
 		
 	if Successfully_SFX:
-		AudioManager.play_sfx(Successfully_SFX, -10.0, 1.0)
+		AudioManager.play_sfx(Successfully_SFX,0.0, 1.0)
 		
 	# 1. 啟動魔女時間專屬標記與鎖定
 	has_perfect_dodged = true
@@ -165,4 +167,5 @@ func _play_delayed_sfx() -> void:
 	# 🌟 核心防護：確保過了這 3 幀之後，玩家「還在閃避狀態」，且「沒有觸發魔女時間」，才播一般的閃避聲！
 	if state_machine.current_state == self and not has_perfect_dodged:
 		if sliding_SFX:
-			AudioManager.play_sfx(sliding_SFX, -10.0, 1.0)
+			AudioManager.play_sfx(sliding_SFX_2, -12.0, 1.0)
+			AudioManager.play_sfx(sliding_SFX_3, -8.0, 1.0)
