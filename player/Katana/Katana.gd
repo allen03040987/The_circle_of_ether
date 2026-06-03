@@ -177,7 +177,12 @@ func start_light_attack() -> void:
 	if not player.is_on_floor():
 		if air_attack_locked or _get_ground_distance() < min_air_attack_height:
 			return
-		combo_step = 62 if combo_step == 61 else 61
+		if combo_step == 61:
+			combo_step = 62
+			air_attack_locked = true # 打出最後一段，立刻宣告這趟空中旅程結束！
+		else:
+			combo_step = 61
+			
 		is_attacking = true
 		_play_air_step(combo_step)
 		return
@@ -203,6 +208,8 @@ func start_heavy_attack() -> void:
 		return
 	
 	step_cooldown = 0.15
+	
+	air_attack_locked = false
 	
 	if not is_attacking:
 		var current_time = Time.get_ticks_msec() / 1000.0
@@ -345,7 +352,13 @@ func update_timers_only(delta: float) -> void:
 		if skill_3_combo_timer <= 0:
 			skill_3_timer = skill_3_cd     # 寬限期結束，進入真正冷卻！
 			skill_3_current_step = 20      # 進度重置回第一段
-
+			
+	if player.is_on_floor():
+		air_attack_locked = false # 確保落地立刻解除一套鎖死
+		
+		# 如果你現在沒有在攻擊，而且腦袋裡還記著空戰的段數，馬上忘掉！
+		if not is_attacking and combo_step in [61, 62]:
+			combo_step = 0
 # ==========================================
 # 🏃 物理與特效場控核心 (The Stage Director)
 # ==========================================
@@ -730,7 +743,9 @@ func is_attack_finished() -> bool:
 
 		player.is_input_locked = false 
 		
-		if combo_step == 61: air_attack_locked = true 
+		if combo_step in [61, 62]: 
+			air_attack_locked = true
+			
 		last_attack_time = Time.get_ticks_msec() / 1000.0
 		is_attacking = false
 		step_cooldown = 0.0
@@ -755,6 +770,9 @@ func is_attack_finished() -> bool:
 # 💥 強制打斷處理 
 # ==========================================
 func cancel_attack() -> void:
+	if not player.is_on_floor() and combo_step in [30, 61, 62]:
+		air_attack_locked = true
+		
 	player.is_input_locked = false 
 	_apply_charge_zoom(ZOOM_LEVELS[0])
 	is_attacking = false

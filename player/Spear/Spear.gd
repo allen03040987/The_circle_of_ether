@@ -110,9 +110,8 @@ var _is_hitbox_locked: bool = false
 func start_light_attack() -> void:
 	if step_cooldown > 0: return
 	
-	# ==========================================
-	# 🪽 空戰攔截與處理 (Air Combat)
-	# ==========================================
+	air_attack_locked = false
+	
 	if not player.is_on_floor():
 		# 檢查鎖死狀態或高度限制
 		if air_attack_locked or _get_ground_distance() < min_air_attack_height:
@@ -136,7 +135,7 @@ func start_light_attack() -> void:
 		
 		# 賦予極限轉向
 		var input_dir = Input.get_axis("move_left", "move_right")
-		if input_dir != 0:
+		if not is_zero_approx(input_dir) and not player.name.begins_with("Phantom"):
 			player.direction = 1 if input_dir > 0 else -1
 			
 		_play_air_step(combo_step)
@@ -233,6 +232,12 @@ func start_ultimate() -> void:
 	is_attacking = true
 	combo_step = 80
 	
+	ult_timer = ult_cd 
+	air_attack_locked = false 
+	
+	# 🌟 核心防護 2：大招啟動的第 0 幀立刻賦予無敵！
+	player.invincible_time_left = 3.0
+	
 	# 🌟 核心防護 2：大招啟動的第 0 幀立刻賦予無敵！
 	# 防止剛從受擊狀態恢復，就被殘留的怪物判定框再次打斷吞招！
 	player.invincible_time_left = 3.0 
@@ -276,7 +281,8 @@ func start_skill_2() -> void:
 	print("🌪️ 發動大範圍聚怪技能！")
 	
 func can_use_ultimate() -> bool:
-		
+	if is_ult_active: return false 
+	
 	if not player.is_on_floor(): return false 
 	if player.has_method("get_weapon_energy"):
 		if player.get_weapon_energy(WEAPON_ID) < ult_energy_cost:
@@ -315,6 +321,7 @@ func update_timers_only(delta: float) -> void:
 	if skill_1_timer > 0: skill_1_timer -= delta
 	if skill_2_timer > 0: skill_2_timer -= delta
 	if skill_3_timer > 0: skill_3_timer -= delta
+	if ult_timer > 0: ult_timer -= delta
 		
 	# 處理大招時間倒數
 	if ult_buff_timer > 0:
@@ -576,13 +583,6 @@ func _play_attack(config: Dictionary) -> void:
 		_multi_hit_energy = config.get("multi_hit_energy", false)
 		_has_granted_resources_this_step = false
 		
-		# --- 長槍專屬大地色系火花 (RAW HDR) ---
-		hitbox.spark_type = 0
-		hitbox.spark_scale = 0.3
-		hitbox.spark_color = Color(1.0, 0.4, 0.2, 1.0)
-		hitbox.aura_color = Color(1.0, 0.6, 0.2, 1.0)
-		
-		hitbox.hit_targets.clear()
 		
 		# ==========================================
 		# 🌟 核心解耦 2：切斷舊信號，接管新信號
@@ -594,12 +594,6 @@ func _play_attack(config: Dictionary) -> void:
 		
 		if not current_active_hitbox.hit.is_connected(_on_hitbox_hit):
 			current_active_hitbox.hit.connect(_on_hitbox_hit)
-			
-		if "energy_reward" in hitbox: hitbox.energy_reward = float(config.get("energy", 0))
-		if "switch_reward" in hitbox: hitbox.switch_reward = float(config.get("switch", 0))
-		
-		# 將破陣值獎勵灌注給 Hitbox
-		if "pozhen_reward" in hitbox: hitbox.pozhen_reward = int(config.get("pozhen", 0))
 		
 		# --- 長槍專屬大地色系火花 (RAW HDR) ---
 		hitbox.spark_type = 0

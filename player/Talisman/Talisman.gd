@@ -164,7 +164,7 @@ func start_light_attack() -> void:
 			print("🔮 [靈符值] 不足 10 點，拒絕發動！強制退回普通型態。")
 			combo_step = 1 
 		else:
-			# 2. 強化普攻連段循環 (4 -> 5 -> 4)
+			# 2. 強化普攻連段循環 (4 -> 5 -> 4) (🌟 特權：不受空中鎖限制)
 			if combo_step < 4 or combo_step > 5:
 				combo_step = 4
 			else:
@@ -182,15 +182,13 @@ func start_light_attack() -> void:
 			var heal_val = current_config.get("heal_amount", 0)
 			
 			if heal_val > 0 and player.get("stats") and "health" in player.stats:
-				# 透過你完美的 Setter 自動防呆限制 max_health，並向外廣播 health_changed 訊號更新 UI！
 				player.stats.health += heal_val
 				print("💚 [共鳴迴路] 釋放強化普攻！為玩家恢復了 ", heal_val, " 點生命值。當前 HP: ", player.stats.health)
 				
-				# 播放聖潔的補血綠光特效
 				if player.has_method("spawn_anim_vfx"):
 					player.spawn_anim_vfx("heal_flash", 0, -30)
 			
-			# 4. 結算退場機制：若打完這發後乾了，下一刀自動變回普通普攻
+			# 4. 結算退場機制
 			if current_talisman_charge < 10:
 				is_enhanced_mode = false
 				print("🔮 [靈符值] 已消耗殆盡，下一刀將恢復普通狀態。")
@@ -199,8 +197,13 @@ func start_light_attack() -> void:
 		# 🌟 核心分流：常規型態下的空中與地面
 		# ==========================================
 		if not player.is_on_floor():
+			# 🚨 大一統修復：常態空戰（60）嚴格執行單輪限制與高度檢查
+			if air_attack_locked or _get_ground_distance() < min_air_attack_height:
+				is_attacking = false
+				return
+				
 			combo_step = 60
-			air_attack_locked = true # 觸發後鎖死，落地前只能放一次
+			air_attack_locked = true # 觸發後鎖死，直到落地或放出戰技/變奏重置
 			print("🦅 [常態空戰] 觸發滯空射擊 (60)！")
 		else:
 			# 常規地面連段循環 (1 -> 2 -> 3 -> 1)
@@ -212,16 +215,12 @@ func start_light_attack() -> void:
 	# 🌟 統一交付發動 (加入空戰動畫攔截替換機制)
 	# ==========================================
 	if is_enhanced_mode:
-		# 複製一份當前招式的字典，避免改到 const 原始資料
 		var config = LIGHT_ATTACK_CONFIG[combo_step].duplicate()
-		
-		# 🦅 核心替換：如果人在空中，就把動畫替換成你製作的專屬空戰動作！
 		if not player.is_on_floor():
 			if combo_step == 4:
 				config["anim"] = "talisman/air_attack_1"
 			elif combo_step == 5:
 				config["anim"] = "talisman/air_attack_2"
-				
 		_play_attack(config)
 	else:
 		_play_attack(LIGHT_ATTACK_CONFIG[combo_step])
@@ -236,6 +235,8 @@ func start_intro_skill() -> void:
 	is_tower_spawned = false 
 	is_time_stop_triggered = false 
 	_tsubame_zoom_phase = 0 
+	
+	air_attack_locked = false
 	
 	# 🌟 核心修復：發動第 0 影格立刻拉滿無敵！徹底封死被打斷扣血的漏洞
 	if is_instance_valid(player):
@@ -262,6 +263,8 @@ func start_heavy_attack() -> void:
 	is_attacking = true
 	is_vfx_fired = false 
 	is_tower_spawned = false 
+	
+	air_attack_locked = false
 	
 	combo_step = 0 
 	
@@ -689,7 +692,10 @@ func is_attack_finished() -> bool:
 		player.is_input_locked = false
 		is_attacking = false
 		step_cooldown = 0.0
-		last_attack_time = Time.get_ticks_msec() / 1000.0 
+		last_attack_time = Time.get_ticks_msec() / 1000.0
+		
+		if combo_step == 60:
+			air_attack_locked = true 
 		
 		_is_hitbox_locked = true 
 		disable_hitbox()
@@ -709,7 +715,9 @@ func is_attack_finished() -> bool:
 	return false
 
 func cancel_attack() -> void:
-	# 🌟 統一使用 begins_with 對齊太刀
+	if not player.is_on_floor() and combo_step == 60:
+		air_attack_locked = true
+	
 	if combo_step == 20 and is_attacking and not player.name.begins_with("Phantom"):
 		if player.invincible_timer.time_left == 0:
 			player.invincible_time_left = 0.0
