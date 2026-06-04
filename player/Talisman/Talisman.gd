@@ -74,6 +74,13 @@ const SKILL_CONFIG = {
 		"base_dmg": 120, "energy": 5, "switch": 5, "charge_reward": 0,
 		"vfx_anim": "a5" # 🌟 新增：讓 50 號進入發射時也能正確讀取到 A4 特效
 	},
+	# 🌟 新增：大招啟動連擊 (80) - 4 連擊演出
+	80: {
+		"anim": "talisman/attack_ult", "hitbox_name": "UltHitbox", 
+		"type": Damage.Type.HEAVY, "base_dmg": 150, "energy": 0, "switch": 0, "charge_reward": 0,
+		"max_hits": 4, "interval": 0.2, "sticky": true, "shake": 10.0,
+		"knockback": Vector2(100.0, -100.0)
+	},
 	# 🌟 新增：變奏入場 (90) - 完全借用 50 的動畫與特效，但掛載時停邏輯
 	90: {
 		"anim": "talisman/c3", "hitbox_name": "None", 
@@ -118,6 +125,13 @@ var is_tower_spawned: bool = false
 var _phantom_flags_synced: bool = false
 # 🌟 新增：型態切換鎖 (對齊長槍 is_ult_active 工法)
 var is_enhanced_mode: bool = false
+
+# 🌟 新增：大招後台 Buff 變數
+var is_ult_buff_active: bool = false 
+var ult_buff_duration_timer: float = 0.0
+var ult_heal_timer: float = 0.0  # 💚 獨立的回血計時器
+var ult_laser_timer: float = 0.0 # ⚔️ 獨立的雷射計時器
+var active_ult_buff_vfx: Node = null
 
 var current_active_hitbox: Hitbox = null
 var _is_hitbox_locked: bool = false
@@ -226,6 +240,34 @@ func start_light_attack() -> void:
 		_play_attack(LIGHT_ATTACK_CONFIG[combo_step])
 
 # ==========================================
+# 🌌 大招 (Ultimate)
+# ==========================================
+func start_ultimate() -> void:
+	# 🌟 清理舊的 Buff 特效防呆
+	if is_instance_valid(active_ult_buff_vfx):
+		active_ult_buff_vfx.queue_free()
+		active_ult_buff_vfx = null
+	
+	if player.has_method("consume_weapon_energy"):
+		player.consume_weapon_energy(WEAPON_ID, ult_energy_cost)
+		
+	step_cooldown = 0.15
+	is_attacking = true
+	is_vfx_fired = false 
+	is_time_stop_triggered = false 
+	_tsubame_zoom_phase = 0 
+	
+	ult_timer = ult_cd 
+	air_attack_locked = false 
+	
+	combo_step = 80 
+	player.invincible_time_left = 3.0 # 施法期間絕對無敵
+	
+	_play_attack(SKILL_CONFIG[combo_step])
+	player.is_input_locked = true 
+	print("💥 [符咒] 領域展開！開始 4 連擊特寫...")
+	
+# ==========================================
 # 🌟 變奏入場技能 (Intro Skill)
 # ==========================================
 func start_intro_skill() -> void:
@@ -322,7 +364,74 @@ func update_timers_only(delta: float) -> void:
 	
 	if player.is_on_floor():
 		air_attack_locked = false 
+	# ==========================================
+	# 🌟 大招後台雙線 Buff 運算 (回血與協同雷射獨立)
+	# ==========================================
+	if is_ult_buff_active:
+		if ult_buff_duration_timer > 0:
+			ult_buff_duration_timer -= delta
+			
+			# ----------------------------------------
+			# 💚 1. 被動回血線 (自動觸發，每 2 秒一次)
+			# ----------------------------------------
+			if ult_heal_timer > 0: ult_heal_timer -= delta
+			if ult_heal_timer <= 0.0:
+				ult_heal_timer = 2.0
+				if player.get("stats") and "health" in player.stats:
+					player.stats.health += 3
+					if player.has_method("spawn_anim_vfx"):
+						player.spawn_anim_vfx("heal_flash", 0, -30)
+						
+			# ----------------------------------------
+			# ⚔️ 2. 主動協同雷射線 (冷卻 1 秒，需玩家普攻才觸發)
+			# ----------------------------------------
+			if ult_laser_timer > 0: ult_laser_timer -= delta
+			if ult_laser_timer <= 0.0:
+				var current_state = player.state_machine.current_state.name.to_lower() if is_instance_valid(player.state_machine.current_state) else ""
+				
+				# 🌟 核心防護：確定玩家正在攻擊狀態，且真的拿著武器
+				if current_state == "weaponattack" and is_instance_valid(player.current_weapon):
+					var c_step = player.current_weapon.get("combo_step")
+					if c_step != null:
+						# 🎯 跨武器普攻辨識協議：
+						# 涵蓋 1~9(地面普攻)、60~69(空中普攻)、30(長槍強化普攻)、4~5(符咒強化普攻)
+						if (c_step >= 1 and c_step <= 9) or (c_step >= 60 and c_step <= 69) or c_step == 30:
+							ult_laser_timer = 1.0 # 觸發後重置 1 秒冷卻
+							_trigger_ult_lasers()
+		else:
+			is_ult_buff_active = false
+			print("⏳ [符咒] 15 秒靈能爆發 Buff 結束。")
+			
+			if is_instance_valid(active_ult_buff_vfx):
+				active_ult_buff_vfx.queue_free()
+				active_ult_buff_vfx = null
+				
 
+func _trigger_ult_lasers() -> void:
+	if not is_instance_valid(player): return
+	
+	# 播放符咒專屬發射特效
+	_spawn_weapon_vfx({"vfx_anim": "a5"})
+	
+	# 🌟 生成兩枚雷射：透過 laser_offset 設定在玩家後上方
+	var pulse_config = {
+		"laser_dmg": 160,                
+		"laser_scale": 1.0, 
+		"laser_tracking": true, 
+		"laser_type": Damage.Type.LIGHT,
+		# 🌟 核心位移：X=-40 代表退到身後，Y=-80 代表拉高至頭頂上方
+		"laser_offset": Vector2(-40.0, -50.0), 
+		"energy": 0,                     
+		"switch": 0
+	}
+	
+	# 🌟 扇形角度：往正前方的上下 10 度偏移發射，確保能覆蓋前方扇形區域
+	var angles = [deg_to_rad(-10.0), deg_to_rad(10.0)]
+	for angle in angles:
+		_spawn_laser_projectile(pulse_config, angle)
+		
+	print("✨ [符咒後台] 協同攻擊！跟隨普攻從後上方發射雙雷射。")
+	
 # ==========================================
 # 🏃 物理與特效場控核心
 # ==========================================
@@ -502,6 +611,31 @@ func get_current_velocity(delta: float) -> Vector2:
 			_spawn_laser_projectile(LIGHT_ATTACK_CONFIG[combo_step], 0.0)
 	
 	# ==========================================
+	# 🌌 大招 (80) - 4 連擊與時停特寫
+	# ==========================================
+	elif combo_step == 80:
+		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 5.0 * (speed_mult * speed_mult) * delta)
+		new_y = 0.0 
+		
+		
+		
+		if anim_time >= 0.05 and not is_time_stop_triggered:
+			is_time_stop_triggered = true 
+			if player.has_method("trigger_time_stop"):
+				player.trigger_time_stop(3.0, 0.001) 
+			player.animation_player.speed_scale = 1.0 / 0.001 
+			
+		if anim_time >= 0.05 and _tsubame_zoom_phase == 0:
+			_tsubame_zoom_phase = 1
+			_apply_charge_zoom(Vector2(1.2, 1.2), 0.3) 
+			
+		if anim_time >= 1.5 and _tsubame_zoom_phase == 1: # 根據實際動畫長度微調震動時間點
+			_tsubame_zoom_phase = 2
+			if CombatManager.has_method("apply_camera_shake"):
+				CombatManager.apply_camera_shake(50.0, 0.15)
+	
+	# ==========================================
 	# 🌟 變奏技能 (90) - 時停入場與 50 號雷射噴發
 	# ==========================================
 	elif combo_step == 90:
@@ -678,6 +812,7 @@ func is_handling_gravity() -> bool:
 	# 🌟 當玩家在空中打出強化普攻 (4,5)、切換型態 (40,50) 或常態空戰 (60) 時，接管重力！
 	if not player.is_on_floor() and combo_step in [4, 5, 40, 50, 60, 90]:
 		return true
+	if combo_step == 80: return true 
 	return false
 
 func is_attack_finished() -> bool:
@@ -704,13 +839,33 @@ func is_attack_finished() -> bool:
 		if not requires_sheath() and p_scabbard:
 			p_scabbard.fade_in()
 			
-	# 🌟 變奏收尾：恢復正常時間流速與鏡頭
-		if combo_step == 90 or _tsubame_zoom_phase > 0:
+		# 🌟 大招收尾：啟動 15 秒脫手 Buff 並歸位鏡頭
+		if combo_step == 80:
+			is_ult_buff_active = true
+			ult_buff_duration_timer = 15.0
+			ult_heal_timer = 2.0  # 💚 設定為 2 秒一跳
+			ult_laser_timer = 1.0 # ⚔️ 設定為 1 秒一跳
+			
+			# ==========================================
+			# 🌟 新增：生成持續性 Buff VFX 並「掛在玩家身上」
+			# ==========================================
+			if TALISMAN_VFX_SCENE:
+				active_ult_buff_vfx = TALISMAN_VFX_SCENE.instantiate()
+				player.add_child(active_ult_buff_vfx) # 關鍵：加給 player，而不是自己！
+				active_ult_buff_vfx.position = Vector2(0, -30) # 微調高度，對齊身體中心
+				active_ult_buff_vfx.z_index = 1
+				
+				# 假設你在 TalismanVFX 裡面有做一個叫 "ult_buff_loop" 的持續播放動畫
+				# (如果你的節點名稱不同，請自行把 AnimationPlayer 替換成對應名稱)
+				if active_ult_buff_vfx.has_node("AnimationPlayer"):
+					active_ult_buff_vfx.get_node("AnimationPlayer").play("ult_buff_loop")
+			
 			_tsubame_zoom_phase = 0
 			_apply_charge_zoom(ZOOM_LEVELS[0], 0.4)
 			player.animation_player.speed_scale = 1.0 
 			if player.has_method("clear_time_stop"): player.clear_time_stop()
-			
+			print("🔥 [符咒] 大招連擊結束！正式進入 15 秒 Buff 狀態！")
+		
 		return true
 	return false
 
