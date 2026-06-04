@@ -20,16 +20,16 @@ const LASER_SCENE = preload("res://player/Talisman/TalismanLaser.tscn")
 # 📖 2. 招式數據庫 (Data-Driven Combat Config)
 # ==========================================
 const LIGHT_ATTACK_CONFIG = {
-	1: {"anim": "talisman/attack_1", "hitbox_name": "Hitbox", "base_dmg": 100, "energy": 5, "switch": 5, "charge_reward": 0, "vfx_anim": "a1", "vfx_fly_dist": 0.0},
-	2: {"anim": "talisman/attack_2", "hitbox_name": "Hitbox", "base_dmg": 120, "energy": 5, "switch": 5, "charge_reward": 0, "vfx_anim": "a2", "vfx_fly_dist": 0.0},
-	3: {"anim": "talisman/attack_3", "hitbox_name": "Hitbox", "base_dmg": 40, "energy": 2, "switch": 2, "max_hits": 3, "interval": 0.1, "sticky": true, "vfx_anim": "a3", "charge_reward": 10, "vfx_fly_dist": 0.0},
+	1: {"anim": "talisman/attack_1", "hitbox_name": "Hitbox", "base_dmg": 100, "energy": 5, "switch": 5, "charge_reward": 0, "vfx_anim": "a1", "vfx_fly_dist": 0.0, "action_type": Weapon.ActionType.NORMAL},
+	2: {"anim": "talisman/attack_2", "hitbox_name": "Hitbox", "base_dmg": 120, "energy": 5, "switch": 5, "charge_reward": 0, "vfx_anim": "a2", "vfx_fly_dist": 0.0, "action_type": Weapon.ActionType.NORMAL},
+	3: {"anim": "talisman/attack_3", "hitbox_name": "Hitbox", "base_dmg": 40, "energy": 2, "switch": 2, "max_hits": 3, "interval": 0.1, "sticky": true, "vfx_anim": "a3", "charge_reward": 10, "vfx_fly_dist": 0.0, "action_type": Weapon.ActionType.NORMAL},
 	
 	# 🌟 強化普攻型態 (4~5) - 補上專屬的 heal_amount 數值
-	4: {"anim": "talisman/attack_4", "hitbox_name": "Hitbox", "base_dmg": 160, "energy": 6, "switch": 6, "charge_reward": 0, "heal_amount": 3, "vfx_fly_dist": 0.0, "vfx_anim": "a5"},
-	5: {"anim": "talisman/attack_5", "hitbox_name": "Hitbox", "base_dmg": 180, "energy": 6, "switch": 6, "charge_reward": 0, "heal_amount": 3, "vfx_fly_dist": 0.0, "vfx_anim": "a6"},
+	4: {"anim": "talisman/attack_4", "hitbox_name": "Hitbox", "base_dmg": 160, "energy": 6, "switch": 6, "charge_reward": 0, "heal_amount": 3, "vfx_fly_dist": 0.0, "vfx_anim": "a5", "action_type": Weapon.ActionType.NORMAL},
+	5: {"anim": "talisman/attack_5", "hitbox_name": "Hitbox", "base_dmg": 180, "energy": 6, "switch": 6, "charge_reward": 0, "heal_amount": 3, "vfx_fly_dist": 0.0, "vfx_anim": "a6", "action_type": Weapon.ActionType.NORMAL},
 	
 	# 🌟 新增：常態空中普攻 (60) - 滯空發射單發雷射
-	60: {"anim": "talisman/air_attack_1", "hitbox_name": "None", "base_dmg": 100, "energy": 5, "switch": 5, "charge_reward": 10, "vfx_fly_dist": 0.0, "vfx_anim": "a6"}
+	60: {"anim": "talisman/air_attack_1", "hitbox_name": "None", "base_dmg": 100, "energy": 5, "switch": 5, "charge_reward": 10, "vfx_fly_dist": 0.0, "vfx_anim": "a6", "action_type": Weapon.ActionType.NORMAL}
 	
 }
 
@@ -392,12 +392,10 @@ func update_timers_only(delta: float) -> void:
 				# 🌟 核心防護：確定玩家正在攻擊狀態，且真的拿著武器
 				if current_state == "weaponattack" and is_instance_valid(player.current_weapon):
 					var c_step = player.current_weapon.get("combo_step")
-					if c_step != null:
-						# 🎯 跨武器普攻辨識協議：
-						# 涵蓋 1~9(地面普攻)、60~69(空中普攻)、30(長槍強化普攻)、4~5(符咒強化普攻)
-						if (c_step >= 1 and c_step <= 9) or (c_step >= 60 and c_step <= 69) or c_step == 30:
-							ult_laser_timer = 1.0 # 觸發後重置 1 秒冷卻
-							_trigger_ult_lasers()
+					# 如果玩家拿著的武器，現在打出來的招式標籤是「NORMAL (普攻)」
+					if player.current_weapon.current_action_type == Weapon.ActionType.NORMAL:
+						ult_laser_timer = 1.0
+						_trigger_ult_lasers()
 		else:
 			is_ult_buff_active = false
 			print("⏳ [符咒] 15 秒靈能爆發 Buff 結束。")
@@ -748,6 +746,8 @@ func _spawn_healing_tower() -> void:
 func _play_attack(config: Dictionary) -> void:
 	_is_hitbox_locked = false 
 	disable_hitbox()
+	
+	current_action_type = config.get("action_type", Weapon.ActionType.NONE)
 	
 	var target_hitbox_name = config.get("hitbox_name", "Hitbox")
 	var hitbox := get_node_or_null(target_hitbox_name) as Hitbox

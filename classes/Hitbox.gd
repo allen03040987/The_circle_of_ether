@@ -11,7 +11,10 @@ enum SparkType { SLASH, BLUNT, OTHER }
 # ==========================================
 @export_group("基礎攻擊屬性")
 @export var damage_amount: int = 1
+
 @export var attack_type: Damage.Type = Damage.Type.LIGHT
+@export var source_type: Damage.SourceType = Damage.SourceType.MELEE
+
 @export var knockback_force: Vector2 = Vector2(150.0, 0.0)
 @export var poise_damage: float = 1.0 
 @export var pull_towards_owner: bool = false # 黑洞聚怪模式

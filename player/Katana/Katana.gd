@@ -33,11 +33,11 @@ var is_tsubame_ready: bool = false          # 強化戰技 (燕返) 是否就緒
 # [普攻字典]
 const LIGHT_ATTACK_CONFIG = {
 	# 格式：招式編號: { 動畫名稱, 開啟哪個判定框, 最大連擊數, 打擊間隔, 擊退力, 基礎傷害, 大招能量回復, 切換值回復, 專屬居合值回復 }
-	1: {"anim": "katana/attack_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(100.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit_3", "energy": 200, "switch": 500, "iai_reward": 2,},
-	2: {"anim": "katana/attack_2", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(150.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "iai_reward": 2,},
-	3: {"anim": "katana/attack_3", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5,"iai_reward": 2,},
-	4: {"anim": "katana/attack_4", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5,"iai_reward": 2,},
-	5: {"anim": "katana/attack_5", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(400.0, 0.0), "shake": 30.0, "hit_sfx_type": "hit_5", "base_dmg": 645, "energy": 2, "switch": 5, "iai_reward": 2, },
+	1: {"anim": "katana/attack_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(100.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit_3", "energy": 200, "switch": 500, "iai_reward": 2, "action_type": Weapon.ActionType.NORMAL},
+	2: {"anim": "katana/attack_2", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(150.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "iai_reward": 2, "action_type": Weapon.ActionType.NORMAL},
+	3: {"anim": "katana/attack_3", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5,"iai_reward": 2, "action_type": Weapon.ActionType.NORMAL},
+	4: {"anim": "katana/attack_4", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5,"iai_reward": 2, "action_type": Weapon.ActionType.NORMAL},
+	5: {"anim": "katana/attack_5", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(400.0, 0.0), "shake": 30.0, "hit_sfx_type": "hit_5", "base_dmg": 645, "energy": 2, "switch": 5, "iai_reward": 2, "action_type": Weapon.ActionType.NORMAL },
 }
 
 # [戰技與大招字典] 
@@ -72,8 +72,8 @@ const SKILL_CONFIG = {
 
 # [空戰字典]
 const AIR_ATTACK_CONFIG = {
-	61: { "anim": "katana/air_attack_1", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(20.0, -200.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "iai_reward": 2},
-	62: { "anim": "katana/air_attack_2", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(20.0, -300.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "iai_reward": 2},
+	61: { "anim": "katana/air_attack_1", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(20.0, -200.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "iai_reward": 2, "action_type": Weapon.ActionType.NORMAL},
+	62: { "anim": "katana/air_attack_2", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(20.0, -300.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "iai_reward": 2, "action_type": Weapon.ActionType.NORMAL},
 }
 
 # ==========================================
@@ -853,6 +853,9 @@ func _play_air_step(step: int) -> void:
 
 func _apply_hitbox_config(config: Dictionary) -> void:
 	_is_hitbox_locked = false 
+	
+	current_action_type = config.get("action_type", Weapon.ActionType.NONE)
+	
 	var target_hitbox_name = config.get("hitbox_name", "Hitbox")
 	var hitbox := get_node_or_null(target_hitbox_name) as Hitbox
 	

@@ -6,6 +6,21 @@ extends Node2D
 
 var player: Node
 
+# ==========================================
+# 🏷️ 動作類別標籤 (Action Type) - 🌟 新增
+# ==========================================
+enum ActionType {
+	NONE,
+	NORMAL,   # 普攻 (含強化普攻、空中普攻)
+	SKILL,    # 戰技 (地上/空中)
+	ULTIMATE, # 大招
+	INTRO,    # 切換/變奏出場
+	ASSIST    # 援助/協同攻擊
+}
+
+## 當前正在執行的動作標籤 (供外界讀取，如協同雷射)
+var current_action_type: ActionType = ActionType.NONE
+
 @export_group("外觀設定")
 ## 這把武器專屬的劍鞘貼圖 (如果沒有劍鞘就留空)
 @export var scabbard_texture: Texture2D

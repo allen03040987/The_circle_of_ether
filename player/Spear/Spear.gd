@@ -11,10 +11,10 @@ const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.05, 1.05), 2: Vector2(1
 # 📖 招式數據庫 (Data-Driven Combat Config)
 # ==========================================
 const LIGHT_ATTACK_CONFIG = {
-	1: {"anim": "spear/attack_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(50.0, 0.0), "base_dmg": 300, "energy": 500, "switch": 500, "pozhen": 10,"hit_sfx_type": "hit"},
-	2: {"anim": "spear/attack_2", "hitbox_name": "Hitbox", "max_hits": 2, "interval": 0.1, "knockback": Vector2(50.0, 0.0), "base_dmg": 350, "energy": 5, "switch": 5, "pozhen": 10,"hit_sfx_type": "hit"},
-	3: {"anim": "spear/attack_3", "hitbox_name": "Hitbox", "max_hits": 3, "interval": 0.1, "knockback": Vector2(20.0, 0.0), "base_dmg": 150, "energy": 5, "switch": 4, "pozhen": 10,"hit_sfx_type": "hit"},
-	4: {"anim": "spear/attack_4", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(600.0, 0.0), "shake": 20.0, "base_dmg": 600, "energy": 10, "switch": 15, "pozhen": 10,"hit_sfx_type": "hit"}
+	1: {"anim": "spear/attack_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(50.0, 0.0), "base_dmg": 300, "energy": 500, "switch": 500, "pozhen": 10, "action_type": Weapon.ActionType.NORMAL,"hit_sfx_type": "hit"},
+	2: {"anim": "spear/attack_2", "hitbox_name": "Hitbox", "max_hits": 2, "interval": 0.1, "knockback": Vector2(50.0, 0.0), "base_dmg": 350, "energy": 5, "switch": 5, "pozhen": 10, "action_type": Weapon.ActionType.NORMAL,"hit_sfx_type": "hit"},
+	3: {"anim": "spear/attack_3", "hitbox_name": "Hitbox", "max_hits": 3, "interval": 0.1, "knockback": Vector2(20.0, 0.0), "base_dmg": 150, "energy": 5, "switch": 4, "pozhen": 10, "action_type": Weapon.ActionType.NORMAL,"hit_sfx_type": "hit"},
+	4: {"anim": "spear/attack_4", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(600.0, 0.0), "shake": 20.0, "base_dmg": 600, "energy": 10, "switch": 15, "pozhen": 10, "action_type": Weapon.ActionType.NORMAL,"hit_sfx_type": "hit"}
 }
 
 const SKILL_CONFIG = {
@@ -37,8 +37,8 @@ const SKILL_CONFIG = {
 
 # [空戰字典] (數值與動畫名稱你可以後續再微調)
 const AIR_ATTACK_CONFIG = {
-	61: { "anim": "spear/air_attack_1", "hitbox_name": "Air_J", "max_hits": 4, "interval": 0.15, "shake": 10.0, "type": Damage.Type.LIGHT, "knockback": Vector2(10.0, -150.0), "base_dmg": 50, "energy": 1, "switch": 2, "pozhen": 10, "sticky": true,"hit_sfx_type": "hit"},
-	62: { "anim": "spear/air_attack_2", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "shake": 50.0, "type": Damage.Type.HEAVY, "knockback": Vector2(300.0, 600.0), "base_dmg": 300, "energy": 2, "switch": 4, "pozhen": 10,"hit_sfx_type": "hit"},
+	61: { "anim": "spear/air_attack_1", "hitbox_name": "Air_J", "max_hits": 4, "interval": 0.15, "shake": 10.0, "type": Damage.Type.LIGHT, "knockback": Vector2(10.0, -150.0), "base_dmg": 50, "energy": 1, "switch": 2, "pozhen": 10, "action_type": Weapon.ActionType.NORMAL, "sticky": true,"hit_sfx_type": "hit"},
+	62: { "anim": "spear/air_attack_2", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "shake": 50.0, "type": Damage.Type.HEAVY, "knockback": Vector2(300.0, 600.0), "base_dmg": 300, "energy": 2, "switch": 4, "pozhen": 10, "action_type": Weapon.ActionType.NORMAL,"hit_sfx_type": "hit"},
 }
 # ==========================================
 # 🎛️ 內部狀態變數
@@ -554,6 +554,8 @@ func gain_pozhen(amount: int) -> void:
 func _play_attack(config: Dictionary) -> void:
 	_is_hitbox_locked = false 
 	disable_hitbox()
+	
+	current_action_type = config.get("action_type", Weapon.ActionType.NONE)
 	
 	var target_hitbox_name = config.get("hitbox_name", "Hitbox")
 	var hitbox := get_node_or_null(target_hitbox_name) as Hitbox

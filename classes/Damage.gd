@@ -13,6 +13,15 @@ enum Type {
 }
 
 # ==========================================
+# 🏷️ 2. 傷害來源分類 (Damage Source Types) - 🌟 新增
+# ==========================================
+enum SourceType {
+	MELEE,      # 近戰傷害
+	PROJECTILE, # 投射物/遠程傷害
+	ASSIST      # 援助/後台傷害
+}
+
+# ==========================================
 # 📦 封裝資料 (Data Payload)
 # ==========================================
 ## 實際扣除的血量
@@ -21,5 +30,7 @@ var amount: int
 var source: Node2D = null 
 ## 攻擊的種類 (決定受擊方的狀態切換)
 var type: Type = Type.LIGHT
+## 🌟 傷害的來源屬性 (決定是否觸發特定裝備 Buff 或抗性)
+var source_type: SourceType = SourceType.MELEE
 ## 擊退力度與方向向量
 var knockback_force: Vector2 = Vector2.ZERO

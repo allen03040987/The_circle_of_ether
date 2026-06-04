@@ -411,6 +411,9 @@ func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
 	# 🚨 抓鬼專用監視器：印出到底是哪個 Hitbox 打到了玩家！
 	var final_amount: int = hitbox.get("damage_amount") if "damage_amount" in hitbox else 1
 	var final_type: int = hitbox.get("attack_type") if "attack_type" in hitbox else Damage.Type.LIGHT
+	# 讀取來源標籤
+	var final_source_type: int = hitbox.get("source_type") if "source_type" in hitbox else Damage.SourceType.MELEE
+	
 	print("🔍 [受擊偵測] 來源 Hitbox: ", hitbox.name, " | 傷害: ", final_amount)
 
 	# 算出擊退力道
@@ -451,12 +454,14 @@ func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
 		"source": hitbox,
 		"amount": final_amount,
 		"type": final_type,
+		"source_type": final_source_type, # 🌟 裝進字典
 		"knockback_force": final_knockback
 	}
 	
 	var temp_damage = Damage.new()
 	temp_damage.amount = final_amount
 	temp_damage.type = final_type
+	temp_damage.source_type = final_source_type # 🌟 裝進物件
 	temp_damage.knockback_force = final_knockback
 	
 	take_damage(temp_damage)
