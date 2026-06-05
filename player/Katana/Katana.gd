@@ -709,8 +709,7 @@ func is_attack_finished() -> bool:
 			_play_skill_step(81) 
 			
 			# 🌟 新增：給予大招後搖專屬的無敵時間，確保帥氣收刀絕對不會被小怪偷襲打斷！
-			# (這裡給 1.0 秒，你可以根據 attack_ult_end 動畫的實際長度微調)
-			player.invincible_time_left = 0.4 
+			player.invincible_time_left = 0.5 
 		
 			return false
 		

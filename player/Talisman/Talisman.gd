@@ -9,7 +9,7 @@ const WEAPON_ID: String = "talisman"
 # ==========================================
 @export_group("武器核心參數")
 @export var combo_timeout: float = 0.3      
-@export var no_sheath_steps: Array[int] = [40,50,90] 
+@export var no_sheath_steps: Array[int] = [30,40,50,80,81,90] 
 @export var ult_energy_cost: float = 100.0  
 
 const TALISMAN_VFX_SCENE = preload("res://player/Talisman/TalismanVFX.tscn")
@@ -29,7 +29,7 @@ const LIGHT_ATTACK_CONFIG = {
 	5: {"anim": "talisman/attack_5", "hitbox_name": "Hitbox", "base_dmg": 180, "energy": 6, "switch": 6, "charge_reward": 0, "heal_amount": 3, "vfx_fly_dist": 0.0, "vfx_anim": "a6", "action_type": Weapon.ActionType.NORMAL},
 	
 	# 🌟 新增：常態空中普攻 (60) - 滯空發射單發雷射
-	60: {"anim": "talisman/air_attack_1", "hitbox_name": "None", "base_dmg": 100, "energy": 5, "switch": 5, "charge_reward": 10, "vfx_fly_dist": 0.0, "vfx_anim": "a6", "action_type": Weapon.ActionType.NORMAL}
+	60: {"anim": "talisman/air_attack_1", "hitbox_name": "None", "base_dmg": 100, "energy": 5, "switch": 5, "charge_reward": 10, "vfx_fly_dist": 0.0, "vfx_anim": "a5", "action_type": Weapon.ActionType.NORMAL}
 	
 }
 
@@ -52,10 +52,9 @@ const SKILL_CONFIG = {
 		"anim": "talisman/c2", "hitbox_name": "C2", 
 		"type": Damage.Type.HEAVY, 
 		"base_dmg": 80, "energy": 5, "switch": 10, "charge_reward": 0, 
-		# 🌟 降級為普通擊飛技：最大連擊數改為 4，移除雷射屬性
-		"max_hits": 4, "interval": 0.1, "sticky": true, "shake": 20.0,
-		"knockback": Vector2(0.0, -350.0), 
-		"vfx_anim": "a4", "vfx_fly_dist": 0.0,
+		"max_hits": 4, "interval": 0.1, "sticky": true, "shake": 10.0,
+		"knockback": Vector2(0.0, -300.0), 
+		"vfx_anim": "c2", "vfx_fly_dist": 0.0,
 		"action_type": Weapon.ActionType.SKILL
 	},
 	40: {
@@ -72,9 +71,10 @@ const SKILL_CONFIG = {
 	80: {
 		"anim": "talisman/attack_ult", "hitbox_name": "UltHitbox", 
 		"type": Damage.Type.HEAVY, "base_dmg": 150, "energy": 0, "switch": 0, "charge_reward": 0,
-		"max_hits": 10, "interval": 0.1, "sticky": true, "shake": 10.0,
+		"max_hits": 10, "interval": 0.1, "sticky": true, "shake": 5.0,
 		"knockback": Vector2(100.0, -100.0),
 		"action_type": Weapon.ActionType.ULTIMATE,
+		
 		
 		# 🌟 繼承自 30 號的巨型激光專屬屬性！
 		"laser_scale": 4.0,          
@@ -83,6 +83,11 @@ const SKILL_CONFIG = {
 		"laser_type": Damage.Type.HEAVY,             
 		"laser_knockback": Vector2(600.0, -500.0),   
 		"laser_shake": 70.0                                          
+	},
+	81: {
+		"anim": "talisman/attack_ult_end", "hitbox_name": "None", 
+		"base_dmg": 0, "energy": 0, "switch": 0, "charge_reward": 0,
+		"action_type": Weapon.ActionType.ULTIMATE
 	},
 	# 🌟 新增：變奏入場 (90) - 完全借用 50 的動畫與特效，但掛載時停邏輯
 	90: {
@@ -609,30 +614,56 @@ func get_current_velocity(delta: float) -> Vector2:
 		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 5.0 * (speed_mult * speed_mult) * delta)
 		new_y = 0.0 
 		
+		# [領域展開] 0.05 秒：進入時停與無敵
 		if anim_time >= 0.05 and not is_time_stop_triggered:
 			is_time_stop_triggered = true 
 			if player.has_method("trigger_time_stop"):
 				player.trigger_time_stop(3.0, 0.001) 
 			player.animation_player.speed_scale = 1.0 / 0.001 
 			
+		# 🎥 [鏡頭 1] 0.05 秒：瞬間極致特寫 (花 0.1 秒極速推近)
 		if anim_time >= 0.05 and _tsubame_zoom_phase == 0:
 			_tsubame_zoom_phase = 1
-			_apply_charge_zoom(Vector2(1.2, 1.2), 0.3) 
+			_apply_charge_zoom(Vector2(1.2, 1.2), 0.1) 
+		
+		# ✨ [聚能] 0.1 秒：聚能特效演出
+		if anim_time >= 0.1 and not is_vfx_fired:
+			is_vfx_fired = true
+			_spawn_weapon_vfx({"vfx_anim": "ult"})
 			
-		# 🌟 大挪移核心：在 1.82 秒時觸發終極巨砲！
+		# 🎥 [鏡頭 2] 0.15 秒：開始緩緩拉回正常視野 (歷時 1.55 秒，剛好在 1.7 秒時到達正常)
+		if anim_time >= 0.15 and _tsubame_zoom_phase == 1:
+			_tsubame_zoom_phase = 2
+			_apply_charge_zoom(ZOOM_LEVELS[0], 1.55)
+			
+		# 💥 [爆發] 1.82 秒：解除時停、發射巨砲！
 		if anim_time >= 1.82 and not is_tower_spawned:
 			is_tower_spawned = true # 鎖死，避免重複發射
 			
-			_tsubame_zoom_phase = 2
-			if CombatManager.has_method("apply_camera_shake"):
-				# 使用 70.0 的狂暴震動，匹配巨砲後座力
-				CombatManager.apply_camera_shake(100.0, 0.4)
-				
+			# 🌟 核心：強制打破時停，並將玩家自身的動畫倍率恢復正常！
+			if player.has_method("clear_time_stop"):
+				player.clear_time_stop()
+			player.animation_player.speed_scale = 1.0 
+			
 			# 追加激光噴發瞬間的 A6 爆發特效
 			_spawn_weapon_vfx({"vfx_anim": "a6"})
 			
-			# 🌟 正式向前方轟出巨型雷射！
+			# 正式向前方轟出巨型雷射！
 			_spawn_laser_projectile(SKILL_CONFIG[combo_step], 0.0)
+
+		# 🌋 [後座力] 1.83 秒：慢一幀的極致狂暴震動！
+		if anim_time >= 1.83 and _tsubame_zoom_phase == 2:
+			_tsubame_zoom_phase = 3
+			if CombatManager.has_method("apply_camera_shake"):
+				# 使用 100.0 的狂暴震動，匹配巨砲後座力
+				CombatManager.apply_camera_shake(70.0, 0.2)
+	
+	# ==========================================
+	# 🌟 大招後搖 (81) - 物理摩擦力減速
+	# ==========================================
+	elif combo_step == 81:
+		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+
 	
 	# ==========================================
 	# 🌟 變奏技能 (90) - 時停入場與 50 號雷射噴發
@@ -820,6 +851,46 @@ func is_attack_finished() -> bool:
 	if not is_attacking: return true
 	if not player.animation_player.is_playing():
 		
+		# ==========================================
+		# 🌟 大招演出完後的「結尾接力」 (必須移到最上面！)
+		# ==========================================
+		if combo_step == 80:
+			# 1. 立即強制切換到 81 號「結尾動畫」
+			combo_step = 81
+			_play_attack(SKILL_CONFIG[81]) 
+			
+			# 2. 給予大招後搖專屬的無敵時間 (保護玩家不被偷襲)
+			player.invincible_time_left = 1 
+			
+			# 3. 啟動 15 秒脫手 Buff
+			is_ult_buff_active = true
+			ult_buff_duration_timer = 15.0
+			ult_heal_timer = 2.0  
+			ult_laser_timer = 1.0 
+			
+			# 4. 生成持續性 Buff VFX 掛在玩家身上
+			if TALISMAN_VFX_SCENE:
+				active_ult_buff_vfx = TALISMAN_VFX_SCENE.instantiate()
+				player.add_child(active_ult_buff_vfx)
+				active_ult_buff_vfx.position = Vector2(0, -30)
+				active_ult_buff_vfx.z_index = 1
+				
+				if active_ult_buff_vfx.has_node("AnimationPlayer"):
+					active_ult_buff_vfx.get_node("AnimationPlayer").play("ult_buff_loop")
+			
+			# 5. 鏡頭歸位與解除時停
+			_tsubame_zoom_phase = 0
+			_apply_charge_zoom(ZOOM_LEVELS[0], 0.4)
+			player.animation_player.speed_scale = 1.0 
+			if player.has_method("clear_time_stop"): player.clear_time_stop()
+			print("🔥 [符咒] 大招連擊結束！正式進入 15 秒 Buff 狀態，開始播放收尾動畫！")
+			
+			# 🌟 核心：回傳 false 攔截狀態機，告訴總監「我還有 81 號要播，別切回 Idle！」
+			return false
+
+		# ==========================================
+		# 真正的收招清理 (如果沒有要接力，才會執行到這裡)
+		# ==========================================
 		# 🌟 統一使用 begins_with 對齊太刀
 		if combo_step == 20 and not player.name.begins_with("Phantom"):
 			if player.invincible_timer.time_left == 0:
@@ -840,33 +911,6 @@ func is_attack_finished() -> bool:
 		if not requires_sheath() and p_scabbard:
 			p_scabbard.fade_in()
 			
-		# 🌟 大招收尾：啟動 15 秒脫手 Buff 並歸位鏡頭
-		if combo_step == 80:
-			is_ult_buff_active = true
-			ult_buff_duration_timer = 15.0
-			ult_heal_timer = 2.0  # 💚 設定為 2 秒一跳
-			ult_laser_timer = 1.0 # ⚔️ 設定為 1 秒一跳
-			
-			# ==========================================
-			# 🌟 新增：生成持續性 Buff VFX 並「掛在玩家身上」
-			# ==========================================
-			if TALISMAN_VFX_SCENE:
-				active_ult_buff_vfx = TALISMAN_VFX_SCENE.instantiate()
-				player.add_child(active_ult_buff_vfx) # 關鍵：加給 player，而不是自己！
-				active_ult_buff_vfx.position = Vector2(0, -30) # 微調高度，對齊身體中心
-				active_ult_buff_vfx.z_index = 1
-				
-				# 假設你在 TalismanVFX 裡面有做一個叫 "ult_buff_loop" 的持續播放動畫
-				# (如果你的節點名稱不同，請自行把 AnimationPlayer 替換成對應名稱)
-				if active_ult_buff_vfx.has_node("AnimationPlayer"):
-					active_ult_buff_vfx.get_node("AnimationPlayer").play("ult_buff_loop")
-			
-			_tsubame_zoom_phase = 0
-			_apply_charge_zoom(ZOOM_LEVELS[0], 0.4)
-			player.animation_player.speed_scale = 1.0 
-			if player.has_method("clear_time_stop"): player.clear_time_stop()
-			print("🔥 [符咒] 大招連擊結束！正式進入 15 秒 Buff 狀態！")
-		
 		return true
 	return false
 

@@ -25,7 +25,7 @@ const SKILL_CONFIG = {
 	# 戰技 22：向上挑飛 (Skill 2)
 	22: {"anim": "spear/c3", "hitbox_name": "C3", "type": Damage.Type.HEAVY, "max_hits": 1, "interval": 0.0, "knockback": Vector2(0.0, -600.0), "shake": 60.0, "base_dmg": 500, "energy": 10, "switch": 15, "pozhen": 10,"hit_sfx_type": "hit_2"},
 	# 強化普攻 (30)：消耗 40 點破陣值發動
-	30: {"anim": "spear/attack_enhanced", "hitbox_name": "attack_enhanced", "type": Damage.Type.HEAVY, "max_hits": 4, "interval": 0.1, "knockback": Vector2(100.0, -100.0), "shake": 15.0, "base_dmg": 800, "energy": 10, "switch": 20, "pozhen": 0, "sticky": true,"hit_sfx_type": "hit"},
+	30: {"anim": "spear/attack_enhanced", "hitbox_name": "attack_enhanced", "type": Damage.Type.HEAVY, "max_hits": 4, "interval": 0.1, "knockback": Vector2(100.0, -100.0), "shake": 15.0, "base_dmg": 800, "energy": 10, "switch": 20, "pozhen": 0, "action_type": Weapon.ActionType.NORMAL, "sticky": true,"hit_sfx_type": "hit"},
 	# 新增：大招啟動演出 (80)
 	80: {"anim": "spear/attack_ult", "hitbox_name": "None", "max_hits": 1, "interval": 0.0, "knockback": Vector2.ZERO, "base_dmg": 0, "energy": 0, "switch": 0},
 	# 大招氣刃發射與後搖 (81)
@@ -509,7 +509,7 @@ func get_current_velocity(delta: float) -> Vector2:
 		new_y = 0.0 
 		
 		# 🌟 動態刷新無敵時間，確保 81 收招全程安全
-		player.invincible_time_left = 0.5 
+		player.invincible_time_left = 0.6 
 		
 		var anim_time = player.animation_player.current_animation_position
 		

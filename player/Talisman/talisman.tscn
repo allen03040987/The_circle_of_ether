@@ -21,10 +21,10 @@ size = Vector2(256, 57)
 size = Vector2(278, 87)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_k1xl1"]
-size = Vector2(290, 70)
+size = Vector2(232, 220)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_m3yvp"]
-size = Vector2(680.318, 292.263)
+size = Vector2(583.576, 146.131)
 
 [node name="Talisman" type="Node2D"]
 script = ExtResource("1_wghj6")
@@ -34,7 +34,7 @@ skill_2_icon = ExtResource("4_4lydl")
 skill_3_icon = ExtResource("5_0ic36")
 ult_icon = ExtResource("6_53hdb")
 skill_1_cd = 12.0
-skill_2_cd = 9.0
+skill_2_cd = 1.0
 skill_3_cd = 5.0
 
 [node name="Hitbox" type="Area2D" parent="."]
@@ -85,11 +85,12 @@ spark_random_angle = 360.0
 spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="C2"]
-position = Vector2(146, -33)
+position = Vector2(68, -88)
 shape = SubResource("RectangleShape2D_k1xl1")
 disabled = true
 
 [node name="UltHitbox" type="Area2D" parent="."]
+position = Vector2(0, -1)
 scale = Vector2(1.00393, 1)
 collision_layer = 0
 collision_mask = 16
@@ -100,7 +101,7 @@ spark_random_angle = 360.0
 spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="UltHitbox"]
-position = Vector2(1.90735e-06, -39)
+position = Vector2(10.957, -40)
 rotation = -3.14159
 scale = Vector2(0.638367, -0.807496)
 shape = SubResource("RectangleShape2D_m3yvp")
