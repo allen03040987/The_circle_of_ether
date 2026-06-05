@@ -52,17 +52,11 @@ const SKILL_CONFIG = {
 		"anim": "talisman/c2", "hitbox_name": "C2", 
 		"type": Damage.Type.HEAVY, 
 		"base_dmg": 80, "energy": 5, "switch": 10, "charge_reward": 0, 
-		"max_hits": 1, "interval": 0.1, "sticky": true, "shake": 20.0,
+		# 🌟 降級為普通擊飛技：最大連擊數改為 4，移除雷射屬性
+		"max_hits": 4, "interval": 0.1, "sticky": true, "shake": 20.0,
 		"knockback": Vector2(0.0, -350.0), 
 		"vfx_anim": "a4", "vfx_fly_dist": 0.0,
-		
-		# 🌟 巨型激光專屬獨立屬性配置
-		"laser_scale": 4.0,          
-		"laser_tracking": false,     
-		"laser_dmg": 250,                            # 獨立高傷害
-		"laser_type": Damage.Type.HEAVY,             # 獨立重擊屬性
-		"laser_knockback": Vector2(600.0, -500.0),   # 獨立擊退力：往外推且強力挑飛
-		"laser_shake": 70.0                          # 獨立強烈震動 (比近戰更震)
+		"action_type": Weapon.ActionType.SKILL
 	},
 	40: {
 		"anim": "talisman/c3_2", "hitbox_name": "None", 
@@ -78,8 +72,17 @@ const SKILL_CONFIG = {
 	80: {
 		"anim": "talisman/attack_ult", "hitbox_name": "UltHitbox", 
 		"type": Damage.Type.HEAVY, "base_dmg": 150, "energy": 0, "switch": 0, "charge_reward": 0,
-		"max_hits": 4, "interval": 0.2, "sticky": true, "shake": 10.0,
-		"knockback": Vector2(100.0, -100.0)
+		"max_hits": 10, "interval": 0.1, "sticky": true, "shake": 10.0,
+		"knockback": Vector2(100.0, -100.0),
+		"action_type": Weapon.ActionType.ULTIMATE,
+		
+		# 🌟 繼承自 30 號的巨型激光專屬屬性！
+		"laser_scale": 4.0,          
+		"laser_tracking": false,     
+		"laser_dmg": 250,                                            
+		"laser_type": Damage.Type.HEAVY,             
+		"laser_knockback": Vector2(600.0, -500.0),   
+		"laser_shake": 70.0                                          
 	},
 	# 🌟 新增：變奏入場 (90) - 完全借用 50 的動畫與特效，但掛載時停邏輯
 	90: {
@@ -254,8 +257,9 @@ func start_ultimate() -> void:
 	step_cooldown = 0.15
 	is_attacking = true
 	is_vfx_fired = false 
+	is_tower_spawned = false # 🌟 核心新增：重置巨砲發射鎖！
 	is_time_stop_triggered = false 
-	_tsubame_zoom_phase = 0 
+	_tsubame_zoom_phase = 0
 	
 	ult_timer = ult_cd 
 	air_attack_locked = false 
@@ -482,9 +486,9 @@ func get_current_velocity(delta: float) -> Vector2:
 				var angles = []
 				
 				if combo_step == 4:
-					angles = [deg_to_rad(-20.0), 0.0, deg_to_rad(-40.0)]
+					angles = [deg_to_rad(-10.0), 0.0, deg_to_rad(-20.0)]
 				elif combo_step == 5:
-					angles = [deg_to_rad(20.0), 0.0, deg_to_rad(40.0)]
+					angles = [deg_to_rad(10.0), 0.0, deg_to_rad(20.0)]
 					
 				for angle in angles:
 					_spawn_laser_projectile(LIGHT_ATTACK_CONFIG[combo_step], angle)
@@ -527,17 +531,6 @@ func get_current_velocity(delta: float) -> Vector2:
 			is_vfx_fired = true
 			_spawn_weapon_vfx(SKILL_CONFIG[combo_step])
 			
-		# ==========================================
-		# 🌟 在 0.84 秒時發射巨型激光！(借用 is_tower_spawned 作為開關)
-		# ==========================================
-		if anim_time >= 0.84 and not is_tower_spawned:
-			is_tower_spawned = true
-			
-			# 🌟 新增：激光噴發的瞬間，追加第二次 A4 特效爆發！
-			_spawn_weapon_vfx({"vfx_anim": "a6"})
-			
-			_spawn_laser_projectile(SKILL_CONFIG[combo_step], 0.0)
-			CombatManager.apply_camera_shake(40.0)
 	# ==========================================
 	# 🌟 戰技下退出 (40) 物理邏輯
 	# ==========================================
@@ -584,7 +577,7 @@ func get_current_velocity(delta: float) -> Vector2:
 				2: angles = [deg_to_rad(-10.0), deg_to_rad(10.0)]
 				3: angles = [deg_to_rad(-15.0), 0.0, deg_to_rad(15.0)]
 				4: angles = [deg_to_rad(-20.0), deg_to_rad(-7.0), deg_to_rad(7.0), deg_to_rad(20.0)]
-				5: angles = [deg_to_rad(-30.0), deg_to_rad(-15.0), 0.0, deg_to_rad(15.0), deg_to_rad(30.0)]
+				5: angles = [deg_to_rad(-20.0), deg_to_rad(-10.0), 0.0, deg_to_rad(10.0), deg_to_rad(20.0)]
 				
 			print("🌟 [戰技下] 根據靈符值 ", current_talisman_charge, "，發射了 ", num_lasers, " 條激光！")
 				
@@ -609,14 +602,12 @@ func get_current_velocity(delta: float) -> Vector2:
 			_spawn_laser_projectile(LIGHT_ATTACK_CONFIG[combo_step], 0.0)
 	
 	# ==========================================
-	# 🌌 大招 (80) - 4 連擊與時停特寫
+	# 🌌 大招 (80) - 4 連擊與時停巨砲特寫
 	# ==========================================
 	elif combo_step == 80:
 		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
 		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 5.0 * (speed_mult * speed_mult) * delta)
 		new_y = 0.0 
-		
-		
 		
 		if anim_time >= 0.05 and not is_time_stop_triggered:
 			is_time_stop_triggered = true 
@@ -628,10 +619,20 @@ func get_current_velocity(delta: float) -> Vector2:
 			_tsubame_zoom_phase = 1
 			_apply_charge_zoom(Vector2(1.2, 1.2), 0.3) 
 			
-		if anim_time >= 1.5 and _tsubame_zoom_phase == 1: # 根據實際動畫長度微調震動時間點
+		# 🌟 大挪移核心：在 1.82 秒時觸發終極巨砲！
+		if anim_time >= 1.82 and not is_tower_spawned:
+			is_tower_spawned = true # 鎖死，避免重複發射
+			
 			_tsubame_zoom_phase = 2
 			if CombatManager.has_method("apply_camera_shake"):
-				CombatManager.apply_camera_shake(50.0, 0.15)
+				# 使用 70.0 的狂暴震動，匹配巨砲後座力
+				CombatManager.apply_camera_shake(100.0, 0.4)
+				
+			# 追加激光噴發瞬間的 A6 爆發特效
+			_spawn_weapon_vfx({"vfx_anim": "a6"})
+			
+			# 🌟 正式向前方轟出巨型雷射！
+			_spawn_laser_projectile(SKILL_CONFIG[combo_step], 0.0)
 	
 	# ==========================================
 	# 🌟 變奏技能 (90) - 時停入場與 50 號雷射噴發
@@ -1059,7 +1060,13 @@ func export_weapon_data() -> Dictionary:
 		"skill_1_timer": skill_1_timer if "skill_1_timer" in self else 0.0,
 		"skill_2_timer": skill_2_timer if "skill_2_timer" in self else 0.0,
 		"skill_3_timer": skill_3_timer if "skill_3_timer" in self else 0.0,
-		"ult_timer": ult_timer if "ult_timer" in self else 0.0
+		"ult_timer": ult_timer if "ult_timer" in self else 0.0,
+		
+		# 🌟 新增：將大招的脫手 Buff 狀態與所有計時器全部打包
+		"is_ult_buff_active": is_ult_buff_active,
+		"ult_buff_duration_timer": ult_buff_duration_timer,
+		"ult_heal_timer": ult_heal_timer,
+		"ult_laser_timer": ult_laser_timer
 	}
 
 func import_weapon_data(data: Dictionary) -> void:
@@ -1069,6 +1076,25 @@ func import_weapon_data(data: Dictionary) -> void:
 	if "skill_2_timer" in self: skill_2_timer = data.get("skill_2_timer", 0.0)
 	if "skill_3_timer" in self: skill_3_timer = data.get("skill_3_timer", 0.0)
 	if "ult_timer" in self: ult_timer = data.get("ult_timer", 0.0)
+	
+	# 🌟 新增：還原大招 Buff 狀態與計時器
+	is_ult_buff_active = data.get("is_ult_buff_active", false)
+	ult_buff_duration_timer = data.get("ult_buff_duration_timer", 0.0)
+	ult_heal_timer = data.get("ult_heal_timer", 0.0)
+	ult_laser_timer = data.get("ult_laser_timer", 0.0)
+	
+	# 🌟 神級細節：跨場景重建特效
+	# 如果讀檔發現 Buff 還在，但身上的 VFX 已經因為過地圖而被清除了，就立刻重新生成一個掛回去！
+	if is_ult_buff_active and not is_instance_valid(active_ult_buff_vfx):
+		if TALISMAN_VFX_SCENE and is_instance_valid(player):
+			active_ult_buff_vfx = TALISMAN_VFX_SCENE.instantiate()
+			player.add_child(active_ult_buff_vfx)
+			active_ult_buff_vfx.position = Vector2(0, -30)
+			active_ult_buff_vfx.z_index = 1
+			
+			if active_ult_buff_vfx.has_node("AnimationPlayer"):
+				active_ult_buff_vfx.get_node("AnimationPlayer").play("ult_buff_loop")
+			print("✨ [符咒] 跨場景重建大招 Buff 光環特效成功！")
 	
 func enable_hitbox(shape_name: String = "") -> void:
 	if _is_hitbox_locked: return
