@@ -89,6 +89,34 @@ position = Vector2(68, -88)
 shape = SubResource("RectangleShape2D_k1xl1")
 disabled = true
 
+[node name="C2_2" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("4_5pdgr")
+knockback_force = Vector2(-200, 0)
+spark_base_offset = Vector2(0, -5)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="C2_2"]
+position = Vector2(68, -88)
+shape = SubResource("RectangleShape2D_k1xl1")
+disabled = true
+
+[node name="C3" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("4_5pdgr")
+knockback_force = Vector2(50, 0)
+spark_base_offset = Vector2(0, -5)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="C3"]
+position = Vector2(68, -88)
+shape = SubResource("RectangleShape2D_k1xl1")
+disabled = true
+
 [node name="UltHitbox" type="Area2D" parent="."]
 position = Vector2(0, -1)
 scale = Vector2(1.00393, 1)

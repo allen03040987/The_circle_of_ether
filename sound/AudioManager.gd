@@ -36,6 +36,8 @@ var action_sfx_bank: Dictionary = {
 	"hit_3": preload("res://sound/SFX/hit/hit_3.wav"), 
 	"hit_4": preload("res://sound/SFX/hit/hit_4.wav"),
 	"hit_5": preload("res://sound/SFX/hit/hit_5.wav"),
+	"hit_6": preload("res://sound/SFX/hit/hit_6.wav"),
+	
 	
 	"ult": preload("res://sound/SFX/attack/uit.wav") ,
 	

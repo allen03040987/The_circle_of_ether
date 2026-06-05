@@ -16,7 +16,7 @@ const DIMENSIONAL_SLASH_SCENE = preload("res://Explod/tscn/Dimensional Slash.tsc
 const SWORD_WAVE_SCENE = preload("res://player/Katana/c_3_wave.tscn")
 
 
-const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.05, 1.05), 2: Vector2(1.1, 1.1), 3: Vector2(1.15, 1.15) }
+const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.01, 1.01), 2: Vector2(1.02, 1.02), 3: Vector2(1.03, 1.03) }
 
 # ==========================================
 # 🌀 2. 共鳴迴路 (Resonance Circuit) 變數

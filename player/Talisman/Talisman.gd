@@ -9,7 +9,7 @@ const WEAPON_ID: String = "talisman"
 # ==========================================
 @export_group("武器核心參數")
 @export var combo_timeout: float = 0.3      
-@export var no_sheath_steps: Array[int] = [30,40,50,80,81,90] 
+@export var no_sheath_steps: Array[int] = [30,31,40,50,80,81,90] 
 @export var ult_energy_cost: float = 100.0  
 
 const TALISMAN_VFX_SCENE = preload("res://player/Talisman/TalismanVFX.tscn")
@@ -57,6 +57,15 @@ const SKILL_CONFIG = {
 		"vfx_anim": "c2", "vfx_fly_dist": 0.0,
 		"action_type": Weapon.ActionType.SKILL
 	},
+	# 🌟 戰技派生二段 (31) 
+	31: {
+		"anim": "talisman/c2_2", "hitbox_name": "C2_2", 
+		"type": Damage.Type.HEAVY, 
+		"base_dmg": 990, "energy": 5, "switch": 10, "charge_reward": 0, 
+		"max_hits": 1, "interval": 0.1, "sticky": true, "shake": 15.0,
+		"vfx_anim": "a2", "vfx_fly_dist": 0.0,"knockback": Vector2(0.0, 1000.0),
+		"action_type": Weapon.ActionType.SKILL,"hit_sfx_type": "hit_6"
+	},
 	40: {
 		"anim": "talisman/c3_2", "hitbox_name": "None", 
 		"base_dmg": 0, "energy": 0, "switch": 0, "charge_reward": 0
@@ -79,7 +88,7 @@ const SKILL_CONFIG = {
 		# 🌟 繼承自 30 號的巨型激光專屬屬性！
 		"laser_scale": 4.0,          
 		"laser_tracking": false,     
-		"laser_dmg": 250,                                            
+		"laser_dmg": 1550,                                            
 		"laser_type": Damage.Type.HEAVY,             
 		"laser_knockback": Vector2(600.0, -500.0),   
 		"laser_shake": 70.0                                          
@@ -133,6 +142,13 @@ var is_tower_spawned: bool = false
 var _phantom_flags_synced: bool = false
 # 🌟 新增：型態切換鎖 (對齊長槍 is_ult_active 工法)
 var is_enhanced_mode: bool = false
+
+# ==========================================
+# 🌟 多段戰技連段系統 (Combo Skill Cooldown)
+# ==========================================
+var skill_2_combo_timer: float = 0.0
+var skill_2_current_step: int = 30  # 紀錄「戰技上(挑飛)」目前的段數 (30->31)
+
 
 # 🌟 新增：大招後台 Buff 變數
 var is_ult_buff_active: bool = false 
@@ -304,8 +320,21 @@ func start_intro_skill() -> void:
 	print("🌪️ [符咒] 變奏技能發動！開始時停特寫...")
 	
 func start_heavy_attack() -> void:
-	if is_attacking and combo_step >= 20: return 
-	
+	# ==========================================
+	# 🌟 1. 連擊與提前取消判定 (Cancel Window)
+	# ==========================================
+	if is_attacking:
+		# 允許 30 號在播放到 0.4 秒後，提早取消後搖 (允許接任何方向的戰技！)
+		if combo_step == 30 and player.animation_player.current_animation_position > 0.4:
+			pass 
+		elif combo_step >= 20: 
+			return 
+	else:
+		# 如果是自然收招，檢查上一招是不是超時了
+		var current_time = Time.get_ticks_msec() / 1000.0
+		if current_time - last_attack_time > combo_timeout:
+			combo_step = 0
+			
 	if step_cooldown > 0:
 		is_attacking = false
 		return
@@ -314,26 +343,20 @@ func start_heavy_attack() -> void:
 	is_attacking = true
 	is_vfx_fired = false 
 	is_tower_spawned = false 
-	
 	air_attack_locked = false
 	
-	combo_step = 0 
-	
 	# ==========================================
-	# 🌟 核心分流：將「戰技下 (move_down)」獨立出來，允許空中與地面施放
+	# 🌟 2. 戰技派生分流 (方向絕對優先，完美對齊太刀！)
 	# ==========================================
 	if Input.is_action_pressed("move_down"):
-		
-		
 		if is_enhanced_mode:
 			combo_step = 40
 			_play_attack(SKILL_CONFIG[combo_step])
 			skill_3_timer = skill_3_cd
 			is_enhanced_mode = false
 			print("🔮 [戰技下] 播放退出動畫 (40)！手動解除強化型態。")
-			
 		else:
-			gain_talisman_charge(10) # 🌟 維持空放給 10 點
+			gain_talisman_charge(10) 
 			if current_talisman_charge >= 10:
 				combo_step = 50
 				_play_attack(SKILL_CONFIG[combo_step])
@@ -342,26 +365,33 @@ func start_heavy_attack() -> void:
 				print("🔮 [戰技下] 播放進入動畫 (50)！進入強化型態。")
 			else:
 				print("⚠️ [戰技下] 靈符值不足，無法進入強化狀態！")
-				is_attacking = false # 🌟 防呆：失敗時解除鎖定
+				is_attacking = false 
 				
 	elif player.is_on_floor():
-		# ==========================================
-		# 🌟 僅限地面的戰技 (挑飛、中立蓋塔)
-		# ==========================================
 		if Input.is_action_pressed("move_up"):
-			combo_step = 30
+			# 🌟 戰技上 (30 -> 31)：只有按「上」才會推進這個連段！
+			combo_step = skill_2_current_step
 			_play_attack(SKILL_CONFIG[combo_step])
-			skill_2_timer = skill_2_cd
-			gain_talisman_charge(50) 
 			
+			if combo_step == 30:
+				skill_2_current_step = 31
+				skill_2_combo_timer = 5.0 # 給予 5 秒寬限期
+				gain_talisman_charge(20)  
+				print("⚔️ [戰技上] 第一段 (30) 擊發！5 秒內可接續第二段。")
+			else:
+				skill_2_current_step = 30
+				skill_2_combo_timer = 0.0 # 徹底清零
+				skill_2_timer = skill_2_cd # 第二段打完，正式進入冷卻！
+				gain_talisman_charge(30)  
+				print("⚔️ [戰技上] 第二段 (31) 終結！進入冷卻。")
+				
 		else:
+			# 🌟 戰技中立 (20)：沒按方向鍵就是放塔！
 			combo_step = 20
 			_play_attack(SKILL_CONFIG[combo_step])
 			skill_1_timer = skill_1_cd
 			gain_talisman_charge(10) 
-			
 	else:
-		# 空中按了上或中立，無效化
 		is_attacking = false
 
 func update_timers_only(delta: float) -> void:
@@ -371,6 +401,16 @@ func update_timers_only(delta: float) -> void:
 	if skill_3_timer > 0: skill_3_timer -= delta 
 	if ult_timer > 0: ult_timer -= delta
 	
+	# ==========================================
+	# 🌟 多段戰技的 5 秒寬限期倒數 (對齊太刀)
+	# ==========================================
+	if skill_2_combo_timer > 0:
+		skill_2_combo_timer -= delta
+		if skill_2_combo_timer <= 0:
+			skill_2_timer = skill_2_cd     # 寬限期結束，進入真正冷卻！
+			skill_2_current_step = 30      # 進度重置回第一段
+			print("⏳ [戰技上] 5 秒寬限期結束，未施放第二段，進入冷卻。")
+			
 	if player.is_on_floor():
 		air_attack_locked = false 
 	# ==========================================
@@ -527,15 +567,30 @@ func get_current_velocity(delta: float) -> Vector2:
 				if player.invincible_timer.time_left == 0:
 					player.invincible_time_left = 0.0
 					
-	elif combo_step == 30:
+	# ==========================================
+	# 🌟 戰技上 (30) 與 二段派生 (31) 物理邏輯
+	# ==========================================
+	elif combo_step in [30, 31]:
 		# 施法時的地面摩擦力
 		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
 		
-		# 在 0.1 秒時發射特效 (第一次：起手結印)
+		# 在 0.1 秒時發射特效
 		if anim_time >= 0.1 and not is_vfx_fired:
 			is_vfx_fired = true
 			_spawn_weapon_vfx(SKILL_CONFIG[combo_step])
+		
+		# ==========================================
+		# 🌟 新增：31 號專屬的 0.4 秒下砸震動！
+		# ==========================================
+		if combo_step == 31 and anim_time >= 0.3 and not is_tower_spawned:
+			is_tower_spawned = true # 上鎖，避免每幀重複震動
 			
+			# 嚴格排除殘影，只讓玩家本體觸發震動
+			if not player.name.begins_with("Phantom"): 
+				if CombatManager.has_method("apply_camera_shake"):
+					# 給予 30.0 的強度，配合下砸的重磅打擊感！
+					CombatManager.apply_camera_shake(30.0, 0.15)
+					
 	# ==========================================
 	# 🌟 戰技下退出 (40) 物理邏輯
 	# ==========================================
@@ -1050,6 +1105,9 @@ func can_air_light() -> bool:
 	return true
 
 func can_use_heavy() -> bool:
+	# 🌟 絕對特權：連段派生無條件放行 (30 接 31)
+	if combo_step == 30: return true 
+	
 	if not player.is_on_floor(): 
 		# 🌟 允許空中施放戰技下 (型態切換)
 		if Input.is_action_pressed("move_down"):
@@ -1064,7 +1122,6 @@ func can_use_heavy() -> bool:
 			print("⏳ [防護網攔截] 符咒戰技上(挑飛)冷卻中！")
 			return false
 	elif Input.is_action_pressed("move_down"):
-		# 🌟 攔責戰技下的冷卻
 		if skill_3_timer > 0:
 			print("⏳ [防護網攔截] 符咒戰技下(型態切換)冷卻中！")
 			return false
