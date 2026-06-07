@@ -149,8 +149,16 @@ var skill_3_current_step: int = 20  # 紀錄「下砸」目前的段數 (20->21-
 # 🌀 5. 共鳴迴路邏輯 (Resonance Circuit)
 # ==========================================
 func gain_iai(amount: int) -> void:
-	current_iai = mini(current_iai + amount, MAX_IAI)
-	print("🟢 命中！獲得居合值: ", amount, " | 目前居合: ", current_iai, "/", MAX_IAI)
+	if amount > 0:
+		# 🌟 攔截點：殘影的居合值快遞專線
+		if not (player is Player):
+			var rp = player.get("real_player")
+			if rp and rp.get("current_weapon") and rp.current_weapon.has_method("gain_iai"):
+				rp.current_weapon.gain_iai(amount)
+			return
+			
+		current_iai = mini(current_iai + amount, MAX_IAI)
+		print("🟢 命中！獲得居合值: ", amount, " | 目前居合: ", current_iai, "/", MAX_IAI)
 
 func consume_iai_for_charge() -> void:
 	current_iai = maxi(current_iai - 10, 0)
@@ -402,19 +410,23 @@ func get_current_velocity(delta: float) -> Vector2:
 	# ----------------------------------------
 	# 🔋 蓄力結算 (Charge Resolution)
 	# ----------------------------------------
+	# ----------------------------------------
+	# 🔋 蓄力結算 (Charge Resolution)
+	# ----------------------------------------
 	if combo_step == 30:
 		# 蓄力期間允許微調面向
 		var move_dir := Input.get_axis("move_left", "move_right")
-		# 殘影不准微調面向
-		if not is_zero_approx(move_dir) and not player.name.begins_with("Phantom"):
+		# 🌟 升級防護網：本體才准微調面向
+		if not is_zero_approx(move_dir) and player is Player:
 			player.direction = player.Direction.LEFT if move_dir < 0 else player.Direction.RIGHT
 			
 		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta * 2.0)
 		
 		# 判斷是否為殘影。殘影視為「直接鬆開按鍵」！
 		var is_holding = Input.is_action_pressed("attack")
-		if player.name.begins_with("Phantom"):
-			is_holding = false 
+		# 🌟 升級防護網：不是本體，強制放開按鍵
+		if not (player is Player):
+			is_holding = false
 		
 		# 使用 is_holding 取代原本的 Input.is_action_pressed("attack")
 		if is_holding:
@@ -742,6 +754,11 @@ func is_attack_finished() -> bool:
 
 		player.is_input_locked = false 
 		
+		# 🌟 升級防護網：本體才清理無敵時間
+		if combo_step == 20 and player is Player:
+			if player.invincible_timer.time_left == 0:
+				player.invincible_time_left = 0.0
+		
 		if combo_step in [61, 62]: 
 			air_attack_locked = true
 			
@@ -931,6 +948,7 @@ func _get_ground_distance() -> float:
 	return 1000.0 
 
 func _apply_charge_zoom(target_zoom: Vector2, duration: float = 0.2) -> void:
+	if not (player is Player): return
 	# 殘影不准控制鏡頭！
 	if player.name.begins_with("Phantom"): return
 	

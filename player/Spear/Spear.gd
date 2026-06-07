@@ -135,7 +135,8 @@ func start_light_attack() -> void:
 		
 		# 賦予極限轉向
 		var input_dir = Input.get_axis("move_left", "move_right")
-		if not is_zero_approx(input_dir) and not player.name.begins_with("Phantom"):
+		# 🌟 升級防護：本體才准在空中轉向
+		if not is_zero_approx(input_dir) and player is Player:
 			player.direction = 1 if input_dir > 0 else -1
 			
 		_play_air_step(combo_step)
@@ -186,7 +187,8 @@ func start_heavy_attack() -> void:
 	
 	# 極限轉向特權！
 	var input_dir = Input.get_axis("move_left", "move_right")
-	if input_dir != 0:
+	# 🌟 升級防護：只有本體可以讀取鍵盤並轉向
+	if input_dir != 0 and player is Player:
 		player.direction = 1 if input_dir > 0 else -1
 	
 	is_attacking = true
@@ -344,6 +346,10 @@ func get_current_velocity(delta: float) -> Vector2:
 	
 	var new_x = player.velocity.x
 	var new_y = player.velocity.y
+	
+	var is_holding = Input.is_action_pressed("attack")
+	if not (player is Player):
+		is_holding = false
 
 	if Input.is_action_pressed("attack"):
 		light_hold_timer += delta
@@ -357,15 +363,13 @@ func get_current_velocity(delta: float) -> Vector2:
 		# 只有滿 40 點，且確實長按超過 0.35 秒才允許觸發
 		if current_pozhen >= 40 and light_hold_timer >= 0.35:
 			
-			# 🌟 核心手感優化：拔除 50% 強制打斷，改為「只在可以連段的時刻」才允許派生！
 			if player.can_combo:
-				
-				# 🌟 派生瞬間極限轉向
+				# 🌟 派生瞬間極限轉向 (加上本體防護！)
 				var input_dir = Input.get_axis("move_left", "move_right")
-				if input_dir != 0:
+				if input_dir != 0 and player is Player:
 					player.direction = 1 if input_dir > 0 else -1
 				
-				current_pozhen -= 40 
+				current_pozhen -= 40
 				combo_step = 30 
 				light_hold_timer = 0.0
 				
@@ -545,9 +549,19 @@ func requires_sheath() -> bool:
 
 func gain_pozhen(amount: int) -> void:
 	if amount > 0:
+		# 🌟 終極路由器：透過 VIP 專線找到本體，並精準找出「長槍本尊」！
+		if not (player is Player):
+			var rp = player.get("real_player")
+			if is_instance_valid(rp):
+				# 利用同名特性 (self.name)，去玩家身上挖出真正的長槍，不管他現在拿什麼！
+				var real_spear = rp.find_child(self.name, true, false)
+				if is_instance_valid(real_spear) and real_spear.has_method("gain_pozhen"):
+					real_spear.gain_pozhen(amount)
+			return
+			
+		# 如果我是本體，就正常收下
 		current_pozhen = mini(current_pozhen + amount, MAX_POZHEN)
-		print("🟢 命中！獲得破陣值: ", amount, " | 目前破陣: ", current_pozhen, "/", MAX_POZHEN)
-		
+		print("🟢 命中！獲得破陣值: ", amount, " | 目前破陣: ", current_pozhen, "/", MAX_POZHEN)	
 # ==========================================
 # ⚙️ 內部實作與 Hitbox 屬性灌注
 # ==========================================
@@ -617,6 +631,8 @@ func _on_hitbox_hit(hurtbox: Node) -> void:
 		return
 
 	if _multi_hit_energy or not _has_granted_resources_this_step:
+		
+		# 🌟 只要呼叫這兩個，底層路由器與殘影專線就會自動幫你搞定跨實例快遞！
 		if _current_pozhen_reward > 0:
 			gain_pozhen(_current_pozhen_reward)
 			
@@ -779,7 +795,7 @@ func cancel_attack() -> void:
 # ==========================================
 func _apply_charge_zoom(target_zoom: Vector2, duration: float = 0.2) -> void:
 	# 殘影不准控制鏡頭！
-	if player.name.begins_with("Phantom"): return
+	if not (player is Player): return
 	
 	var camera = get_viewport().get_camera_2d()
 	if camera:
@@ -872,11 +888,12 @@ func spawn_boomerang() -> void:
 	boomerang.hitbox.hit.connect(func(hurtbox: Node):
 		if is_instance_valid(player) and is_instance_valid(hurtbox.owner) and hurtbox.owner == player: return
 		
-		# 如果迴旋鏢打到敵人，給予對應的破陣與能量
+		# 🌟 迴旋鏢打到敵人時，同樣無腦交給底層路由器處理！
 		if not b_state[0]:
 			gain_pozhen(w_pozhen)
 			if player.has_method("add_weapon_resource"):
 				player.add_weapon_resource(WEAPON_ID, w_energy, w_switch)
+				
 			b_state[0] = true
 	)
 	

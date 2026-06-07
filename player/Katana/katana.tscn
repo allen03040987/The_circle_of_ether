@@ -66,9 +66,9 @@ skill_1_icon = ExtResource("2_awpfg")
 skill_2_icon = ExtResource("4_jdmsc")
 skill_3_icon = ExtResource("5_x6d44")
 ult_icon = ExtResource("6_pdw6q")
-skill_1_cd = 2.0
-skill_2_cd = 2.0
-skill_3_cd = 2.0
+skill_1_cd = 1.0
+skill_2_cd = 1.0
+skill_3_cd = 1.0
 
 [node name="Hitbox" type="Area2D" parent="."]
 collision_layer = 0

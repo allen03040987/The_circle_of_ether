@@ -8355,7 +8355,7 @@ tracks/4/path = NodePath(".:can_combo")
 tracks/4/interp = 1
 tracks/4/loop_wrap = true
 tracks/4/keys = {
-"times": PackedFloat32Array(0, 0.65, 0.8),
+"times": PackedFloat32Array(0, 0.55, 0.8),
 "transitions": PackedFloat32Array(1, 1, 1),
 "update": 1,
 "values": [false, true, false]
@@ -8450,6 +8450,7 @@ tracks/10/keys = {
 
 [sub_resource type="Animation" id="Animation_so0ae"]
 resource_name = "c2_2"
+length = 0.6
 step = 0.01
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -8553,7 +8554,7 @@ tracks/8/path = NodePath(".")
 tracks/8/interp = 1
 tracks/8/loop_wrap = true
 tracks/8/keys = {
-"times": PackedFloat32Array(0.21, 0.32),
+"times": PackedFloat32Array(0.13, 0.32),
 "transitions": PackedFloat32Array(1, 1),
 "values": [{
 "args": ["CollisionShape2D"],
@@ -8570,7 +8571,7 @@ tracks/9/path = NodePath("Graphics/Sprite2D:frame")
 tracks/9/interp = 1
 tracks/9/loop_wrap = true
 tracks/9/keys = {
-"times": PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.2, 0.24, 0.28, 0.78, 0.85, 0.92),
+"times": PackedFloat32Array(0, 0.02, 0.07, 0.08, 0.13, 0.18, 0.22, 0.34, 0.41, 0.48),
 "transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
 "update": 1,
 "values": [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]

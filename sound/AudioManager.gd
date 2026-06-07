@@ -13,6 +13,7 @@ var hit_sfx_bank: Dictionary = {
 	"hit_4": preload("res://sound/SFX/hit/hit_4.wav"),
 	"hit_5": preload("res://sound/SFX/hit/hit_5.wav"),
 	"hit_6": preload("res://sound/SFX/hit/hit_6.wav"),
+	"hit_7": preload("res://sound/SFX/hit/hit_7.wav"),
 }
 
 # ==========================================
@@ -37,7 +38,7 @@ var action_sfx_bank: Dictionary = {
 	"hit_4": preload("res://sound/SFX/hit/hit_4.wav"),
 	"hit_5": preload("res://sound/SFX/hit/hit_5.wav"),
 	"hit_6": preload("res://sound/SFX/hit/hit_6.wav"),
-	
+	"hit_7": preload("res://sound/SFX/hit/hit_7.wav"),
 	
 	"ult": preload("res://sound/SFX/attack/uit.wav") ,
 	
@@ -45,7 +46,8 @@ var action_sfx_bank: Dictionary = {
 	"beam": preload("res://sound/SFX/attack/beam.wav") ,
 	"lightsaber": preload("res://sound/SFX/attack/lightsaber.wav") ,
 	"Energy Beam": preload("res://sound/SFX/attack/Energy Beam.wav") ,
-	
+	"Explosive bass": preload(	"res://sound/SFX/attack/Explosive bass.wav") ,
+
 	"Sheath": preload("res://sound/SFX/attack/Sheath.wav"), 
 
 	# ==========================================

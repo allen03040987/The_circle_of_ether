@@ -63,7 +63,7 @@ const SKILL_CONFIG = {
 		"type": Damage.Type.HEAVY, 
 		"base_dmg": 990, "energy": 5, "switch": 10, "charge_reward": 0, 
 		"max_hits": 1, "interval": 0.1, "sticky": true, "shake": 15.0,
-		"vfx_anim": "a2", "vfx_fly_dist": 0.0,"knockback": Vector2(0.0, 1000.0),
+		"vfx_anim": "c2_2", "vfx_fly_dist": 0.0,"knockback": Vector2(0.0, 1000.0),
 		"action_type": Weapon.ActionType.SKILL,"hit_sfx_type": "hit_6"
 	},
 	40: {
@@ -91,7 +91,8 @@ const SKILL_CONFIG = {
 		"laser_dmg": 1550,                                            
 		"laser_type": Damage.Type.HEAVY,             
 		"laser_knockback": Vector2(600.0, -500.0),   
-		"laser_shake": 70.0                                          
+		"laser_shake": 70.0 ,
+		"hit_sfx_type": "hit_7"                                        
 	},
 	81: {
 		"anim": "talisman/attack_ult_end", "hitbox_name": "None", 
@@ -495,7 +496,7 @@ func get_current_velocity(delta: float) -> Vector2:
 	# ==========================================
 	# 🌟 核心修復：殘影接管的旗標同步防呆 (Phantom State Sync)
 	# ==========================================
-	if player.name.begins_with("Phantom") and not _phantom_flags_synced:
+	if not (player is Player) and not _phantom_flags_synced:
 		_phantom_flags_synced = true
 		
 		# 根據殘影接管瞬間的動畫進度，補償（關閉）已經錯過的特效旗標！
@@ -560,7 +561,7 @@ func get_current_velocity(delta: float) -> Vector2:
 				_spawn_laser_projectile(SKILL_CONFIG[combo_step], angle)
 				
 		# 🌟 玩家無敵防護 (只有本體才需要無敵，殘影不需要)
-		if not player.name.begins_with("Phantom"):
+		if player is Player:
 			if anim_time >= 0.0 and anim_time <= 1.0:
 				player.invincible_time_left = max(player.invincible_time_left, 0.1) 
 			elif anim_time > 1.0 and anim_time < 1.1:
@@ -586,7 +587,7 @@ func get_current_velocity(delta: float) -> Vector2:
 			is_tower_spawned = true # 上鎖，避免每幀重複震動
 			
 			# 嚴格排除殘影，只讓玩家本體觸發震動
-			if not player.name.begins_with("Phantom"): 
+			if player is Player: 
 				if CombatManager.has_method("apply_camera_shake"):
 					# 給予 30.0 的強度，配合下砸的重磅打擊感！
 					CombatManager.apply_camera_shake(30.0, 0.15)
@@ -623,7 +624,7 @@ func get_current_velocity(delta: float) -> Vector2:
 			# ==========================================
 			# 💥 新增：發射瞬間的強烈鏡頭震動！(嚴格排除殘影)
 			# ==========================================
-			if not player.name.begins_with("Phantom"): 
+			if player is Player: 
 				if CombatManager.has_method("apply_camera_shake"): 
 					# 給予 40.0 的震動強度，匹配多管齊發的後座力！
 					CombatManager.apply_camera_shake(40.0) 
@@ -761,7 +762,7 @@ func get_current_velocity(delta: float) -> Vector2:
 			is_vfx_fired = true
 			_spawn_weapon_vfx(SKILL_CONFIG[combo_step])
 			
-			if not player.name.begins_with("Phantom"): 
+			if player is Player: 
 				if CombatManager.has_method("apply_camera_shake"): 
 					CombatManager.apply_camera_shake(40.0) 
 			
@@ -947,7 +948,7 @@ func is_attack_finished() -> bool:
 		# 真正的收招清理 (如果沒有要接力，才會執行到這裡)
 		# ==========================================
 		# 🌟 統一使用 begins_with 對齊太刀
-		if combo_step == 20 and not player.name.begins_with("Phantom"):
+		if combo_step == 20 and player is Player:
 			if player.invincible_timer.time_left == 0:
 				player.invincible_time_left = 0.0
 				
@@ -973,7 +974,7 @@ func cancel_attack() -> void:
 	if not player.is_on_floor() and combo_step == 60:
 		air_attack_locked = true
 	
-	if combo_step == 20 and is_attacking and not player.name.begins_with("Phantom"):
+	if combo_step == 20 and is_attacking and player is Player:
 		if player.invincible_timer.time_left == 0:
 			player.invincible_time_left = 0.0
 
@@ -1075,7 +1076,7 @@ func _spawn_laser_projectile(config: Dictionary, angle_offset: float) -> void:
 # 🎥 鏡頭特寫控制 (對接 CombatManager 仲裁系統)
 # ==========================================
 func _apply_charge_zoom(target_zoom: Vector2, duration: float = 0.2) -> void:
-	if player.name.begins_with("Phantom"): return
+	if not (player is Player): return
 	
 	var camera = get_viewport().get_camera_2d()
 	if camera:

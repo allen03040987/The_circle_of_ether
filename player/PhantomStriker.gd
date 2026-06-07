@@ -93,9 +93,14 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 				
 				# 🌟 核心修復：治好殘影的失憶症！把我們近期新增的變數全部補上！
 				"is_vfx_fired", "is_proj_fired",                # 符咒：防止重複發射的鎖
-				"current_talisman_charge",                      # 🌟 符咒：把靈符值也繼承過來！
+				"current_talisman_charge",                      # 符咒：把靈符值也繼承過來！
 				"skill_2_current_step", "skill_3_current_step", # 太刀：多段戰技進度
-				"skill_2_combo_timer", "skill_3_combo_timer"    # 太刀：多段戰技計時器
+				"skill_2_combo_timer", "skill_3_combo_timer",   # 太刀：多段戰技計時器
+				
+				# 🌟 終極修復：把解耦後被遺忘的「資源記憶體」全部交接給殘影！
+				"_current_energy_reward", "_current_switch_reward", 
+				"_current_pozhen_reward", "_current_iai_reward", "_current_charge_reward",
+				"_multi_hit_energy", "_has_granted_resources_this_step"
 			]
 			for prop in props_to_copy:
 				if prop in outgoing_weapon:
@@ -107,6 +112,10 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 				var hb_path = outgoing_weapon.get_path_to(orig_hb)
 				var cloned_hb = child.get_node(hb_path)
 				child.set("current_active_hitbox", cloned_hb)
+				
+				# 🌟 終極修復：把失聯的 hit 信號重新接上！確保打中怪會觸發 _on_hitbox_hit！
+				if cloned_hb.has_signal("hit") and child.has_method("_on_hitbox_hit"):
+					cloned_hb.hit.connect(child._on_hitbox_hit)
 				
 				if "hit_targets" in orig_hb and "hit_targets" in cloned_hb:
 					cloned_hb.hit_targets = orig_hb.hit_targets.duplicate()
