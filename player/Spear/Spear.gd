@@ -549,19 +549,20 @@ func requires_sheath() -> bool:
 
 func gain_pozhen(amount: int) -> void:
 	if amount > 0:
-		# 🌟 終極路由器：透過 VIP 專線找到本體，並精準找出「長槍本尊」！
 		if not (player is Player):
 			var rp = player.get("real_player")
 			if is_instance_valid(rp):
-				# 利用同名特性 (self.name)，去玩家身上挖出真正的長槍，不管他現在拿什麼！
-				var real_spear = rp.find_child(self.name, true, false)
-				if is_instance_valid(real_spear) and real_spear.has_method("gain_pozhen"):
-					real_spear.gain_pozhen(amount)
+				# 🌟 終極修復：直接讀取 Player 腳本裡的 weapon_slot 變數！
+				var slot = rp.get("weapon_slot")
+				if is_instance_valid(slot):
+					for w in slot.get_children():
+						if w.get("WEAPON_ID") == WEAPON_ID and w.has_method("gain_pozhen"):
+							w.gain_pozhen(amount)
+							return
 			return
 			
-		# 如果我是本體，就正常收下
 		current_pozhen = mini(current_pozhen + amount, MAX_POZHEN)
-		print("🟢 命中！獲得破陣值: ", amount, " | 目前破陣: ", current_pozhen, "/", MAX_POZHEN)	
+		print("🟢 命中！獲得破陣值: ", amount, " | 目前破陣: ", current_pozhen, "/", MAX_POZHEN)
 # ==========================================
 # ⚙️ 內部實作與 Hitbox 屬性灌注
 # ==========================================

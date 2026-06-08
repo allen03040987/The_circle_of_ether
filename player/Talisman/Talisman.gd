@@ -115,9 +115,20 @@ const MAX_TALISMAN_CHARGE: int = 50
 
 func gain_talisman_charge(amount: int) -> void:
 	if amount > 0:
+		if not (player is Player):
+			var rp = player.get("real_player")
+			if is_instance_valid(rp):
+				# 🌟 終極修復：直接讀取 Player 腳本裡的 weapon_slot 變數！
+				var slot = rp.get("weapon_slot")
+				if is_instance_valid(slot):
+					for w in slot.get_children():
+						if w.get("WEAPON_ID") == WEAPON_ID and w.has_method("gain_talisman_charge"):
+							w.gain_talisman_charge(amount)
+							return
+			return
+			
 		current_talisman_charge = mini(current_talisman_charge + amount, MAX_TALISMAN_CHARGE)
 		print("🟢 命中！獲得靈符值: ", amount, " | 目前靈符: ", current_talisman_charge, "/", MAX_TALISMAN_CHARGE)
-
 # ==========================================
 # 🎛️ 內部狀態變數
 # ==========================================

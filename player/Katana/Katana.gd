@@ -150,16 +150,21 @@ var skill_3_current_step: int = 20  # 紀錄「下砸」目前的段數 (20->21-
 # ==========================================
 func gain_iai(amount: int) -> void:
 	if amount > 0:
-		# 🌟 攔截點：殘影的居合值快遞專線
 		if not (player is Player):
 			var rp = player.get("real_player")
-			if rp and rp.get("current_weapon") and rp.current_weapon.has_method("gain_iai"):
-				rp.current_weapon.gain_iai(amount)
+			if is_instance_valid(rp):
+				# 🌟 終極修復：直接讀取 Player 腳本裡的 weapon_slot 變數，無視字串路徑！
+				var slot = rp.get("weapon_slot")
+				if is_instance_valid(slot):
+					for w in slot.get_children():
+						if w.get("WEAPON_ID") == WEAPON_ID and w.has_method("gain_iai"):
+							w.gain_iai(amount)
+							return
 			return
 			
 		current_iai = mini(current_iai + amount, MAX_IAI)
 		print("🟢 命中！獲得居合值: ", amount, " | 目前居合: ", current_iai, "/", MAX_IAI)
-
+		
 func consume_iai_for_charge() -> void:
 	current_iai = maxi(current_iai - 10, 0)
 	current_tsubame = mini(current_tsubame + 10, MAX_TSUBAME)
