@@ -473,7 +473,9 @@ func die() -> void:
 	invincible_timer.stop()
 	graphics.modulate.a = 1.0
 	is_perfect_dodging = false
-	Engine.time_scale = 1.0
+	
+	# 🌟 核心修復：透過正規管道解除時停，不要自己硬改 Engine，避免狀態殘留！
+	clear_time_stop()
 	
 	if has_node("CanvasLayer/GameOverScreen"):
 		$CanvasLayer/GameOverScreen.show_game_over()
@@ -683,18 +685,22 @@ var time_stop_left: float = 0.0
 var current_time_scale: float = 1.0
 
 func trigger_time_stop(real_duration: float, target_time_scale: float) -> void:
-	# 霸權判定：只允許更慢或更久的時停覆蓋當前狀態
+	# Player 這裡只負責倒數計時，修改 Engine 的工作交給仲裁者！
 	if target_time_scale < current_time_scale or real_duration > time_stop_left:
 		current_time_scale = target_time_scale
-		Engine.time_scale = target_time_scale
 		time_stop_left = real_duration 
+		
+		if CombatManager.has_method("set_domain_time"):
+			CombatManager.set_domain_time(target_time_scale)
 
 func clear_time_stop() -> void:
-	if Engine.time_scale != 1.0 or current_time_scale != 1.0:
-		Engine.time_scale = 1.0
+	if current_time_scale != 1.0 or time_stop_left > 0:
 		current_time_scale = 1.0
 		time_stop_left = 0.0
 		animation_player.speed_scale = 1.0
+		
+		if CombatManager.has_method("clear_domain_time"):
+			CombatManager.clear_domain_time()
 
 # ==========================================
 # 📊 合軸戰鬥資源中樞 

@@ -75,10 +75,6 @@ func _input(event: InputEvent) -> void:
 		if players.size() > 0:
 			var p = players[0]
 			
-			# 3. 領域展開 (時停/大招) 期間拒絕暫停！
-			if p.get("is_input_locked") == true:
-				print("🚫 [PauseMenu] 領域展開中，系統拒絕暫停！")
-				return 
 				
 			# 4. 玩家死掉 (Dying/Death) 時絕對不准暫停！(防止死亡畫面被暫停卡死)
 			if p.has_node("StateMachine") and p.state_machine.current_state:
@@ -112,28 +108,19 @@ func toggle_pause() -> void:
 	
 	_set_game_ui_visible(!new_pause_state)
 	
+	# 🌟 通知時間仲裁者：切換暫停狀態！
+	if CombatManager.has_method("set_ui_paused"):
+		CombatManager.set_ui_paused(new_pause_state)
+	
 	if new_pause_state:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		main_pause_ui.show()
 		settings_panel.hide()
 		if loadout_panel: loadout_panel.hide()
-		Engine.time_scale = 1.0 
 		
-		# 🌟 新增：暫停時，在 0.3 秒內將遊戲總音量降低（例如降到 -20 dB，留有一點模糊背景音）
-		# 如果希望完全靜音，可以把 -20.0 改成 -60.0
 		_fade_game_volume(-20.0, 0.3)
 	else:
-		var current_scale = 1.0
-		var players = get_tree().get_nodes_in_group("Player")
-		if players.size() > 0:
-			var p = players[0]
-			if p.get("current_time_scale") != null:
-				current_scale = p.current_time_scale
-		
-		Engine.time_scale = current_scale
 		hide_menu()
-		
-		# 🌟 新增：離開暫停時，在 0.3 秒內將音量平滑拉回正常！
 		_fade_game_volume(_normal_volume, 0.3)
 
 func _set_game_ui_visible(is_visible: bool) -> void:
@@ -151,6 +138,10 @@ func hide_menu() -> void:
 	get_tree().paused = false
 	visible = false
 	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN 
+	
+	# 🌟 確保關閉選單時，徹底解除 UI 時停鎖定！
+	if CombatManager.has_method("set_ui_paused"):
+		CombatManager.set_ui_paused(false)
 
 # 處理音量平滑漸變的工具函數
 func _fade_game_volume(target_db: float, duration: float) -> void:
@@ -276,6 +267,10 @@ func _on_quit_button_pressed() -> void:
 	hide()                             
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE 
 	
+	# 🌟 核心修復：退出場景前，強制格式化時間仲裁者！
+	if CombatManager.has_method("force_reset_time"):
+		CombatManager.force_reset_time()
+		
 	# 🌟 新增防護：退出前立刻把音量還原，並清空計時器
 	if _volume_tween: _volume_tween.kill()
 	AudioServer.set_bus_volume_db(_master_bus_idx, _normal_volume)

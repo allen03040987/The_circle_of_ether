@@ -4,10 +4,16 @@ extends Node
 ## 處理全域卡肉 (Hitstop)、螢幕震動 (Camera Shake) 及各類戰鬥特效與 UI 飄字的統一生成。
 
 # ==========================================
-# ⏱️ 頓幀與時停 (Hitstop)
+# ⏱️ 時間流速仲裁系統 (Time Scale Arbiter)
 # ==========================================
 var _hitstop_end_time: float = 0.0
 var _is_hitstopping: bool = false
+var _hitstop_scale: float = 1.0
+
+var _is_domain_active: bool = false
+var _domain_scale: float = 1.0
+
+var _is_ui_paused: bool = false
 
 # ==========================================
 # ⚙️ 初始化與設定同步
@@ -24,11 +30,11 @@ func _sync_settings() -> void:
 	# 將 CombatManager 內部的開關，對齊玩家設定檔
 	enable_screen_shake = Game.config_enable_screen_shake
 	
+# 1. 卡肉介面
 func apply_hitstop(duration: float, time_scale: float = 0.05) -> void:
 	var current_time = Time.get_ticks_msec() / 1000.0
 	var requested_end_time = current_time + duration
 	
-	# 處理多重卡肉請求：取最晚的結束時間
 	if _is_hitstopping:
 		if requested_end_time > _hitstop_end_time:
 			_hitstop_end_time = requested_end_time
@@ -36,8 +42,9 @@ func apply_hitstop(duration: float, time_scale: float = 0.05) -> void:
 	
 	_is_hitstopping = true
 	_hitstop_end_time = requested_end_time
-	Engine.time_scale = time_scale
+	_hitstop_scale = time_scale
 	
+	_update_time_scale()
 	_process_hitstop()
 
 func _process_hitstop() -> void:
@@ -47,23 +54,38 @@ func _process_hitstop() -> void:
 		
 		if current_time >= _hitstop_end_time:
 			_is_hitstopping = false
-			
-			var is_player_domain_active = false
-			var p = null
-			
-			var players = get_tree().get_nodes_in_group("Player")
-			if players.size() > 0:
-				p = players[0]
-			else:
-				p = get_tree().current_scene.find_child("Player*", true, false)
-				
-			# 霸權談判：若玩家正在開啟大招 (時停領域)，則交還時間控制權
-			if p and p.get("time_stop_left") != null and p.time_stop_left > 0:
-				is_player_domain_active = true
-				Engine.time_scale = p.current_time_scale 
-					
-			if not is_player_domain_active:
-				Engine.time_scale = 1.0
+			_update_time_scale()
+
+# ------------------------------------------
+# 2. 玩家大招領域介面
+func set_domain_time(scale: float) -> void:
+	_is_domain_active = true
+	_domain_scale = scale
+	_update_time_scale()
+
+func clear_domain_time() -> void:
+	_is_domain_active = false
+	_domain_scale = 1.0
+	_update_time_scale()
+
+# ------------------------------------------
+# 3. 暫停選單介面
+func set_ui_paused(is_paused: bool) -> void:
+	_is_ui_paused = is_paused
+	_update_time_scale()
+
+# ==========================================
+# 🌟 核心：最高權限仲裁者！所有時間變更必須經過這裡！
+# ==========================================
+func _update_time_scale() -> void:
+	if _is_ui_paused:
+		Engine.time_scale = 1.0            # 優先級 1：UI 暫停，確保底層流速正常
+	elif _is_domain_active:
+		Engine.time_scale = _domain_scale  # 優先級 2：大招領域 (0.001)，絕對不能被卡肉覆蓋！
+	elif _is_hitstopping:
+		Engine.time_scale = _hitstop_scale # 優先級 3：卡肉頓幀 (0.05)
+	else:
+		Engine.time_scale = 1.0            # 預設：正常流動
 
 # ==========================================
 # 📳 螢幕震動 (Camera Shake - 優先級保護版)
@@ -256,3 +278,14 @@ func _tween_camera_zoom(target_zoom: Vector2, duration: float) -> void:
 	_zoom_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
 	_zoom_tween.tween_property(camera, "zoom", target_zoom, duration)
 
+# ==========================================
+# 🚨 終極強制重置 (供切換場景、退出遊戲時呼叫)
+# ==========================================
+func force_reset_time() -> void:
+	_is_hitstopping = false
+	_is_domain_active = false
+	_is_ui_paused = false
+	_hitstop_scale = 1.0
+	_domain_scale = 1.0
+	Engine.time_scale = 1.0
+	print("🛑 [時間仲裁者] 已強制格式化！所有時停狀態歸零，時間流速恢復 1.0。")
