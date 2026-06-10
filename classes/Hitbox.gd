@@ -121,6 +121,8 @@ func _process(_delta: float) -> void:
 # ==========================================
 func _on_area_entered(area: Area2D) -> void:
 	_try_hit(area)
+	
+	
 
 func _try_hit(area: Area2D) -> void:
 	if not (area is CollisionObject2D and "hurt" in area): return

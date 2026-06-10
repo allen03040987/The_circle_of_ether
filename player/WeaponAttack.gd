@@ -22,20 +22,41 @@ func enter() -> void:
 	if player.scabbard:
 		player.scabbard.fade_out() 
 		
-	# 防呆：沒武器直接踢回 Idle
 	if not is_instance_valid(player.current_weapon):
 		state_machine.transition_to("Idle")
 		return
 		
-	# 🌟 新增：還原由閃避偏移（Dodge Offset）保留下來的武器連段段數
-	if player.has_meta("dodge_offset") and player.has_meta("saved_combo_step"):
-		if "combo_step" in player.current_weapon:
-			player.current_weapon.combo_step = player.get_meta("saved_combo_step")
-			print("🔥 [Dodge Offset] 成功接續連段！當前段數還原為：", player.current_weapon.combo_step)
+	# ==========================================
+	# 🌟 嚴格檢驗版：魔女時間專屬閃避偏移
+	# ==========================================
+	if player.has_meta("dodge_offset") and player.has_meta("saved_combo_step") and player.has_meta("dodge_combo_deadline"):
+		var current_time := Time.get_ticks_msec()
+		var deadline := player.get_meta("dodge_combo_deadline") as int
+		
+		# 檢查當前時間是否還在寬限期之內
+		if current_time <= deadline:
+			if "combo_step" in player.current_weapon:
+				var saved_step = player.get_meta("saved_combo_step")
+				player.current_weapon.combo_step = maxi(0, saved_step - 1)
+				print("🔄 [魔女偏移] 簽證有效！重新執行中斷的第 ", saved_step, " 段！")
+				
+				# 欺騙武器的超時機制
+				if "last_attack_time" in player.current_weapon:
+					player.current_weapon.last_attack_time = current_time / 1000.0
+		else:
+			print("⏳ [魔女偏移] 簽證已過期，連段記憶失效。")
+			
+		# 不論成功與否，進入攻擊後立刻撕毀簽證
 		player.remove_meta("dodge_offset")
 		player.remove_meta("saved_combo_step")
+		player.remove_meta("dodge_combo_deadline")
+	else:
+		# 🗑️ 防呆清理：如果根本沒拿到簽證(普通閃避)，就把垃圾清掉，保證從第 1 段開始
+		if player.has_meta("saved_combo_step"): player.remove_meta("saved_combo_step")
+		if player.has_meta("dodge_offset"): player.remove_meta("dodge_offset")
+		if player.has_meta("dodge_combo_deadline"): player.remove_meta("dodge_combo_deadline")
 		
-	# --- 嚴格輸入緩衝判定 ---
+	# --- 輸入緩衝與優先級發放維持原樣 ---
 	var wants_heavy = player.is_heavy_requested 
 	var wants_light = player.is_combo_requested
 	
@@ -47,15 +68,12 @@ func enter() -> void:
 
 	_update_facing()
 	
-	# --- 攻擊優先級派發 ---
-	# 👑 優先度 1：大招 (Ultimate)
 	if player.is_ult_requested:
 		player.is_ult_requested = false
 		if player.current_weapon.has_method("start_ultimate"):
 			player.current_weapon.start_ultimate()
 		return
 		
-	# ⚔️ 優先度 2：常規輕重擊
 	if wants_heavy:
 		player.current_weapon.start_heavy_attack()
 	elif wants_light:
@@ -118,14 +136,17 @@ func physics_update(delta: float) -> void:
 		if player.slide_request_timer.time_left > 0 and player.stats.energy >= 3:
 			if player.current_weapon.can_be_canceled_by_dodge():
 				
-				# 🌟 1. 啟用連段偏移標記 (讓本體閃避完可以接續下一刀)
-				player.set_meta("dodge_offset", true)
+				# 🌟 1. 僅保留段數記憶，不立刻給予「閃避偏移」特權！
+				if player.current_weapon.get("current_action_type") == Weapon.ActionType.NORMAL:
+					player.set_meta("saved_combo_step", player.current_weapon.combo_step)
+				else:
+					if player.has_meta("saved_combo_step"): player.remove_meta("saved_combo_step")
 				
-				# 🌟 2. 核心修正：呼叫真正的「代打殘影系統」！讓分身留在原地把這刀砍完！
+				# 🌟 2. 呼叫代打殘影
 				if player.has_method("spawn_phantom_striker"):
 					player.spawn_phantom_striker(player.current_weapon)
 					
-				# 🌟 3. (選擇性) 加上跟切換武器一樣的閃白光特效，讓閃避取消的打擊感更強烈
+				# 🌟 3. 閃避閃白光
 				if player.has_method("_flash_character"):
 					player._flash_character()
 				
@@ -161,9 +182,6 @@ func physics_update(delta: float) -> void:
 # ==========================================		
 func exit() -> void:
 	if is_instance_valid(player.current_weapon):
-		# 如果是因閃避而取消，先將武器當前的連段段數備份起來
-		if player.has_meta("dodge_offset") and "combo_step" in player.current_weapon:
-			player.set_meta("saved_combo_step", player.current_weapon.combo_step)
-			
+		# 這裡只負責讓武器收招，記憶邏輯已經移交給 physics_update 和 Slide 處理！
 		if player.current_weapon.get("is_attacking"):
 			player.current_weapon.cancel_attack()

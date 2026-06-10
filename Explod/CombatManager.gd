@@ -5,10 +5,7 @@ extends Node
 
 # ==========================================
 # ⏱️ 時間流速仲裁系統 (Time Scale Arbiter)
-# ==========================================
-var _hitstop_end_time: float = 0.0
-var _is_hitstopping: bool = false
-var _hitstop_scale: float = 1.0
+# =========================================
 
 var _is_domain_active: bool = false
 var _domain_scale: float = 1.0
@@ -29,32 +26,6 @@ func _ready() -> void:
 func _sync_settings() -> void:
 	# 將 CombatManager 內部的開關，對齊玩家設定檔
 	enable_screen_shake = Game.config_enable_screen_shake
-	
-# 1. 卡肉介面
-func apply_hitstop(duration: float, time_scale: float = 0.05) -> void:
-	var current_time = Time.get_ticks_msec() / 1000.0
-	var requested_end_time = current_time + duration
-	
-	if _is_hitstopping:
-		if requested_end_time > _hitstop_end_time:
-			_hitstop_end_time = requested_end_time
-		return
-	
-	_is_hitstopping = true
-	_hitstop_end_time = requested_end_time
-	_hitstop_scale = time_scale
-	
-	_update_time_scale()
-	_process_hitstop()
-
-func _process_hitstop() -> void:
-	while _is_hitstopping:
-		await get_tree().process_frame 
-		var current_time = Time.get_ticks_msec() / 1000.0
-		
-		if current_time >= _hitstop_end_time:
-			_is_hitstopping = false
-			_update_time_scale()
 
 # ------------------------------------------
 # 2. 玩家大招領域介面
@@ -81,9 +52,7 @@ func _update_time_scale() -> void:
 	if _is_ui_paused:
 		Engine.time_scale = 1.0            # 優先級 1：UI 暫停，確保底層流速正常
 	elif _is_domain_active:
-		Engine.time_scale = _domain_scale  # 優先級 2：大招領域 (0.001)，絕對不能被卡肉覆蓋！
-	elif _is_hitstopping:
-		Engine.time_scale = _hitstop_scale # 優先級 3：卡肉頓幀 (0.05)
+		Engine.time_scale = _domain_scale  # 優先級 2：大招領域 (0.001)
 	else:
 		Engine.time_scale = 1.0            # 預設：正常流動
 
@@ -275,6 +244,12 @@ func _tween_camera_zoom(target_zoom: Vector2, duration: float) -> void:
 	if _zoom_tween and _zoom_tween.is_valid() and not is_close_up_active:
 		_zoom_tween.kill()
 		
+	# 🌟 核心修復：如果時間是 0，代表是「瞬間切換」(如剛進入地圖時)
+	# 直接暴力設定相機的 zoom，絕對不要交給 Tween，避免產生 1 幀的延遲 BUG！
+	if duration <= 0.0:
+		camera.zoom = target_zoom
+		return
+		
 	_zoom_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
 	_zoom_tween.tween_property(camera, "zoom", target_zoom, duration)
 
@@ -282,10 +257,17 @@ func _tween_camera_zoom(target_zoom: Vector2, duration: float) -> void:
 # 🚨 終極強制重置 (供切換場景、退出遊戲時呼叫)
 # ==========================================
 func force_reset_time() -> void:
-	_is_hitstopping = false
+	# 1. 格式化時間流速
 	_is_domain_active = false
 	_is_ui_paused = false
-	_hitstop_scale = 1.0
 	_domain_scale = 1.0
 	Engine.time_scale = 1.0
-	print("🛑 [時間仲裁者] 已強制格式化！所有時停狀態歸零，時間流速恢復 1.0。")
+	
+	# 2. 格式化相機特寫與震動鎖！
+	is_close_up_active = false
+	if _zoom_tween and _zoom_tween.is_valid():
+		_zoom_tween.kill()
+	if _shake_tween and _shake_tween.is_valid():
+		_shake_tween.kill()
+		
+	print("🛑 [系統] 已強制格式化！所有時停、震動與相機特寫鎖定皆已徹底歸零。")

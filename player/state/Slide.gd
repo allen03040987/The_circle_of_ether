@@ -98,15 +98,15 @@ func physics_update(delta: float) -> void:
 			state_machine.transition_to("Fall")
 
 # ==========================================
-# 🚪 狀態生命週期：離開狀態
+# 🚪 狀態生命週期：離開狀態 (Slide.gd)
 # ==========================================
 func exit() -> void:
 	# 閃避結束時，強制煞車 (保留 50% 慣性)，讓手感更俐落
 	player.velocity.x *= 0.5
-	player.is_perfect_dodging = false
-
-	# 🌟 新增：如果閃避結束時玩家沒有按下攻擊（沒有預輸入連段），則清除連段偏移快取
-	if not player.is_combo_requested:
+	
+	# 🌟 修復：如果是一般閃避且沒按攻擊，清除連段記憶。
+	# 但如果是「魔女時間」，即使玩家閃避完暫時沒有按攻擊(回到Idle)，也幫他把「連段記憶」保留 0.5 秒！
+	if not player.is_combo_requested and not player.is_perfect_dodging:
 		player.remove_meta("dodge_offset")
 		player.remove_meta("saved_combo_step")
 
@@ -119,9 +119,17 @@ func trigger_perfect_dodge() -> void:
 	if Successfully_SFX:
 		AudioManager.play_sfx(Successfully_SFX,0.0, 1.0)
 		
-	# 1. 啟動魔女時間專屬標記與鎖定
 	has_perfect_dodged = true
 	is_locked = true 
+	
+	# ==========================================
+	# 🌟 賦予/刷新 魔女時間專屬特權 (Dodge Offset)
+	# ==========================================
+	# 如果玩家身上帶有剛剛被打斷的招式記憶，我們才給他特權！
+	if player.has_meta("saved_combo_step"):
+		player.set_meta("dodge_offset", true) # 蓋上簽證印章！
+		player.set_meta("dodge_combo_deadline", Time.get_ticks_msec() + 1500) # 給予/刷新 1.5 秒寬限期
+		print("✨ [魔女時間] 獲得連段保留簽證！寬限期刷新為 1.5 秒！")
 	
 	# 2. 改變動畫與速度
 	player.play_safe_anim("perfect_dodge") 
