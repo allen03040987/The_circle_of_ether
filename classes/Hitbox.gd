@@ -37,10 +37,9 @@ var hit_targets: Dictionary = {} # 記錄打到誰、次數、時間
 # ==========================================
 @export_group("打擊回饋")
 @export var hit_sfx_type: String = "" 
-@export var hitstop_duration: float = 0.0 
 @export var shake_intensity: float = 0.0  
 @export var shake_on_hit_only: bool = true 
-var _has_shaken_this_attack: bool = false 
+var _has_shaken_this_attack: bool = false
 
 @export_group("火花進階設定")
 @export var spark_type: SparkType = SparkType.SLASH
@@ -177,8 +176,6 @@ func _execute_hit(hurtbox: Node) -> void:
 	elif hurtbox.has_signal("hurt"): hurtbox.emit_signal("hurt", self) 
 	
 	# --- 視覺與打擊回饋 ---
-	if hitstop_duration > 0 and CombatManager.has_method("apply_hitstop"):
-		CombatManager.apply_hitstop(hitstop_duration)
 	if shake_intensity > 0 and CombatManager.has_method("apply_camera_shake"):
 		CombatManager.apply_camera_shake(shake_intensity)
 	if hit_sfx_type != "":

@@ -149,22 +149,16 @@ var skill_3_current_step: int = 20  # 紀錄「下砸」目前的段數 (20->21-
 # 🌀 5. 共鳴迴路邏輯 (Resonance Circuit)
 # ==========================================
 func gain_iai(amount: int) -> void:
-	if amount > 0:
-		if not (player is Player):
-			var rp = player.get("real_player")
-			if is_instance_valid(rp):
-				# 🌟 終極修復：直接讀取 Player 腳本裡的 weapon_slot 變數，無視字串路徑！
-				var slot = rp.get("weapon_slot")
-				if is_instance_valid(slot):
-					for w in slot.get_children():
-						if w.get("WEAPON_ID") == WEAPON_ID and w.has_method("gain_iai"):
-							w.gain_iai(amount)
-							return
-			return
-			
-		current_iai = mini(current_iai + amount, MAX_IAI)
-		print("🟢 命中！獲得居合值: ", amount, " | 目前居合: ", current_iai, "/", MAX_IAI)
+	if amount <= 0: return
+	
+	# 🌟 終極解耦：呼叫老爸的快遞專線！如果我是殘影，老爸會幫我轉交給本尊，我就直接下班！
+	if try_forward_resource("gain_iai", amount):
+		return
 		
+	# 如果我是本尊，就安心收下放入錢包
+	current_iai = mini(current_iai + amount, MAX_IAI)
+	print("🟢 命中！獲得居合值: ", amount, " | 目前居合: ", current_iai, "/", MAX_IAI)
+
 func consume_iai_for_charge() -> void:
 	current_iai = maxi(current_iai - 10, 0)
 	current_tsubame = mini(current_tsubame + 10, MAX_TSUBAME)
@@ -618,7 +612,10 @@ func get_current_velocity(delta: float) -> Vector2:
 		# [階段一] 0.08s 獲得純無敵保護
 		if anim_time >= 0.08 and not is_time_stop_triggered:
 			is_time_stop_triggered = true 
-			player.invincible_time_left = 2.0 
+			
+			# 🌟 核心防護：確認是玩家本尊才給無敵！殘影本身不會受傷，不需要加無敵！
+			if player is Player:
+				player.invincible_time_left = 2.0 
 			
 		# [階段一] 0.10s 鏡頭特寫
 		if anim_time >= 0.10 and _tsubame_zoom_phase == 0:
@@ -819,8 +816,10 @@ func cancel_attack() -> void:
 	if p_scabbard: p_scabbard.fade_in()
 		
 func requires_sheath() -> bool:
+	# 如果根本不在攻擊狀態(0)，當然不用收刀
 	if combo_step == 0:
 		return false
+	# 🌟 修復：如果目前的招式「不在」黑名單裡面，就代表需要收刀！
 	return combo_step not in no_sheath_steps
 	
 # ==========================================

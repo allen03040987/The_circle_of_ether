@@ -4,6 +4,9 @@ extends Node2D
 @onready var anim_player: AnimationPlayer = $AnimationPlayer 
 
 func _ready() -> void:
+	# 🌟 核心防護：讓整個特效節點及其子節點完全無視 Engine.time_scale！
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	
 	particles.emitting = false 
 	rotation_degrees = randf_range(0, 360) # 如果是 slash 記得改回 -15 到 15
 	
@@ -14,7 +17,8 @@ func _ready() -> void:
 			queue_free()
 		)
 	else:
-		get_tree().create_timer(1.0).timeout.connect(queue_free)
+		# 🌟 核心修復：使用 SceneTreeTimer 時，第 4 個參數必須設為 true (ignore_time_scale)
+		get_tree().create_timer(1.0, true, false, true).timeout.connect(queue_free)
 
 func trigger_particles() -> void:
 	particles.emitting = true

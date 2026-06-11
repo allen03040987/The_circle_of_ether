@@ -225,7 +225,7 @@ func start_intro_skill() -> void:
 	
 	_play_attack(SKILL_CONFIG[combo_step])
 	print("🌪️ [長槍] 變奏技能發動")
-	
+		
 func start_ultimate() -> void:
 	if player.has_method("consume_weapon_energy"):
 		player.consume_weapon_energy(WEAPON_ID, ult_energy_cost)
@@ -547,22 +547,20 @@ func requires_sheath() -> bool:
 	# 如果目前的招式「不在」黑名單裡面，就代表需要收刀！
 	return combo_step not in no_sheath_steps
 
+# ==========================================
+# 🌀 破陣迴路 (Po-Zhen System)
+# ==========================================
 func gain_pozhen(amount: int) -> void:
-	if amount > 0:
-		if not (player is Player):
-			var rp = player.get("real_player")
-			if is_instance_valid(rp):
-				# 🌟 終極修復：直接讀取 Player 腳本裡的 weapon_slot 變數！
-				var slot = rp.get("weapon_slot")
-				if is_instance_valid(slot):
-					for w in slot.get_children():
-						if w.get("WEAPON_ID") == WEAPON_ID and w.has_method("gain_pozhen"):
-							w.gain_pozhen(amount)
-							return
-			return
-			
-		current_pozhen = mini(current_pozhen + amount, MAX_POZHEN)
-		print("🟢 命中！獲得破陣值: ", amount, " | 目前破陣: ", current_pozhen, "/", MAX_POZHEN)
+	if amount <= 0: return
+	
+	# 🌟 終極解耦：呼叫老爸的快遞專線！如果我是殘影，老爸會幫我轉交給本尊，我就直接下班！
+	if try_forward_resource("gain_pozhen", amount):
+		return
+		
+	# 如果我是本尊，就安心收下放入錢包
+	current_pozhen = mini(current_pozhen + amount, MAX_POZHEN)
+	print("🟢 命中！獲得破陣值: ", amount, " | 目前破陣: ", current_pozhen, "/", MAX_POZHEN)
+	
 # ==========================================
 # ⚙️ 內部實作與 Hitbox 屬性灌注
 # ==========================================

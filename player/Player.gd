@@ -79,7 +79,6 @@ var heavy_buffer_time: float = 0.0
 const ATTACK_BUFFER_DURATION: float = 0.2 
 
 var is_counter_requested := false
-var counter_pickup_timer := 0.0 # 極限閃避後的反擊寬限期
 
 var is_perfect_dodging := false
 var pending_damage = null
@@ -217,8 +216,6 @@ func _process(delta: float) -> void:
 		if time_stop_left <= 0:
 			clear_time_stop()
 	
-	if counter_pickup_timer > 0:
-		counter_pickup_timer -= unscaled_delta
 		
 	if weapon_switch_cooldown_timer > 0:
 		weapon_switch_cooldown_timer -= unscaled_delta
@@ -474,7 +471,7 @@ func die() -> void:
 	graphics.modulate.a = 1.0
 	is_perfect_dodging = false
 	
-	# 🌟 核心修復：透過正規管道解除時停，不要自己硬改 Engine，避免狀態殘留！
+	# 🌟 透過正規管道解除時停，不要自己硬改 Engine
 	clear_time_stop()
 	
 	if has_node("CanvasLayer/GameOverScreen"):
@@ -626,11 +623,8 @@ func spawn_anim_vfx(
 	
 	var vfx = vfx_scene.instantiate()
 	
-	# 3. 處理時間流逝 (抗時停機制，讓特效不被大招變慢)
-	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-	if vfx.has_node("AnimationPlayer"): vfx.get_node("AnimationPlayer").speed_scale = speed_mult
-	if vfx is GPUParticles2D: vfx.speed_scale = speed_mult
-	elif vfx.has_node("GPUParticles2D"): vfx.get_node("GPUParticles2D").speed_scale = speed_mult
+	if CombatManager.has_method("_apply_anti_timestop"):
+		CombatManager._apply_anti_timestop(vfx)
 		
 	# 4.處理空間解綁與 Z-Index
 	if detach:
@@ -741,13 +735,17 @@ func consume_switch_value(weapon_id: String) -> bool:
 		weapon_resources[weapon_id]["switch"] = 0.0
 		return true
 	return false
-
-var assist_q_timer: float = 0.0
-var assist_e_timer: float = 0.0
-
-func _process_combat_timers(delta: float) -> void:
-	if assist_q_timer > 0: assist_q_timer -= delta
-	if assist_e_timer > 0: assist_e_timer -= delta
+	
+# ==========================================
+# 📡 跨實例武器專線路由器 (Weapon Router) 
+# ==========================================
+## 允許殘影或外部特效，直接呼叫背包裡對應武器的方法 (如 gain_pozhen, gain_iai)
+func route_weapon_method(target_weapon_id: String, method_name: String, amount: int) -> void:
+	for w in weapon_slot.get_children():
+		# 核對身分證 (WEAPON_ID) 並且確認它真的有這個功能
+		if w.get("WEAPON_ID") == target_weapon_id and w.has_method(method_name):
+			w.call(method_name, amount)
+			return
 	
 # ==========================================
 # 🔄 切換執行樞紐 (Swap Execution)

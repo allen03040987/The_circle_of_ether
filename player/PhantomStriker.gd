@@ -246,7 +246,6 @@ func die_gracefully() -> void:
 # ==========================================
 func spawn_anim_vfx(vfx_name: String, offset_x: float = 0.0, offset_y: float = 0.0, custom_scale: Vector2 = Vector2(1.0, 1.0), rotation_deg: float = 0.0, custom_color: Color = Color.WHITE, aura_color: Color = Color.WHITE, detach: bool = true, custom_z_index: int = 1, raw_intensity: float = 1.0) -> void:
 	
-	# 🚨 核心修復：如果是在初始化快進追趕期間被複刻呼叫的舊特效，直接安靜退出！
 	if _is_initializing: 
 		return 
 		
@@ -258,9 +257,12 @@ func spawn_anim_vfx(vfx_name: String, offset_x: float = 0.0, offset_y: float = 0
 	if vfx_scene == null: return
 
 	var vfx = vfx_scene.instantiate()
-	if vfx.has_node("AnimationPlayer"): vfx.get_node("AnimationPlayer").speed_scale = 1.0
-	if vfx is GPUParticles2D: vfx.speed_scale = 1.0
-	elif vfx.has_node("GPUParticles2D"): vfx.get_node("GPUParticles2D").speed_scale = 1.0
+	
+	# ==========================================
+	# 🌟 核心修復：殘影的特效也交給仲裁者統一發放特權！
+	# ==========================================
+	if CombatManager.has_method("_apply_anti_timestop"):
+		CombatManager._apply_anti_timestop(vfx)
 
 	if detach:
 		get_parent().add_child(vfx)

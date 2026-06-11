@@ -66,6 +66,8 @@ func move(speed: float, delta: float) -> void:
 	custom_move_and_slide()
 
 func custom_move_and_slide() -> void:
+	# 🌟 核心修復：徹底拔除敵人的抗時停特權！
+	# 敵人的位移、重力與摩擦力，就應該完美服從 Engine.time_scale 被凍結！
 	move_and_slide()
 
 func die() -> void:
@@ -76,7 +78,6 @@ func die() -> void:
 # ==========================================
 func _on_poise_broken(broken: bool) -> void:
 	if broken:
-		if CombatManager.has_method("apply_hitstop"): CombatManager.apply_hitstop(0.3)
 		if CombatManager.has_method("apply_camera_shake"): CombatManager.apply_camera_shake(15.0)
 		
 		if graphics: graphics.modulate = Color(2.0, 0.5, 0.5, 1.0)

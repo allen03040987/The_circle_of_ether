@@ -71,6 +71,28 @@ func get_dynamic_skill_icon(slot: int) -> Texture2D:
 	return null
 	
 # ==========================================
+# 📡 跨實例資源快遞路由
+# ==========================================
+## 供繼承的子武器呼叫。自動判斷是否為殘影，並將資源匯給本尊的同名函數。
+## 回傳 true 代表「我是殘影，已經幫你轉交了，你不用管」。
+## 回傳 false 代表「我是本尊，請你自己加數值」。
+func try_forward_resource(method_name: String, amount: int) -> bool:
+	# 如果玩家不是 Player 本尊 (代表我是殘影)
+	if not (player is Player):
+		var rp = player.get("real_player")
+		if is_instance_valid(rp):
+			var slot = rp.get("weapon_slot")
+			if is_instance_valid(slot):
+				for w in slot.get_children():
+					# 比對身分證，並呼叫對應的增加資源函數
+					if w.get("WEAPON_ID") == self.get("WEAPON_ID") and w.has_method(method_name):
+						w.call(method_name, amount)
+						return true # 成功轉交
+		return true # 就算找不到本尊，也回傳 true，防止殘影自己加數值
+		
+	return false # 我是本尊，請自己處理
+	
+# ==========================================
 # 🎬 總監 (WeaponAttackState) 呼叫標準介面
 # ==========================================
 

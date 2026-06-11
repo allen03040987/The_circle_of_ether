@@ -109,13 +109,16 @@ func play_bgm(stream: AudioStream, volume_db: float = 0.0) -> void:
 	_bgm_player.volume_db = _bgm_base_volume
 	_bgm_player.play()
 
-# 🌟 新增 fade_out_duration 參數：預設 1.0 秒漸出
 func stop_bgm(fade_out_duration: float = 1.0) -> void:
 	if not is_instance_valid(_bgm_player) or not _bgm_player.playing:
 		return
 		
 	if fade_out_duration > 0.0:
 		var tween = create_tween()
+		# 賦予漸出動畫「抗暫停」特權！
+		# 確保在轉場 (tree.paused = true) 或選單暫停時，音樂依然能平滑降落！
+		tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		
 		# 讓音量在指定時間內平滑降到 -60 dB (人類聽不見的音量)
 		tween.tween_property(_bgm_player, "volume_db", -60.0, fade_out_duration)
 		# 漸出完畢後真正停止播放

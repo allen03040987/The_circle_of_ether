@@ -26,37 +26,41 @@ func enter() -> void:
 		state_machine.transition_to("Idle")
 		return
 		
-	# ==========================================
-	# 🌟 嚴格檢驗版：魔女時間專屬閃避偏移
-	# ==========================================
-	if player.has_meta("dodge_offset") and player.has_meta("saved_combo_step") and player.has_meta("dodge_combo_deadline"):
+	# ------------------------------------------
+	# 🌟 簽證檢驗局：處理魔女時間專屬閃避偏移
+	# ------------------------------------------
+	var has_offset_visa = player.has_meta("dodge_offset") and player.has_meta("saved_combo_step") and player.has_meta("dodge_combo_deadline")
+	
+	if has_offset_visa:
 		var current_time := Time.get_ticks_msec()
 		var deadline := player.get_meta("dodge_combo_deadline") as int
 		
-		# 檢查當前時間是否還在寬限期之內
-		if current_time <= deadline:
-			if "combo_step" in player.current_weapon:
-				var saved_step = player.get_meta("saved_combo_step")
-				player.current_weapon.combo_step = maxi(0, saved_step - 1)
-				print("🔄 [魔女偏移] 簽證有效！重新執行中斷的第 ", saved_step, " 段！")
-				
-				# 欺騙武器的超時機制
-				if "last_attack_time" in player.current_weapon:
-					player.current_weapon.last_attack_time = current_time / 1000.0
+		# 【檢驗 1】是否還在 1.5 秒寬限期內？
+		if current_time <= deadline and "combo_step" in player.current_weapon:
+			var saved_step = player.get_meta("saved_combo_step")
+			player.current_weapon.combo_step = maxi(0, saved_step - 1)
+			print("🔄 [魔女偏移] 簽證有效！重新執行中斷的第 ", saved_step, " 段！")
+			
+			# 欺騙武器的超時機制
+			if "last_attack_time" in player.current_weapon:
+				player.current_weapon.last_attack_time = current_time / 1000.0
 		else:
 			print("⏳ [魔女偏移] 簽證已過期，連段記憶失效。")
 			
-		# 不論成功與否，進入攻擊後立刻撕毀簽證
+		# 【銷毀】不論成功與否，進入攻擊後立刻撕毀簽證
 		player.remove_meta("dodge_offset")
 		player.remove_meta("saved_combo_step")
 		player.remove_meta("dodge_combo_deadline")
+		
 	else:
-		# 🗑️ 防呆清理：如果根本沒拿到簽證(普通閃避)，就把垃圾清掉，保證從第 1 段開始
+		# 【防呆清理】如果根本沒拿到簽證(普通閃避)，就把垃圾清掉
 		if player.has_meta("saved_combo_step"): player.remove_meta("saved_combo_step")
 		if player.has_meta("dodge_offset"): player.remove_meta("dodge_offset")
 		if player.has_meta("dodge_combo_deadline"): player.remove_meta("dodge_combo_deadline")
 		
-	# --- 輸入緩衝與優先級發放維持原樣 ---
+	# ------------------------------------------
+	# 🎯 輸入緩衝與攻擊優先級發放
+	# ------------------------------------------
 	var wants_heavy = player.is_heavy_requested 
 	var wants_light = player.is_combo_requested
 	
@@ -68,12 +72,14 @@ func enter() -> void:
 
 	_update_facing()
 	
+	# [優先級 1]：大招 (Ultimate)
 	if player.is_ult_requested:
 		player.is_ult_requested = false
 		if player.current_weapon.has_method("start_ultimate"):
 			player.current_weapon.start_ultimate()
 		return
 		
+	# [優先級 2]：常規輕重擊
 	if wants_heavy:
 		player.current_weapon.start_heavy_attack()
 	elif wants_light:

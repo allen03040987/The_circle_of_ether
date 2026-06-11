@@ -1,16 +1,21 @@
 extends Node
 ## 全域戰鬥管理器 (Combat Manager)
 ## Autoload (Singleton) 單例。
-## 處理全域卡肉 (Hitstop)、螢幕震動 (Camera Shake) 及各類戰鬥特效與 UI 飄字的統一生成。
+## 處理螢幕震動 (Camera Shake)、時間仲裁 (Time Scale) 及特效統一生成。
 
 # ==========================================
 # ⏱️ 時間流速仲裁系統 (Time Scale Arbiter)
-# =========================================
-
+# ==========================================
 var _is_domain_active: bool = false
 var _domain_scale: float = 1.0
-
 var _is_ui_paused: bool = false
+
+# ==========================================
+# 📳 螢幕震動控制變數 (Camera Shake)
+# ==========================================
+var _shake_tween: Tween
+var enable_screen_shake: bool = true 
+var _shake_end_time: float = 0.0
 
 # ==========================================
 # ⚙️ 初始化與設定同步
@@ -55,13 +60,6 @@ func _update_time_scale() -> void:
 		Engine.time_scale = _domain_scale  # 優先級 2：大招領域 (0.001)
 	else:
 		Engine.time_scale = 1.0            # 預設：正常流動
-
-# ==========================================
-# 📳 螢幕震動 (Camera Shake - 優先級保護版)
-# ==========================================
-var _shake_tween: Tween
-var enable_screen_shake: bool = true 
-var _shake_end_time: float = 0.0 # 記錄當前震動何時結束
 
 func apply_camera_shake(intensity: float, duration: float = 0.06) -> void:
 	if not enable_screen_shake: return
@@ -127,6 +125,8 @@ func spawn_spark(type: int, spawn_position: Vector2, attacker_dir: int = 1, targ
 	if spark_scene:
 		var spark = spark_scene.instantiate()
 		
+		_apply_anti_timestop(spark)
+		
 		if is_instance_valid(target_node): target_node.add_child(spark)
 		else: get_tree().current_scene.add_child(spark)
 		
@@ -185,11 +185,36 @@ func spawn_dodge_spark(pos: Vector2) -> void:
 # 🛡️ 輔助：抗時停特效加速器 
 # ==========================================
 func _apply_anti_timestop(node: Node) -> void:
-	# 🌟 核心修復：不要再算數學了！
-	# 直接把節點的 Process Mode 設為 ALWAYS (永遠執行)。
-	# 這樣即使 Engine.time_scale 變成了 0.05，這個節點和它底下的動畫依然會以真實世界的時間 (1.0) 播放！
 	node.process_mode = Node.PROCESS_MODE_ALWAYS
+	# 🌟 核心：把特效加入群組，讓總機可以隨時找到它們並更新速度！
+	node.add_to_group("anti_timestop_vfx") 
 	
+	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+	if speed_mult > 1.0:
+		_apply_speed_scale_recursive(node, speed_mult)
+
+# 🌟 遞迴尋找火花底下的所有動畫與粒子，強制加速！
+func _apply_speed_scale_recursive(node: Node, mult: float) -> void:
+	if node is AnimationPlayer:
+		node.speed_scale = mult
+	elif node is GPUParticles2D or node is CPUParticles2D:
+		node.speed_scale = mult
+		
+	for child in node.get_children():
+		_apply_speed_scale_recursive(child, mult)
+
+# ==========================================
+# 🔄 總機後台輪詢 (確保所有特效即時抗時停)
+# ==========================================
+func _process(_delta: float) -> void:
+	# 即時計算當下的時停抵銷倍率
+	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+	
+	# 🌟 動態監控：無論何時觸發時停，場上所有的特效都會在下一幀立刻跟上速度！
+	for vfx_node in get_tree().get_nodes_in_group("anti_timestop_vfx"):
+		if is_instance_valid(vfx_node):
+			_apply_speed_scale_recursive(vfx_node, speed_mult)
+			
 # ==========================================
 # ⏱️ 動作遊戲專用計時器 (System Timers)
 # ==========================================
