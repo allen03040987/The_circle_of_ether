@@ -87,6 +87,9 @@ func change_scene(path: String, params := {}) -> void:
 	if is_transitioning: return
 	is_transitioning = true 
 	
+	if CombatManager.has_method("force_reset_time"):
+		CombatManager.force_reset_time()
+			
 	var tree := get_tree() 
 	tree.paused = true  
 	

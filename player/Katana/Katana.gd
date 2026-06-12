@@ -378,107 +378,79 @@ func get_current_velocity(delta: float) -> Vector2:
 	var new_x = player.velocity.x
 	var new_y = player.velocity.y
 
+	# ==========================================
+	# 🚨 終極防爆衝基底：統一套用 M平方 (M^2) 定律！
+	# ==========================================
+	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+	# 將所有摩擦力都乘上 speed_mult 的平方，完美抵銷衝刺速度的放大！
+	var base_friction = player.FLOOR_ACCELERATION * (speed_mult * speed_mult) * delta
+
 	# ----------------------------------------
 	# ⏳ 長按普攻轉蓄力 (Hold to Charge)
 	# ----------------------------------------
-	if combo_step in [1, 2, 3, 4, 61, 62]: # 拔除地面限制，並加入空戰連段
-		# 如果居合值根本不到 10，連計時都不用計，直接無視長按！
+	if combo_step in [1, 2, 3, 4, 61, 62]: 
 		if current_iai >= 10 and Input.is_action_pressed("attack"):
 			light_hold_timer += delta
-			
-			# 稍微縮短一點判定時間 (0.4 -> 0.35)，因為我們加了後搖判定防呆
 			if light_hold_timer >= 0.35:
-				
-				# 防呆機制！必須等普攻動畫播到後半段 (大於 50%) 才允許進入蓄力
 				var anim_len = player.animation_player.current_animation_length
 				var anim_pos = player.animation_player.current_animation_position
 				
 				if anim_len > 0.0 and (anim_pos / anim_len) >= 0.5:
 					if current_iai >= 10:
-						combo_step = 30 # 進入蓄力拔刀準備姿勢
+						combo_step = 30 
 						current_charge_timer = 0.0
 						current_charge_tier = 0
 						_play_skill_step(30)
 					else:
-						# 居合值不足 10，不准進入蓄力！直接重置計時器
 						light_hold_timer = 0.0
-				
 		else:
 			light_hold_timer = 0.0
 
 	# ----------------------------------------
 	# 🔋 蓄力結算 (Charge Resolution)
 	# ----------------------------------------
-	# ----------------------------------------
-	# 🔋 蓄力結算 (Charge Resolution)
-	# ----------------------------------------
 	if combo_step == 30:
-		# 蓄力期間允許微調面向
 		var move_dir := Input.get_axis("move_left", "move_right")
-		# 🌟 升級防護網：本體才准微調面向
 		if not is_zero_approx(move_dir) and player is Player:
 			player.direction = player.Direction.LEFT if move_dir < 0 else player.Direction.RIGHT
 			
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta * 2.0)
+		# 🌟 套用基準摩擦力
+		new_x = move_toward(new_x, 0.0, base_friction * 2.0)
 		
-		# 判斷是否為殘影。殘影視為「直接鬆開按鍵」！
 		var is_holding = Input.is_action_pressed("attack")
-		# 🌟 升級防護網：不是本體，強制放開按鍵
 		if not (player is Player):
 			is_holding = false
 		
-		# 使用 is_holding 取代原本的 Input.is_action_pressed("attack")
 		if is_holding:
 			current_charge_timer += delta
 			var new_tier = min(max_charge_tiers, floori(current_charge_timer / charge_time_per_tier))
 			
 			if new_tier > current_charge_tier:
-				# 🌟 同步修復：先檢查有沒有錢 (居合值)！
 				if current_iai >= 10:
 					current_charge_tier = new_tier
 					consume_iai_for_charge()
 					
-					# 🌟 有錢扣，才准播蓄力升階特效！
-					player.spawn_anim_vfx(
-						"Aggregation ring", 
-						0, -20,           
-						Vector2(1.5, 1.5), 
-						0,                 
-						Color.WHITE,      
-						Color.WHITE,     
-						false,             
-						2,                 
-						1.0                
-					)
-					
+					player.spawn_anim_vfx("Aggregation ring", 0, -20, Vector2(1.5, 1.5), 0, Color.WHITE, Color.WHITE, false, 2, 1.0)
 					if CombatManager.has_method("apply_camera_shake"):
 						CombatManager.apply_camera_shake(2.0 + current_charge_tier * 1.5)
 					_apply_charge_zoom(ZOOM_LEVELS[current_charge_tier])
-					
 				else:
-					# 🌟 沒錢了！強制鎖死計時器，不准升階也不給特效！
 					current_charge_timer = current_charge_tier * charge_time_per_tier
 					
 			if not player.animation_player.is_playing():
 				player.play_safe_anim("katana/attack_c0_charge_loop")
 		else:
-			# 鬆開按鍵 (或身為殘影)：結算並釋放
 			_apply_charge_zoom(ZOOM_LEVELS[0])
-			
-			# 如果蓄力未滿一階就提早鬆手，直接取消動作收刀，不發動攻擊！
 			if current_charge_tier == 0:
 				is_attacking = false
 				combo_step = 0
 				current_charge_timer = 0.0
 				light_hold_timer = 0.0
-				
-				player.is_input_locked = false # 🌟 核心修復 1：把這行補上去！確保提早放棄蓄力時會解鎖。
-				
+				player.is_input_locked = false 
 				var p_scabbard = player.get("scabbard")
-				if p_scabbard: 
-					p_scabbard.fade_in()
+				if p_scabbard: p_scabbard.fade_in()
 			else:
-				var release_step = 34 # 預設一階
+				var release_step = 34 
 				if current_charge_tier == 2: release_step = 32
 				elif current_charge_tier == 3: release_step = 33
 				_play_skill_step(release_step)
@@ -486,7 +458,6 @@ func get_current_velocity(delta: float) -> Vector2:
 	# ----------------------------------------
 	# 🚀 蓄力衝刺 (Thrust)
 	# ----------------------------------------
-	
 	elif combo_step in [32, 33, 34]:
 		var anim_time = player.animation_player.current_animation_position
 		if anim_time < 0.05:
@@ -496,8 +467,8 @@ func get_current_velocity(delta: float) -> Vector2:
 			elif combo_step == 33: speed_multiplier = 8.0
 			new_x = player.direction * (thrust_speed * speed_multiplier)
 		else: 
-			new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
-		
+			# 🌟 套用基準摩擦力
+			new_x = move_toward(new_x, 0.0, base_friction)
 		
 	# ----------------------------------------
 	# 🦅 挑飛與滯空 (Launch & Aerial Hold)
@@ -510,24 +481,21 @@ func get_current_velocity(delta: float) -> Vector2:
 			if launch_timer > 0: 
 				launch_timer -= delta
 				new_y = vertical_launch_speed
-				new_x = 0.0 # 取消水平動量，純粹上拋
+				new_x = 0.0 
 			else: 
 				new_x = 0.0
 				if new_y < 0:
-					# 到達最高點前減速，給予接招時間
 					new_y = move_toward(new_y, 0.0, player.default_gravity * 2.0 * delta)
 				else:
 					new_y += player.default_gravity * delta
 		else:
-			# 🌟 核心修復：補上起飛前的 0.2 秒前搖煞車！
-			new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+			# 🌟 套用基準摩擦力
+			new_x = move_toward(new_x, 0.0, base_friction)
 	
 	# ----------------------------------------
 	# 🌊 戰技下：三段式連斬與劍氣發射 (20, 21, 22)
 	# ----------------------------------------
 	elif combo_step in [20, 21, 22]: 
-		
-		# 第三段專屬：發射劍氣與震動
 		if combo_step == 22:
 			var anim_time = player.animation_player.current_animation_position
 			if anim_time >= 0.32 and not is_wave_fired:
@@ -535,101 +503,64 @@ func get_current_velocity(delta: float) -> Vector2:
 				if CombatManager.has_method("apply_camera_shake"): CombatManager.apply_camera_shake(20.0) 
 				spawn_sword_wave("skill_down")
 				
-		# 三段共用的物理減速與滯空邏輯
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+		# 🌟 套用基準摩擦力
+		new_x = move_toward(new_x, 0.0, base_friction)
 		if not player.is_on_floor(): 
 			new_y += (player.default_gravity * air_skill_gravity_rate) * delta
 
 	elif combo_step == 41: 
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * skill_neutral_friction_rate * delta)
+		# 🌟 套用基準摩擦力
+		new_x = move_toward(new_x, 0.0, base_friction * skill_neutral_friction_rate)
 	
 	# ----------------------------------------
-	# 🌟 變奏技能前搖 (90) - 全局時停、玩家特寫緩速與震動
+	# 🌟 變奏技能前搖 (90)
 	# ----------------------------------------
 	elif combo_step == 90:
-		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 2.0 * (speed_mult * speed_mult) * delta)
+		# 🌟 拔除原本手寫的 speed_mult，直接套用 base_friction
+		new_x = move_toward(new_x, 0.0, base_friction * 2.0)
 		
 		var anim_time = player.animation_player.current_animation_position
-		
-		# 🌟 攔截點：在 0.02 秒時觸發時停與慢動作
 		if anim_time >= 0.02 and not is_time_stop_triggered:
 			is_time_stop_triggered = true
-			
-			# 1. 觸發真實的「魔女時間」，讓世界與怪物完全定格 (流速 0.05，持續 0.8 秒)
-			if player.has_method("trigger_time_stop"):
-				player.trigger_time_stop(0.8, 0.05)
-				
-			# 2. 玩家自身也進入慢動作！
-			# 引擎流速 0.05 * 動畫倍率 4.0 = 實際視覺速度 0.2 倍速！(完美還原你最滿意的定格感)
+			if player.has_method("trigger_time_stop"): player.trigger_time_stop(0.8, 0.05)
 			player.animation_player.speed_scale = 4.0 
 			player.invincible_time_left = 1.5
-			
-			# ==========================================
-			# 🌟 新增：變奏入場逆時停特效與音效
-			# ==========================================
-			# 呼叫音效 (這裡暫時填 "wind"，你可以換成 action_sfx_bank 裡喜歡的標籤)
 			AudioManager.play_action_sfx("ult", -2.0)
+			player.spawn_anim_vfx("Aggregation ring", 0, -20, Vector2(2.5, 2.5), 0, Color(0.7, 1.5, 0.5, 1.0), Color.WHITE, false, 2, 1.0)
 			
-			# 呼叫特效 (因為在 trigger_time_stop 之後呼叫，它會自動抓取 0.05 的時停倍率並進行逆時停！)
-			player.spawn_anim_vfx(
-				"Aggregation ring", 
-				0, -20,           
-				Vector2(2.5, 2.5),
-				0,                 
-				Color(0.7, 1.5, 0.5, 1.0),      
-				Color.WHITE,     
-				false,             
-				2,                 
-				1.0                
-			)
-			
-		# 🎥 [鏡頭特寫]
 		if anim_time >= 0.02 and _tsubame_zoom_phase == 0:
 			_tsubame_zoom_phase = 1
-			# 推進特寫 (Tween 本身有抗時停，所以 0.2 是真實時間)
 			_apply_charge_zoom(Vector2(1.15, 1.15), 1.2)
 			
-			
-		# 💥 [追加：拔刀前的極致緊繃震動]
-		# 0.18 秒左右 (動畫接近結尾，突進前一刻) 給予震動
 		if anim_time >= 0.18 and _tsubame_zoom_phase == 1:
 			_tsubame_zoom_phase = 2
-			
 		
 	# ----------------------------------------
-	# 🦅 強化戰技 (42) - 燕返：二段式變身邏輯
+	# 🦅 強化戰技 (42) - 燕返
 	# ----------------------------------------
 	elif combo_step == 42: 
-		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 5.0 * (speed_mult * speed_mult) * delta)
+		# 🌟 拔除原本手寫的 speed_mult，直接套用 base_friction
+		new_x = move_toward(new_x, 0.0, base_friction * 5.0)
 		
 		if player.is_on_floor(): new_y = 0.0
 		else: new_y = player.default_gravity * air_skill_gravity_rate * delta 
 		
 		var anim_time = player.animation_player.current_animation_position
-		
-		# [階段一] 0.08s 獲得純無敵保護
 		if anim_time >= 0.08 and not is_time_stop_triggered:
 			is_time_stop_triggered = true 
-			
-			# 🌟 核心防護：確認是玩家本尊才給無敵！殘影本身不會受傷，不需要加無敵！
 			if player is Player:
 				player.invincible_time_left = 2.0 
 			
-		# [階段一] 0.10s 鏡頭特寫
 		if anim_time >= 0.10 and _tsubame_zoom_phase == 0:
 			_tsubame_zoom_phase = 1
 			_apply_charge_zoom(Vector2(0.75, 0.75), 1.6) 
 				
-		# 🌟 [階段二] 1.76s 終極拔刀！Hitbox 屬性瞬間重塑
 		if anim_time >= 1.76 and not is_wave_fired:
 			is_wave_fired = true 
 			if CombatManager.has_method("apply_camera_shake"):
 				CombatManager.apply_camera_shake(60.0) 
 				
 			if is_instance_valid(current_active_hitbox):
-				# 將 12 連斬黏著框改造為單發核彈框
 				current_active_hitbox.hit_targets.clear() 
 				current_active_hitbox.max_hits = 1        
 				current_active_hitbox.sticky_multi_hit = false 
@@ -640,46 +571,38 @@ func get_current_velocity(delta: float) -> Vector2:
 				
 			_is_hitbox_locked = false 
 			disable_hitbox() 
-			enable_hitbox("CollisionShape2D2") # 開啟大範圍判定框
+			enable_hitbox("CollisionShape2D2")
 			
 	# ----------------------------------------
-	# 🌌 大招 (80) - 全屏 20 連斬與動態運鏡
+	# 🌌 大招 (80) - 全屏 20 連斬
 	# ----------------------------------------
 	elif combo_step == 80: 
-		# 保留移動慣性 (抗時停補償)
-		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 5.0 * (speed_mult * speed_mult) * delta)
+		# 🌟 拔除原本手寫的 speed_mult，直接套用 base_friction
+		new_x = move_toward(new_x, 0.0, base_friction * 5.0)
 		new_y = 0.0 
 		
 		var anim_time = player.animation_player.current_animation_position
-		
-		# [領域展開] 0.05s 瞬間進入全屏時停與無敵
 		if anim_time >= 0.05 and not is_time_stop_triggered:
 			is_time_stop_triggered = true 
 			if player.has_method("trigger_time_stop"):
 				player.trigger_time_stop(3.0, 0.001) 
-			# 動畫反向加速維持原速
 			player.animation_player.speed_scale = 1.0 / 0.001 
 			player.invincible_time_left = 3.0
 			
-		# 🎥 [鏡頭 1] 0.05s 推進特寫
 		if anim_time >= 0.05 and _tsubame_zoom_phase == 0:
 			_tsubame_zoom_phase = 1
 			_apply_charge_zoom(Vector2(1.2, 1.2), 0.3) 
 			
-		# 🎥 [鏡頭 2] 0.70s 快速反向特寫 + 震動
 		if anim_time >= 0.70 and _tsubame_zoom_phase == 1:
 			_tsubame_zoom_phase = 2
 			if CombatManager.has_method("apply_camera_shake"):
 				CombatManager.apply_camera_shake(100.0, 0.07) 
 			_apply_charge_zoom(Vector2(0.85, 0.85), 0.1) 
 		
-		# 🎥 [鏡頭 3] 0.82s 拉遠展現全屏斬擊
 		if anim_time >= 0.82 and _tsubame_zoom_phase == 2:
 			_tsubame_zoom_phase = 3
 			_apply_charge_zoom(Vector2(0.65, 0.65), 1.8) 
 			
-		# 🎥 [鏡頭 4] 2.80s 結尾震動與恢復
 		if anim_time >= 2.80 and _tsubame_zoom_phase == 3:
 			_tsubame_zoom_phase = 4
 			if CombatManager.has_method("apply_camera_shake"):
@@ -687,13 +610,14 @@ func get_current_velocity(delta: float) -> Vector2:
 			_apply_charge_zoom(ZOOM_LEVELS[0], 0.2)
 
 	# ----------------------------------------
-	# 🪽 空戰慣性滑行
+	# 🪽 空戰與常規普攻
 	# ----------------------------------------
 	elif combo_step in [61, 62]:
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+		new_x = move_toward(new_x, 0.0, base_friction)
 
 	else:
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+		# 🌟 就是這裡原本少了 M 平方！現在統一補上了！
+		new_x = move_toward(new_x, 0.0, base_friction)
 
 	return Vector2(new_x, new_y)
 	

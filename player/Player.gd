@@ -484,6 +484,7 @@ func strike_impulse(strength: float) -> void:
 		print("🛡️ [防護網觸發] 受傷中，成功攔截動畫偷渡！")
 		return
 		
+		
 	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
 	velocity.x = direction * (strength * speed_mult)
 	

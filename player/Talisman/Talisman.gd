@@ -499,74 +499,59 @@ func get_current_velocity(delta: float) -> Vector2:
 	
 	var anim_time = player.animation_player.current_animation_position
 	
-	# ==========================================
-	# 🌟 核心修復：殘影接管的旗標同步防呆 (Phantom State Sync)
-	# ==========================================
 	if not (player is Player) and not _phantom_flags_synced:
 		_phantom_flags_synced = true
-		
-		# 根據殘影接管瞬間的動畫進度，補償（關閉）已經錯過的特效旗標！
 		if combo_step in [1, 2, 3, 4, 5, 20, 30] and anim_time >= 0.1:
 			is_vfx_fired = true
-		if combo_step == 50 and anim_time >= 0.7: # 🌟 順手修正：對齊 0.7 秒
+		if combo_step == 50 and anim_time >= 0.7:
 			is_vfx_fired = true
 		if combo_step == 20 and anim_time >= 1.15:
 			is_tower_spawned = true
 		if combo_step == 30 and anim_time >= 0.84:
 			is_tower_spawned = true
+
+	# ==========================================
+	# 🚨 終極防爆衝基底：統一套用 M平方定律
+	# ==========================================
+	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+	var base_friction = player.FLOOR_ACCELERATION * (speed_mult * speed_mult) * delta
 	
 	# ----------------------------------------
-	# 物理摩擦力分流 (對齊太刀與長槍)
+	# 物理摩擦力分流
 	# ----------------------------------------
 	if combo_step in [1, 2, 3, 4, 5]:
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+		new_x = move_toward(new_x, 0.0, base_friction)
 		
-		# 🌟 新增：針對強化普攻的空戰處理 (讓 4, 5 也有浮空感)
 		if not player.is_on_floor() and combo_step in [4, 5]:
 			if anim_time < 0.1:
-				new_y = air_thrust_force * 0.5 # 出招瞬間微幅上浮
+				new_y = air_thrust_force * 0.5 
 			else:
-				# 隨後套用緩降重力
 				new_y += (player.default_gravity * air_skill_gravity_rate) * delta
 				
 		if anim_time >= 0.1 and not is_vfx_fired:
 			is_vfx_fired = true
-			
 			_spawn_weapon_vfx(LIGHT_ATTACK_CONFIG[combo_step])
-				
 			if combo_step in [4, 5]:
 				var angles = []
-				
-				if combo_step == 4:
-					angles = [deg_to_rad(-10.0), 0.0, deg_to_rad(-20.0)]
-				elif combo_step == 5:
-					angles = [deg_to_rad(10.0), 0.0, deg_to_rad(20.0)]
-					
+				if combo_step == 4: angles = [deg_to_rad(-10.0), 0.0, deg_to_rad(-20.0)]
+				elif combo_step == 5: angles = [deg_to_rad(10.0), 0.0, deg_to_rad(20.0)]
 				for angle in angles:
 					_spawn_laser_projectile(LIGHT_ATTACK_CONFIG[combo_step], angle)
 				
 	elif combo_step == 20:
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+		new_x = move_toward(new_x, 0.0, base_friction)
 		
 		if anim_time >= 0.1 and not is_vfx_fired:
 			is_vfx_fired = true
-			_spawn_weapon_vfx(SKILL_CONFIG[combo_step]) # 🌟 拔除防護網，殘影必須發射特效！
+			_spawn_weapon_vfx(SKILL_CONFIG[combo_step]) 
 				
 		if anim_time >= 1.15 and not is_tower_spawned:
 			is_tower_spawned = true
-			
-			# 1. 鏡頭震動防護
-			
-			
-			# 2. 拔除防護網蓋塔
 			_spawn_healing_tower()
-			
-			
 			for i in range(9):
 				var angle = deg_to_rad(i * 40.0)
 				_spawn_laser_projectile(SKILL_CONFIG[combo_step], angle)
 				
-		# 🌟 玩家無敵防護 (只有本體才需要無敵，殘影不需要)
 		if player is Player:
 			if anim_time >= 0.0 and anim_time <= 1.0:
 				player.invincible_time_left = max(player.invincible_time_left, 0.1) 
@@ -574,200 +559,143 @@ func get_current_velocity(delta: float) -> Vector2:
 				if player.invincible_timer.time_left == 0:
 					player.invincible_time_left = 0.0
 					
-	# ==========================================
-	# 🌟 戰技上 (30) 與 二段派生 (31) 物理邏輯
-	# ==========================================
+	# ----------------------------------------
+	# 戰技上 (30) 與 二段派生 (31) 
+	# ----------------------------------------
 	elif combo_step in [30, 31]:
-		# 施法時的地面摩擦力
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
-		
-		# 在 0.1 秒時發射特效
+		new_x = move_toward(new_x, 0.0, base_friction)
 		if anim_time >= 0.1 and not is_vfx_fired:
 			is_vfx_fired = true
 			_spawn_weapon_vfx(SKILL_CONFIG[combo_step])
 		
-		# ==========================================
-		# 🌟 新增：31 號專屬的 0.4 秒下砸震動！
-		# ==========================================
 		if combo_step == 31 and anim_time >= 0.3 and not is_tower_spawned:
-			is_tower_spawned = true # 上鎖，避免每幀重複震動
-			
-			# 嚴格排除殘影，只讓玩家本體觸發震動
+			is_tower_spawned = true 
 			if player is Player: 
 				if CombatManager.has_method("apply_camera_shake"):
-					# 給予 30.0 的強度，配合下砸的重磅打擊感！
 					CombatManager.apply_camera_shake(30.0, 0.15)
 					
-	# ==========================================
-	# 🌟 戰技下退出 (40) 物理邏輯
-	# ==========================================
+	# ----------------------------------------
+	# 戰技下退出 (40) 
+	# ----------------------------------------
 	elif combo_step == 40:
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
-		
-		# 🌟 新增空戰緩降感
+		new_x = move_toward(new_x, 0.0, base_friction)
 		if not player.is_on_floor():
 			if anim_time < 0.1: new_y = air_thrust_force * 0.5
 			else: new_y += (player.default_gravity * air_skill_gravity_rate) * delta
 			
-	# ==========================================
-	# 🌟 戰技下進入 (50) 物理與動態激光連發邏輯
-	# ==========================================
+	# ----------------------------------------
+	# 戰技下進入 (50) 
+	# ----------------------------------------
 	elif combo_step == 50:
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
-		
-		# 🌟 新增空戰緩降感
+		new_x = move_toward(new_x, 0.0, base_friction)
 		if not player.is_on_floor():
 			if anim_time < 0.1: new_y = air_thrust_force * 0.5
 			else: new_y += (player.default_gravity * air_skill_gravity_rate) * delta
 		
-		# 在 0.7 秒時噴發激光
 		if anim_time >= 0.7 and not is_vfx_fired:
 			is_vfx_fired = true
-			
-			# 🌟 新增：讀取 50 號字典裡的 vfx_anim ("a4") 並噴發特效
 			_spawn_weapon_vfx(SKILL_CONFIG[combo_step])
-			
-			# ==========================================
-			# 💥 新增：發射瞬間的強烈鏡頭震動！(嚴格排除殘影)
-			# ==========================================
 			if player is Player: 
 				if CombatManager.has_method("apply_camera_shake"): 
-					# 給予 40.0 的震動強度，匹配多管齊發的後座力！
 					CombatManager.apply_camera_shake(40.0) 
 			
-			# 🌟 動態計算激光數量 (因為 PhantomStriker 已經幫我們複製了，這裡直接讀取就行！)
 			var num_lasers = clamp(int(current_talisman_charge / 10), 1, 5)
 			var angles = []
-			
 			match num_lasers:
 				1: angles = [0.0]
 				2: angles = [deg_to_rad(-10.0), deg_to_rad(10.0)]
 				3: angles = [deg_to_rad(-15.0), 0.0, deg_to_rad(15.0)]
 				4: angles = [deg_to_rad(-20.0), deg_to_rad(-7.0), deg_to_rad(7.0), deg_to_rad(20.0)]
 				5: angles = [deg_to_rad(-20.0), deg_to_rad(-10.0), 0.0, deg_to_rad(10.0), deg_to_rad(20.0)]
-				
-			print("🌟 [戰技下] 根據靈符值 ", current_talisman_charge, "，發射了 ", num_lasers, " 條激光！")
-				
 			for angle in angles:
 				_spawn_laser_projectile(SKILL_CONFIG[combo_step], angle)
 		
-	# ==========================================
-	# 🌟 常態空中普攻 (60) 物理與滯空激光邏輯 (對齊太刀浮空感)
-	# ==========================================
+	# ----------------------------------------
+	# 常態空中普攻 (60)
+	# ----------------------------------------
 	elif combo_step == 60:
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
-		
-		# 🌟 賦予太刀般的浮空感
+		new_x = move_toward(new_x, 0.0, base_friction)
 		if anim_time < 0.1:
-			new_y = air_thrust_force # 拔槍瞬間上浮
+			new_y = air_thrust_force 
 		else:
-			new_y += (player.default_gravity * air_skill_gravity_rate) * delta # 之後緩緩落下
+			new_y += (player.default_gravity * air_skill_gravity_rate) * delta 
 			
 		if anim_time >= 0.1 and not is_vfx_fired:
 			is_vfx_fired = true
 			_spawn_weapon_vfx(LIGHT_ATTACK_CONFIG[combo_step])
 			_spawn_laser_projectile(LIGHT_ATTACK_CONFIG[combo_step], 0.0)
 	
-	# ==========================================
-	# 🌌 大招 (80) - 4 連擊與時停巨砲特寫
-	# ==========================================
+	# ----------------------------------------
+	# 大招 (80)
+	# ----------------------------------------
 	elif combo_step == 80:
-		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 5.0 * (speed_mult * speed_mult) * delta)
+		new_x = move_toward(new_x, 0.0, base_friction * 5.0)
 		new_y = 0.0 
 		
-		# [領域展開] 0.05 秒：進入時停與無敵
 		if anim_time >= 0.05 and not is_time_stop_triggered:
 			is_time_stop_triggered = true 
 			if player.has_method("trigger_time_stop"):
 				player.trigger_time_stop(3.0, 0.001) 
 			player.animation_player.speed_scale = 1.0 / 0.001 
 			
-		# 🎥 [鏡頭 1] 0.05 秒：瞬間極致特寫 (花 0.1 秒極速推近)
 		if anim_time >= 0.05 and _tsubame_zoom_phase == 0:
 			_tsubame_zoom_phase = 1
 			_apply_charge_zoom(Vector2(1.2, 1.2), 0.1) 
 		
-		# ✨ [聚能] 0.1 秒：聚能特效演出
 		if anim_time >= 0.1 and not is_vfx_fired:
 			is_vfx_fired = true
 			_spawn_weapon_vfx({"vfx_anim": "ult"})
 			
-		# 🎥 [鏡頭 2] 0.15 秒：開始緩緩拉回正常視野 (歷時 1.55 秒，剛好在 1.7 秒時到達正常)
 		if anim_time >= 0.15 and _tsubame_zoom_phase == 1:
 			_tsubame_zoom_phase = 2
 			_apply_charge_zoom(ZOOM_LEVELS[0], 1.55)
 			
-		# 💥 [爆發] 1.82 秒：解除時停、發射巨砲！
 		if anim_time >= 1.82 and not is_tower_spawned:
-			is_tower_spawned = true # 鎖死，避免重複發射
-			
-			# 🌟 核心：強制打破時停，並將玩家自身的動畫倍率恢復正常！
+			is_tower_spawned = true 
 			if player.has_method("clear_time_stop"):
 				player.clear_time_stop()
 			player.animation_player.speed_scale = 1.0 
-			
-			# 追加激光噴發瞬間的 A6 爆發特效
 			_spawn_weapon_vfx({"vfx_anim": "a6"})
-			
-			# 正式向前方轟出巨型雷射！
 			_spawn_laser_projectile(SKILL_CONFIG[combo_step], 0.0)
 
-		# 🌋 [後座力] 1.83 秒：慢一幀的極致狂暴震動！
 		if anim_time >= 1.83 and _tsubame_zoom_phase == 2:
 			_tsubame_zoom_phase = 3
 			if CombatManager.has_method("apply_camera_shake"):
-				# 使用 100.0 的狂暴震動，匹配巨砲後座力
 				CombatManager.apply_camera_shake(70.0, 0.2)
 	
-	# ==========================================
-	# 🌟 大招後搖 (81) - 物理摩擦力減速
-	# ==========================================
+	# ----------------------------------------
+	# 大招後搖 (81)
+	# ----------------------------------------
 	elif combo_step == 81:
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+		new_x = move_toward(new_x, 0.0, base_friction)
 
-	
-	# ==========================================
-	# 🌟 變奏技能 (90) - 時停入場與 50 號雷射噴發
-	# ==========================================
+	# ----------------------------------------
+	# 變奏技能 (90)
+	# ----------------------------------------
 	elif combo_step == 90:
-		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 2.0 * (speed_mult * speed_mult) * delta)
+		new_x = move_toward(new_x, 0.0, base_friction * 2.0)
 		
-		# 空戰緩降感 (完美支援空中切人變奏！)
 		if not player.is_on_floor():
 			if anim_time < 0.1: new_y = air_thrust_force * 0.5
 			else: new_y += (player.default_gravity * air_skill_gravity_rate) * delta
 			
-		# 🌟 0.02s 觸發魔女時間與逆時停特效
 		if anim_time >= 0.02 and not is_time_stop_triggered:
 			is_time_stop_triggered = true
-			
 			if player.has_method("trigger_time_stop"):
 				player.trigger_time_stop(0.8, 0.05)
-				
 			player.animation_player.speed_scale = 4.0 
 			player.invincible_time_left = 2.0
-			
-			# ==========================================
-			# 🌟 新增：變奏入場逆時停特效與音效
-			# ==========================================
-			# 呼叫音效 (這裡暫時填 "wind"，你可以換成 action_sfx_bank 裡喜歡的標籤)
 			AudioManager.play_action_sfx("ult", -2.0)
-			
 			if player.has_method("spawn_anim_vfx"):
 				player.spawn_anim_vfx("Aggregation ring", 0, -20, Vector2(2.5, 2.5), 0, Color(0.8, 0.3, 1.0, 1.0), Color(0.0, 0.5, 1.0, 1.0), false, 2, 1.0)
 				
-		# 🎥 鏡頭推進特寫
 		if anim_time >= 0.02 and _tsubame_zoom_phase == 0:
 			_tsubame_zoom_phase = 1
 			_apply_charge_zoom(Vector2(1.15, 1.15), 1.2)
 			
-		# 🌟 0.7 秒：同 50 號招式噴發激光與震動！
 		if anim_time >= 0.7 and not is_vfx_fired:
 			is_vfx_fired = true
 			_spawn_weapon_vfx(SKILL_CONFIG[combo_step])
-			
 			if player is Player: 
 				if CombatManager.has_method("apply_camera_shake"): 
 					CombatManager.apply_camera_shake(40.0) 
@@ -780,8 +708,6 @@ func get_current_velocity(delta: float) -> Vector2:
 				3: angles = [deg_to_rad(-15.0), 0.0, deg_to_rad(15.0)]
 				4: angles = [deg_to_rad(-20.0), deg_to_rad(-7.0), deg_to_rad(7.0), deg_to_rad(20.0)]
 				5: angles = [deg_to_rad(-30.0), deg_to_rad(-15.0), 0.0, deg_to_rad(15.0), deg_to_rad(30.0)]
-				
-			print("🌟 [變奏出場] 根據靈符值 ", current_talisman_charge, "，發射了 ", num_lasers, " 條激光！")
 			for angle in angles:
 				_spawn_laser_projectile(SKILL_CONFIG[combo_step], angle)
 				

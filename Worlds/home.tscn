@@ -32,7 +32,7 @@ layer_2/name = "Foreground"
 layer_2/tile_data = PackedInt32Array()
 
 [node name="MineGate" parent="TileMap" instance=ExtResource("4_5h4vu")]
-position = Vector2(1298, 132)
+position = Vector2(1312, 136)
 path = "res://Worlds/cave.tscn"
 entry_point = "EntryPoint2"
 
@@ -42,10 +42,10 @@ script = ExtResource("5_wb7c7")
 direction = -1
 
 [node name="SaveStone" parent="TileMap" instance=ExtResource("6_wcl05")]
-position = Vector2(704, 224)
+position = Vector2(560, 224)
 
 [node name="Player" parent="." instance=ExtResource("7_mjb3c")]
-position = Vector2(408, 160)
+position = Vector2(400, 160)
 
 [node name="Camera2D" type="Camera2D" parent="Player"]
 position = Vector2(10, -23)

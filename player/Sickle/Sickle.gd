@@ -341,6 +341,12 @@ func get_current_velocity(delta: float) -> Vector2:
 	var new_x = player.velocity.x
 	var new_y = player.velocity.y
 
+	# ==========================================
+	# 🚨 終極防爆衝基底：統一套用 M平方定律
+	# ==========================================
+	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+	var base_friction = player.FLOOR_ACCELERATION * (speed_mult * speed_mult) * delta
+
 	if combo_step in [1, 2, 3, 4, 61, 62]: 
 		if current_chain_link >= 10 and Input.is_action_pressed("attack"):
 			light_hold_timer += delta
@@ -364,7 +370,7 @@ func get_current_velocity(delta: float) -> Vector2:
 		if not is_zero_approx(move_dir) and player is Player:
 			player.direction = player.Direction.LEFT if move_dir < 0 else player.Direction.RIGHT
 			
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta * 2.0)
+		new_x = move_toward(new_x, 0.0, base_friction * 2.0)
 		
 		var is_holding = Input.is_action_pressed("attack")
 		if not (player is Player):
@@ -378,7 +384,6 @@ func get_current_velocity(delta: float) -> Vector2:
 				if current_chain_link >= 10:
 					current_charge_tier = new_tier
 					consume_chain_link(10)
-					
 					player.spawn_anim_vfx("Aggregation ring", 0, -20, Vector2(1.5, 1.5), 0, Color.WHITE, Color.WHITE, false, 2, 1.0)
 					if CombatManager.has_method("apply_camera_shake"):
 						CombatManager.apply_camera_shake(2.0 + current_charge_tier * 1.5)
@@ -414,7 +419,7 @@ func get_current_velocity(delta: float) -> Vector2:
 			elif combo_step == 33: speed_multiplier = 8.0
 			new_x = player.direction * (thrust_speed * speed_multiplier)
 		else: 
-			new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+			new_x = move_toward(new_x, 0.0, base_friction)
 		
 	elif combo_step == 12:
 		if player.animation_player.current_animation_position >= launch_start_time and not is_launch_triggered:
@@ -432,7 +437,7 @@ func get_current_velocity(delta: float) -> Vector2:
 				else:
 					new_y += player.default_gravity * delta
 		else:
-			new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+			new_x = move_toward(new_x, 0.0, base_friction)
 	
 	elif combo_step in [20, 21, 22]: 
 		if combo_step == 22:
@@ -442,16 +447,15 @@ func get_current_velocity(delta: float) -> Vector2:
 				if CombatManager.has_method("apply_camera_shake"): CombatManager.apply_camera_shake(20.0) 
 				spawn_sword_wave("skill_down")
 				
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+		new_x = move_toward(new_x, 0.0, base_friction)
 		if not player.is_on_floor(): 
 			new_y += (player.default_gravity * air_skill_gravity_rate) * delta
 
 	elif combo_step == 41: 
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * skill_neutral_friction_rate * delta)
+		new_x = move_toward(new_x, 0.0, base_friction * skill_neutral_friction_rate)
 	
 	elif combo_step == 90:
-		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 2.0 * (speed_mult * speed_mult) * delta)
+		new_x = move_toward(new_x, 0.0, base_friction * 2.0)
 		
 		var anim_time = player.animation_player.current_animation_position
 		if anim_time >= 0.02 and not is_time_stop_triggered:
@@ -470,14 +474,12 @@ func get_current_velocity(delta: float) -> Vector2:
 			_tsubame_zoom_phase = 2
 			
 	elif combo_step == 42: 
-		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 5.0 * (speed_mult * speed_mult) * delta)
+		new_x = move_toward(new_x, 0.0, base_friction * 5.0)
 		
 		if player.is_on_floor(): new_y = 0.0
 		else: new_y = player.default_gravity * air_skill_gravity_rate * delta 
 		
 		var anim_time = player.animation_player.current_animation_position
-		
 		if anim_time >= 0.08 and not is_time_stop_triggered:
 			is_time_stop_triggered = true 
 			if player is Player:
@@ -506,12 +508,10 @@ func get_current_velocity(delta: float) -> Vector2:
 			enable_hitbox("CollisionShape2D2")
 			
 	elif combo_step == 80: 
-		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 5.0 * (speed_mult * speed_mult) * delta)
+		new_x = move_toward(new_x, 0.0, base_friction * 5.0)
 		new_y = 0.0 
 		
 		var anim_time = player.animation_player.current_animation_position
-		
 		if anim_time >= 0.05 and not is_time_stop_triggered:
 			is_time_stop_triggered = true 
 			if player.has_method("trigger_time_stop"):
@@ -540,10 +540,10 @@ func get_current_velocity(delta: float) -> Vector2:
 			_apply_charge_zoom(ZOOM_LEVELS[0], 0.2)
 
 	elif combo_step in [61, 62]:
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+		new_x = move_toward(new_x, 0.0, base_friction)
 
 	else:
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+		new_x = move_toward(new_x, 0.0, base_friction)
 
 	return Vector2(new_x, new_y)
 	

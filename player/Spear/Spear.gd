@@ -355,16 +355,19 @@ func get_current_velocity(delta: float) -> Vector2:
 		light_hold_timer += delta
 	else:
 		light_hold_timer = 0.0
+
+	# ==========================================
+	# 🚨 終極防爆衝基底：統一套用 M平方定律
+	# ==========================================
+	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+	var base_friction = player.FLOOR_ACCELERATION * (speed_mult * speed_mult) * delta
 	
 	# ----------------------------------------
-	# ⏳ 長按普攻轉強化普攻 (Hold to Enhanced Attack)
+	# ⏳ 長按普攻轉強化普攻
 	# ----------------------------------------
 	if combo_step in [1, 2, 3, 4, 61, 62]:
-		# 只有滿 40 點，且確實長按超過 0.35 秒才允許觸發
 		if current_pozhen >= 40 and light_hold_timer >= 0.35:
-			
 			if player.can_combo:
-				# 🌟 派生瞬間極限轉向 (加上本體防護！)
 				var input_dir = Input.get_axis("move_left", "move_right")
 				if input_dir != 0 and player is Player:
 					player.direction = 1 if input_dir > 0 else -1
@@ -373,33 +376,27 @@ func get_current_velocity(delta: float) -> Vector2:
 				combo_step = 30 
 				light_hold_timer = 0.0
 				
-				# 🌟 核心防護：如果是在空中發動強普，立刻沒收空戰特權！不給任何偷渡機會！
 				if not player.is_on_floor():
 					air_attack_locked = true
 					
 				_play_attack(SKILL_CONFIG[30])
-				print("🔥 消耗 40 點破陣值，轉向並發動強化普攻！")
 
 	# --- 摩擦力減速邏輯 ---
 	if combo_step in [1, 2, 3, 4, 21, 30]:
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+		new_x = move_toward(new_x, 0.0, base_friction)
 		
 	# 🌟 空戰慣性滑行與微浮空
 	elif combo_step in [61, 62]:
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+		new_x = move_toward(new_x, 0.0, base_friction)
 		
-		# 🌟 針對 61 加入專屬微浮空邏輯
 		if combo_step == 61 and not player.is_on_floor():
-			# 瞬間煞車：消除高速下墜慣性
 			if new_y > 0:
 				new_y = 0.0
-			# 套用 15% 微重力
 			new_y += (player.default_gravity * 0.6) * delta
-			# 限制最大緩降速度
 			if new_y > 50.0:
 				new_y = 50.0
 				
-	# 22挑飛與滯空 (Launch & Aerial Hold)
+	# 22挑飛與滯空
 	elif combo_step == 22:
 		if player.animation_player.current_animation_position >= launch_start_time and not is_launch_triggered:
 			is_launch_triggered = true
@@ -409,91 +406,60 @@ func get_current_velocity(delta: float) -> Vector2:
 			if launch_timer > 0: 
 				launch_timer -= delta
 				new_y = vertical_launch_speed
-				new_x = 0.0 # 取消水平動量，純粹上拋
+				new_x = 0.0 
 			else: 
 				new_x = 0.0
 				if new_y < 0:
-					# 到達最高點前減速，給予接招時間
 					new_y = move_toward(new_y, 0.0, player.default_gravity * 2.0 * delta)
 				else:
 					new_y += player.default_gravity * delta
 		else:
-			# 🌟 核心修復：這就是那缺失的 0.5 秒前搖！在還沒起飛前，必須用力踩煞車！
-			new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+			new_x = move_toward(new_x, 0.0, base_friction)
 			
 	# 戰技 20：丟出迴旋鏢
 	elif combo_step == 20:
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * delta)
+		new_x = move_toward(new_x, 0.0, base_friction)
 		
 		var anim_time = player.animation_player.current_animation_position
 		if anim_time >= 0.15 and not is_spear_thrown:
 			is_spear_thrown = true
-			
 			spawn_boomerang()
 			
 	# ----------------------------------------
-	# 🌟 變奏技能前搖 (90) - 全局時停、玩家特寫緩速與震動
+	# 🌟 變奏技能前搖 (90) 
 	# ----------------------------------------
 	elif combo_step == 90:
-		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 2.0 * (speed_mult * speed_mult) * delta)
+		new_x = move_toward(new_x, 0.0, base_friction * 2.0)
 		
 		var anim_time = player.animation_player.current_animation_position
-		
 		if anim_time >= 0.02 and not is_time_stop_triggered:
 			is_time_stop_triggered = true
-			
-			# 觸發時停 (流速 0.05，持續 0.8 秒)
 			if player.has_method("trigger_time_stop"):
 				player.trigger_time_stop(0.8, 0.05)
-				
-			# 玩家自身進入 0.2 倍速慢動作特寫
 			player.animation_player.speed_scale = 4.0 
 			player.invincible_time_left = 1.5
-			
-			# ==========================================
-			# 🌟 新增：變奏入場逆時停特效與音效
-			# ==========================================
-			# 呼叫音效 (這裡暫時填 "wind"，你可以換成 action_sfx_bank 裡喜歡的標籤)
 			AudioManager.play_action_sfx("ult", -2.0)
+			player.spawn_anim_vfx("Aggregation ring", 0, -20, Vector2(2.5, 2.5), 0, Color(1.0, 0.4, 0.2, 1.0), Color(1.0, 0.6, 0.2, 1.0), false, 2, 1.0)
 			
-			# 呼叫特效 (因為在 trigger_time_stop 之後呼叫，它會自動抓取 0.05 的時停倍率並進行逆時停！)
-			player.spawn_anim_vfx(
-				"Aggregation ring", 
-				0, -20,           
-				Vector2(2.5, 2.5),
-				0,                 
-				Color(1.0, 0.4, 0.2, 1.0),      
-				Color(1.0, 0.6, 0.2, 1.0),     
-				false,             
-				2,                 
-				1.0                
-			)
-		# 🎥 [鏡頭特寫]
 		if anim_time >= 0.02 and _ult_zoom_phase == 0:
 			_ult_zoom_phase = 1
 			_apply_charge_zoom(Vector2(1.15, 1.15), 1.2)
-			
 				
 	# ----------------------------------------
-	# 🌌 大招前半段 (80) - 領域展開與準備特寫
+	# 🌌 大招前半段 (80)
 	# ----------------------------------------
 	elif combo_step == 80: 
-		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 5.0 * (speed_mult * speed_mult) * delta)
+		new_x = move_toward(new_x, 0.0, base_friction * 5.0)
 		new_y = 0.0 
 		
 		var anim_time = player.animation_player.current_animation_position
-		
-		# [領域展開] 0.05s 瞬間進入全屏時停與無敵
 		if anim_time >= 0.05 and not is_time_stop_triggered:
 			is_time_stop_triggered = true 
 			if player.has_method("trigger_time_stop"):
 				player.trigger_time_stop(3.0, 0.001) 
 			player.animation_player.speed_scale = 1.0 / 0.001 
-			player.invincible_time_left = 3.0 # 賦予 80 期間的無敵
+			player.invincible_time_left = 3.0
 			
-		# 🎥 [鏡頭 1] 0.05s 推進特寫 (主角準備動作)
 		if anim_time >= 0.05 and _ult_zoom_phase == 0:
 			_ult_zoom_phase = 1
 			_apply_charge_zoom(Vector2(1.5, 1.5), 0.3) 
@@ -501,29 +467,22 @@ func get_current_velocity(delta: float) -> Vector2:
 		if anim_time >= 0.70 and _ult_zoom_phase == 1:
 			_ult_zoom_phase = 2
 			if CombatManager.has_method("apply_camera_shake"):
-				# 給予一個輕微但有感的震動 (強度 30.0，持續 0.1 秒)
 				CombatManager.apply_camera_shake(30.0, 0.1)
 
 	# ----------------------------------------
-	# 🌌 大招後半段 (81) - 時間恢復、發射氣刃與收招
+	# 🌌 大招後半段 (81)
 	# ----------------------------------------
 	elif combo_step == 81: 
-		# 時間已經恢復，不再需要 time_scale 補償
 		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 5.0 * delta)
 		new_y = 0.0 
 		
-		# 🌟 動態刷新無敵時間，確保 81 收招全程安全
 		player.invincible_time_left = 0.6 
 		
 		var anim_time = player.animation_player.current_animation_position
-		
-		# 💥 0.05s 時間開始流動的瞬間，發射巨型劍氣與強烈震動！
 		if anim_time >= 0.05 and not is_wave_fired:
 			is_wave_fired = true
-			
 			if CombatManager.has_method("apply_camera_shake"):
-				CombatManager.apply_camera_shake(150.0, 0.15) # 給予極強的釋放震動
-				
+				CombatManager.apply_camera_shake(150.0, 0.15) 
 			spawn_spear_wave("ult_wave")
 			
 	return Vector2(new_x, new_y)
