@@ -7,6 +7,7 @@ extends CanvasLayer
 @onready var btn_katana: Button = $LoadoutPanel/HBoxContainer/BtnKatana
 @onready var btn_spear: Button = $LoadoutPanel/HBoxContainer/BtnSpear
 @onready var btn_talisman: Button = $LoadoutPanel/HBoxContainer/BtnTalisman
+@onready var btn_sickle: Button = $LoadoutPanel/HBoxContainer/BtnSickle
 @onready var apply_button: Button = $LoadoutPanel/ApplyButton
 
 # 暫存玩家在面板上選了哪些武器
@@ -43,6 +44,7 @@ func _ready() -> void:
 		btn_katana.pressed.connect(_on_weapon_toggle.bind("katana"))
 		btn_spear.pressed.connect(_on_weapon_toggle.bind("spear"))
 		btn_talisman.pressed.connect(_on_weapon_toggle.bind("talisman"))
+		btn_sickle.pressed.connect(_on_weapon_toggle.bind("sickle"))
 		apply_button.pressed.connect(_on_apply_loadout_pressed)
 		
 # ==========================================
@@ -212,12 +214,13 @@ func _on_weapon_toggle(weapon_id: String) -> void:
 
 # 2. 更新面板上的文字提示 (與按鈕狀態)
 func _update_loadout_ui() -> void:
-	# 🌟 新增：重置按鈕文字 (根據你原本按鈕上的字自己微調)
+	# 🌟 重置按鈕文字
 	btn_katana.text = "太刀"
 	btn_spear.text = "長槍"
 	btn_talisman.text = "靈符"
+	btn_sickle.text = "鎖鐮" 
 	
-	# 🌟 新增：直覺化標記！誰是主武器？誰是副武器？
+	# 🌟 直覺化標記！誰是主武器？誰是副武器？
 	for i in range(selected_weapons.size()):
 		var w_id = selected_weapons[i]
 		var slot_text = " [主]" if i == 0 else " [副]"
@@ -226,6 +229,7 @@ func _update_loadout_ui() -> void:
 			"katana": btn_katana.text += slot_text
 			"spear": btn_spear.text += slot_text
 			"talisman": btn_talisman.text += slot_text
+			"sickle": btn_sickle.text += slot_text # 🌟 新增：為鐮刀加上主副武器標籤
 
 	if status_label:
 		if selected_weapons.size() == 0:

@@ -78,6 +78,9 @@ text = "長槍"
 layout_mode = 2
 text = "符咒"
 
+[node name="BtnSickle" type="Button" parent="LoadoutPanel/HBoxContainer"]
+layout_mode = 2
+
 [node name="ApplyButton" type="Button" parent="LoadoutPanel"]
 layout_mode = 2
 offset_left = 1.0

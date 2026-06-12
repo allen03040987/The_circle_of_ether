@@ -102,7 +102,8 @@ var weapon_switch_cooldown_timer: float = 0.0
 const WEAPON_BLUEPRINTS: Dictionary = {
 	"katana": preload("res://player/Katana/katana.tscn"), # 請確保這些路徑與你的專案相符！
 	"spear": preload("res://player/Spear/spear.tscn"),
-	"talisman": preload("res://player/Talisman/talisman.tscn")
+	"talisman": preload("res://player/Talisman/talisman.tscn"),
+	"sickle": preload("res://player/Sickle/Sickle.tscn"),
 }
 
 # 記錄玩家目前「裝備」在身上的武器 ID 清單
