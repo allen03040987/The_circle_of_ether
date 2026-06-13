@@ -8,7 +8,7 @@ extends Weapon
 # ==========================================
 @export_group("武器核心參數")
 @export var combo_timeout: float = 0.3      # 普攻連段超時重置時間
-@export var no_sheath_steps: Array[int] = [1, 11, 12, 30, 42, 80, 81] # 不需播收刀動畫的黑名單招式
+@export var no_sheath_steps: Array[int] = [4, 11, 12, 30, 42, 80, 81] # 不需播收刀動畫的黑名單招式
 @export var ult_energy_cost: float = 100.0  # 大招能量成本
 
 const WEAPON_ID: String = "sickle"          

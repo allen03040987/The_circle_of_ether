@@ -21,7 +21,7 @@ const SKILL_CONFIG = {
 	# 戰技 20：迴旋絞殺 (傷害由飛行物造成，故 base_dmg 為 0)
 	20: {"anim": "spear/c1", "hitbox_name": "None", "max_hits": 1, "interval": 0.0, "knockback": Vector2.ZERO, "base_dmg": 0, "energy": 0, "switch": 0,"hit_sfx_type": "hit"},
 	# 戰技 21：大範圍聚怪 (多次判定、輕微上浮與強烈橫向拉力)
-	21: {"anim": "spear/c2", "hitbox_name": "C2", "type": Damage.Type.LIGHT, "max_hits": 4, "interval": 0.12, "knockback": Vector2(220.0, -30.0), "pull": true, "shake": 15.0, "base_dmg": 50, "energy": 3, "switch": 3, "pozhen": 10, "sticky": true,"hit_sfx_type": "hit"},
+	21: {"anim": "spear/c2", "hitbox_name": "C2", "type": Damage.Type.HEAVY, "max_hits": 5, "interval": 0.15, "knockback": Vector2(220.0, -200.0), "pull": true, "shake": 15.0, "base_dmg": 50, "energy": 3, "switch": 3, "pozhen": 10, "sticky": true,"hit_sfx_type": "hit"},
 	# 戰技 22：向上挑飛 (Skill 2)
 	22: {"anim": "spear/c3", "hitbox_name": "C3", "type": Damage.Type.HEAVY, "max_hits": 1, "interval": 0.0, "knockback": Vector2(0.0, -600.0), "shake": 60.0, "base_dmg": 500, "energy": 10, "switch": 15, "pozhen": 10,"hit_sfx_type": "hit_2"},
 	# 強化普攻 (30)：消耗 40 點破陣值發動
