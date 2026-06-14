@@ -1,0 +1,51 @@
+[gd_scene load_steps=8 format=3 uid="uid://cn44toclwnob3"]
+
+[ext_resource type="Script" path="res://player/Sickle/SickleHook.gd" id="1_1gqmj"]
+[ext_resource type="Texture2D" uid="uid://6cvb36mq4ho" path="res://player/Sickle/hook.png" id="3_rq16i"]
+[ext_resource type="Script" path="res://classes/Hitbox.gd" id="3_sdcpj"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_a8ghx"]
+size = Vector2(48, 24)
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_agtfw"]
+blend_mode = 1
+
+[sub_resource type="Gradient" id="Gradient_8ocsm"]
+colors = PackedColorArray(1, 1, 1, 0.733333, 1, 1, 0.729412, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_x6g8q"]
+gradient = SubResource("Gradient_8ocsm")
+width = 250
+height = 150
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.6, 0.6)
+
+[node name="SickleHook" type="Node2D"]
+script = ExtResource("1_1gqmj")
+
+[node name="Hitbox" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 17
+script = ExtResource("3_sdcpj")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(19, 5)
+shape = SubResource("RectangleShape2D_a8ghx")
+
+[node name="Hook" type="Sprite2D" parent="."]
+position = Vector2(20, 8)
+texture = ExtResource("3_rq16i")
+
+[node name="Aura" type="Sprite2D" parent="."]
+modulate = Color(0.988396, 0, 0.0957472, 0.356863)
+material = SubResource("CanvasItemMaterial_agtfw")
+position = Vector2(0, 1)
+texture = SubResource("GradientTexture2D_x6g8q")
+
+[node name="WallDetector" type="Area2D" parent="."]
+collision_layer = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WallDetector"]
+position = Vector2(19, 5)
+shape = SubResource("RectangleShape2D_a8ghx")

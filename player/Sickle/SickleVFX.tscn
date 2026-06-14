@@ -1,25 +1,25 @@
-[gd_scene load_steps=28 format=3 uid="uid://efl4o6yl33gf"]
+[gd_scene load_steps=28 format=3 uid="uid://bk7a37036kbhr"]
 
-[ext_resource type="Script" path="res://player/Talisman/TalismanVFX.gd" id="1_wddai"]
-[ext_resource type="Texture2D" uid="uid://bljpaqrhvf6cy" path="res://player/Talisman/Projectile/A1T.png" id="2_26ky8"]
-[ext_resource type="Texture2D" uid="uid://dv8h11gffoaah" path="res://player/Talisman/Projectile/A3T.png" id="3_88pog"]
-[ext_resource type="Texture2D" uid="uid://d00cw0hq141lb" path="res://player/Talisman/Projectile/A4T.png" id="4_sarol"]
-[ext_resource type="Texture2D" uid="uid://bfkhr60knp50c" path="res://player/Talisman/Projectile/A2T.png" id="5_cf7op"]
-[ext_resource type="Texture2D" uid="uid://b2bv3v6evjo87" path="res://player/Talisman/Projectile/C0T.png" id="6_ifnvq"]
-[ext_resource type="Texture2D" uid="uid://tttmfqxdp0l7" path="res://player/Talisman/Projectile/A5.png" id="7_whtey"]
-[ext_resource type="Texture2D" uid="uid://idnw8nkwv728" path="res://player/Talisman/Projectile/A6.png" id="8_hk4mv"]
-[ext_resource type="Texture2D" uid="uid://c52l8e8b00nhd" path="res://player/Talisman/Projectile/uit_BUFF.png" id="8_sxed0"]
-[ext_resource type="Texture2D" uid="uid://bdx6g0hddpnno" path="res://player/Talisman/Projectile/ultT.png" id="10_i8d7w"]
-[ext_resource type="Texture2D" uid="uid://byslnnoqo4msg" path="res://player/Talisman/Projectile/C2T.png" id="11_q7t1a"]
+[ext_resource type="Script" path="res://player/Talisman/TalismanVFX.gd" id="1_bkkhs"]
+[ext_resource type="Texture2D" uid="uid://bljpaqrhvf6cy" path="res://player/Talisman/Projectile/A1T.png" id="2_kta2j"]
+[ext_resource type="Texture2D" uid="uid://dv8h11gffoaah" path="res://player/Talisman/Projectile/A3T.png" id="3_0sb1x"]
+[ext_resource type="Texture2D" uid="uid://d00cw0hq141lb" path="res://player/Talisman/Projectile/A4T.png" id="4_xjuvj"]
+[ext_resource type="Texture2D" uid="uid://bfkhr60knp50c" path="res://player/Talisman/Projectile/A2T.png" id="5_5vmuw"]
+[ext_resource type="Texture2D" uid="uid://tttmfqxdp0l7" path="res://player/Talisman/Projectile/A5.png" id="6_0kn7t"]
+[ext_resource type="Texture2D" uid="uid://idnw8nkwv728" path="res://player/Talisman/Projectile/A6.png" id="7_lsovm"]
+[ext_resource type="Texture2D" uid="uid://b2bv3v6evjo87" path="res://player/Talisman/Projectile/C0T.png" id="8_btq6c"]
+[ext_resource type="Texture2D" uid="uid://byslnnoqo4msg" path="res://player/Talisman/Projectile/C2T.png" id="9_c5wv4"]
+[ext_resource type="Texture2D" uid="uid://bdx6g0hddpnno" path="res://player/Talisman/Projectile/ultT.png" id="10_omk1c"]
+[ext_resource type="Texture2D" uid="uid://c52l8e8b00nhd" path="res://player/Talisman/Projectile/uit_BUFF.png" id="11_ykh5v"]
 
 [sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_qej0c"]
 blend_mode = 1
 
-[sub_resource type="Gradient" id="Gradient_vjb6h"]
+[sub_resource type="Gradient" id="Gradient_8ocsm"]
 colors = PackedColorArray(1, 1, 1, 0.733333, 1, 1, 0.729412, 0)
 
 [sub_resource type="GradientTexture2D" id="GradientTexture2D_ildq2"]
-gradient = SubResource("Gradient_vjb6h")
+gradient = SubResource("Gradient_8ocsm")
 width = 400
 height = 300
 fill = 1
@@ -50,7 +50,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [ExtResource("2_26ky8")]
+"values": [ExtResource("2_kta2j")]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -199,7 +199,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [ExtResource("2_26ky8")]
+"values": [ExtResource("2_kta2j")]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -348,7 +348,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [ExtResource("3_88pog")]
+"values": [ExtResource("3_0sb1x")]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -497,7 +497,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [ExtResource("4_sarol")]
+"values": [ExtResource("4_xjuvj")]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -646,7 +646,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [ExtResource("5_cf7op")]
+"values": [ExtResource("5_5vmuw")]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -795,7 +795,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [ExtResource("7_whtey")]
+"values": [ExtResource("6_0kn7t")]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -944,7 +944,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [ExtResource("8_hk4mv")]
+"values": [ExtResource("7_lsovm")]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -1093,7 +1093,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [ExtResource("6_ifnvq")]
+"values": [ExtResource("8_btq6c")]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -1242,7 +1242,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [ExtResource("6_ifnvq")]
+"values": [ExtResource("8_btq6c")]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -1390,7 +1390,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [ExtResource("11_q7t1a")]
+"values": [ExtResource("9_c5wv4")]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -1539,7 +1539,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [ExtResource("10_i8d7w")]
+"values": [ExtResource("10_omk1c")]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -1689,7 +1689,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [ExtResource("8_sxed0")]
+"values": [ExtResource("11_ykh5v")]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -1828,14 +1828,14 @@ _data = {
 "ult_buff_loop": SubResource("Animation_pi4y6")
 }
 
-[node name="TalismanVFX" type="Node2D"]
+[node name="SickleVFX" type="Node2D"]
 light_mask = 8
 visibility_layer = 8
-script = ExtResource("1_wddai")
+script = ExtResource("1_bkkhs")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 position = Vector2(64, -8)
-texture = ExtResource("2_26ky8")
+texture = ExtResource("2_kta2j")
 hframes = 3
 vframes = 3
 region_enabled = true
