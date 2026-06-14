@@ -473,7 +473,8 @@ func get_current_velocity(delta: float) -> Vector2:
 	# 🌌 大招後半段 (81)
 	# ----------------------------------------
 	elif combo_step == 81: 
-		new_x = move_toward(new_x, 0.0, player.FLOOR_ACCELERATION * 5.0 * delta)
+		# 🌟 修復 1：換成 base_friction 統一抗時停
+		new_x = move_toward(new_x, 0.0, base_friction * 5.0)
 		new_y = 0.0 
 		
 		player.invincible_time_left = 0.6 
@@ -484,6 +485,12 @@ func get_current_velocity(delta: float) -> Vector2:
 			if CombatManager.has_method("apply_camera_shake"):
 				CombatManager.apply_camera_shake(150.0, 0.15) 
 			spawn_spear_wave("ult_wave")
+			
+	# ==========================================
+	# 🚨 修復 2：補上太刀擁有的終極保底防護網！
+	# ==========================================
+	else:
+		new_x = move_toward(new_x, 0.0, base_friction)
 			
 	return Vector2(new_x, new_y)
 

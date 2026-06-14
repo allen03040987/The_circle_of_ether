@@ -211,6 +211,9 @@ func _physics_process(delta: float) -> void:
 	custom_move_and_slide()
 
 func strike_impulse(strength: float) -> void:
+	if _is_initializing: 
+		return 
+		
 	velocity.x = direction * strength
 
 func enable_weapon_hitbox(shape_name: String = "") -> void:
