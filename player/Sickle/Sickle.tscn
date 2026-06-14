@@ -1,8 +1,9 @@
-[gd_scene load_steps=8 format=3 uid="uid://2cvi0k4e61hv"]
+[gd_scene load_steps=9 format=3 uid="uid://2cvi0k4e61hv"]
 
 [ext_resource type="Script" path="res://player/Sickle/Sickle.gd" id="1_03mu0"]
 [ext_resource type="Script" path="res://classes/Hitbox.gd" id="1_ew3ct"]
 [ext_resource type="Texture2D" uid="uid://blbvtq3bcr1ir" path="res://player/Sickle/Sickle.png" id="2_80wq1"]
+[ext_resource type="Texture2D" uid="uid://cffvkmas3ihmr" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (2).png" id="3_21shy"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_pvww3"]
 size = Vector2(144, 63)
@@ -19,6 +20,13 @@ size = Vector2(208, 54)
 [node name="Sickle" type="Node2D"]
 script = ExtResource("1_03mu0")
 scabbard_texture = ExtResource("2_80wq1")
+skill_1_icon = ExtResource("3_21shy")
+skill_2_icon = ExtResource("3_21shy")
+skill_3_icon = ExtResource("3_21shy")
+ult_icon = ExtResource("3_21shy")
+skill_1_cd = 1.0
+skill_2_cd = 1.0
+skill_3_cd = 1.0
 
 [node name="Hitbox" type="Area2D" parent="."]
 collision_layer = 0

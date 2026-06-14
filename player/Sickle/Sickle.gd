@@ -1,14 +1,14 @@
 class_name Sickle
 extends Weapon
 ## 武器腳本：鎖鏈鐮刀 (Chain Sickle) 
-## 負責處理鐮刀的連段派生、共鳴資源 (鏈心值)，以及大招運鏡。
+## 負責處理鐮刀的連段派生 (無雙 C 技系統) 與共鳴資源 (鏈心值)。
 
 # ==========================================
 # 🎛️ 1. 武器核心參數與資源
 # ==========================================
 @export_group("武器核心參數")
 @export var combo_timeout: float = 0.3      # 普攻連段超時重置時間
-@export var no_sheath_steps: Array[int] = [4, 11, 12, 30, 42, 80, 81] # 不需播收刀動畫的黑名單招式
+@export var no_sheath_steps: Array[int] = [4, 11, 12, 20, 21, 22, 41, 80, 81] # 不需播收刀動畫的黑名單招式
 @export var ult_energy_cost: float = 100.0  # 大招能量成本
 
 const WEAPON_ID: String = "sickle"          
@@ -20,9 +20,9 @@ const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.01, 1.01), 2: Vector2(1
 # ==========================================
 # 🌀 2. 共鳴迴路 (Resonance Circuit) 變數
 # ==========================================
-var current_chain_link: int = 0             # 當前鏈心值 (對應原本的居合/燕返)
+var current_chain_link: int = 0             # 當前鏈心值
 const MAX_CHAIN_LINK: int = 100                     
-var is_enhanced_ready: bool = false         # 強化戰技是否就緒 (對應原本的燕返就緒)
+var is_enhanced_ready: bool = false         # 強化戰技是否就緒
 
 # ==========================================
 # 📖 3. 招式數據庫 (Data-Driven Combat Config)
@@ -33,27 +33,21 @@ const LIGHT_ATTACK_CONFIG = {
 	2: {"anim": "sickle/attack_2", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(150.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "link_reward": 5, "action_type": Weapon.ActionType.NORMAL},
 	3: {"anim": "sickle/attack_3", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5,"link_reward": 5, "action_type": Weapon.ActionType.NORMAL},
 	4: {"anim": "sickle/attack_4", "hitbox_name": "Hitbox", "max_hits": 2, "interval": 0.1, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5,"link_reward": 5, "action_type": Weapon.ActionType.NORMAL},
-	
 }
 
-# [戰技與大招字典] 
+# [戰技與大招字典] (已修正為 sickle 路徑)
 const SKILL_CONFIG = {
-	20: { "anim": "sickle/attack_c3", "hitbox_name": "C3", "type": Damage.Type.LIGHT,"max_hits": 3, "interval": 0.1, "knockback": Vector2(-100.0, -200.0), "shake": 15.0, "shake_on_hit_only": true, "base_dmg": 300, "energy": 5, "switch": 5, "link_reward": 5,"hit_sfx_type": "hit" },
+	# C4：戰技下 (20, 21, 22)
+	20: { "anim": "katana/attack_c3", "hitbox_name": "C3", "type": Damage.Type.LIGHT,"max_hits": 3, "interval": 0.1, "knockback": Vector2(-100.0, -200.0), "shake": 15.0, "shake_on_hit_only": true, "base_dmg": 300, "energy": 5, "switch": 5, "link_reward": 5,"hit_sfx_type": "hit" },
 	21: { "anim": "sickle/attack_c3_2", "hitbox_name": "C3", "type": Damage.Type.LIGHT,"max_hits": 6, "interval": 0.1,"sticky": true, "knockback": Vector2(100.0, -100.0), "shake": 20.0, "shake_on_hit_only": true, "base_dmg": 450, "energy": 5, "switch": 5, "link_reward": 5,"hit_sfx_type": "hit" },
 	22: { "anim": "sickle/attack_c3_3", "hitbox_name": "None", "type": Damage.Type.HEAVY, "knockback": Vector2.ZERO, "shake": 30.0, "shake_on_hit_only": true, "base_dmg": 932, "energy": 15, "switch": 20, "link_reward": 10 },
 	
-	30: { "anim": "sickle/attack_c0_charge_start", "hitbox_name": "None", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 0, "energy": 0, "switch": 0, "link_reward": 0 },
-	34: { "anim": "sickle/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2(50.0, 0.0), "shake": 6.0, "shake_on_hit_only": true, "base_dmg": 200,"hit_sfx_type": "hit", "energy": 1, "switch": 2, "link_reward": 0 },
-	32: { "anim": "sickle/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 325,"hit_sfx_type": "hit", "energy": 1, "switch": 2, "link_reward": 0, },
-	33: { "anim": "sickle/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 3.0, "shake_on_hit_only": true, "base_dmg": 325,"hit_sfx_type": "hit", "energy": 1, "switch": 2, "link_reward": 0,  },
-	
-	11: { "anim": "sickle/attack_c1", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -400.0), "shake": 20.0, "shake_on_hit_only": false, "base_dmg": 560,"hit_sfx_type": "hit_2", "energy": 10, "switch": 15, "link_reward": 5 },
+	# C2：戰技上 (11, 12)
+	11: { "anim": "katana/attack_c1", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -400.0), "shake": 20.0, "shake_on_hit_only": false, "base_dmg": 560,"hit_sfx_type": "hit_2", "energy": 10, "switch": 15, "link_reward": 5 },
 	12: { "anim": "sickle/attack_c1_2", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -400.0), "shake": 30.0, "shake_on_hit_only": true, "base_dmg": 720,"hit_sfx_type": "hit", "energy": 10, "switch": 15, "link_reward": 5 },
 	
-	41: { "anim": "sickle/skill_down", "hitbox_name": "C2", "type": Damage.Type.LIGHT, "knockback": Vector2(100.0, 0.0), "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 200,"hit_sfx_type": "hit", "energy": 10, "switch": 15, "link_reward": 10 },
-	42: { "anim": "sickle/attack_enhanced", "hitbox_name": "attack_enhanced", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -80.0), "shake": 0.0, "shake_on_hit_only": true, 
-		"base_dmg": 200,"hit_sfx_type": "hit", "energy": 25, "switch": 30, "link_reward": 0, 
-		"max_hits": 12, "interval": 0.1, "sticky": true },
+	# C3：戰技中立 (41)
+	41: { "anim": "katana/skill_down", "hitbox_name": "C2", "type": Damage.Type.LIGHT, "knockback": Vector2(100.0, 0.0), "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 200,"hit_sfx_type": "hit", "energy": 10, "switch": 15, "link_reward": 10 },
 	
 	80: { "anim": "sickle/attack_ult", "hitbox_name": "UltHitbox", "type": Damage.Type.HEAVY, "knockback": Vector2(10.0, -100.0), "shake": 5.0, "shake_on_hit_only": true, "base_dmg": 150, "energy": 0, "switch": 0, "link_reward": 0, 
 		"max_hits": 20,"hit_sfx_type": "hit", "interval": 0.1, "sticky": true },
@@ -69,12 +63,7 @@ const AIR_ATTACK_CONFIG = {
 
 # ==========================================
 # 🚀 4. 物理運算與手感參數
-# ==========================================
-@export_group("重擊(蓄力拉拽)設定")
-@export var charge_time_per_tier: float = 0.4   
-@export var max_charge_tiers: int = 3           
-@export var thrust_speed: float = 200.0         
-
+# ==========================================        
 @export_group("戰技上 (飛索/挑飛) 設定")
 @export var launch_start_time: float = 0.2      
 @export var launch_duration: float = 0.06       
@@ -104,9 +93,6 @@ var step_cooldown: float = 0.0
 
 var is_launch_triggered: bool = false
 var launch_timer: float = 0.0
-var current_charge_timer: float = 0.0
-var current_charge_tier: int = 0
-var light_hold_timer: float = 0.0               
 
 var is_wave_fired: bool = false                 
 var air_attack_locked: bool = false             
@@ -140,16 +126,14 @@ var skill_3_current_step: int = 20
 # ==========================================
 func gain_chain_link(amount: int) -> void:
 	if amount <= 0: return
-	
-	if try_forward_resource("gain_chain_link", amount):
-		return
+	if try_forward_resource("gain_chain_link", amount): return
 		
 	current_chain_link = mini(current_chain_link + amount, MAX_CHAIN_LINK)
 	print("🟢 命中！獲得鏈心值: ", amount, " | 目前鏈心: ", current_chain_link, "/", MAX_CHAIN_LINK)
 	
 	if current_chain_link >= 50 and not is_enhanced_ready:
 		is_enhanced_ready = true
-		skill_1_timer = 0.0 
+		# 這裡你可以決定如果滿氣要觸發什麼，或者直接拿去強化 C 技
 
 func consume_chain_link(amount: int) -> void:
 	current_chain_link = maxi(current_chain_link - amount, 0)
@@ -180,7 +164,7 @@ func start_light_attack() -> void:
 		_play_air_step(combo_step)
 		return
 
-	if combo_step == 30 or SKILL_CONFIG.has(combo_step):
+	if SKILL_CONFIG.has(combo_step):
 		combo_step = 0
 
 	combo_step += 1
@@ -189,86 +173,47 @@ func start_light_attack() -> void:
 
 	is_attacking = true
 	_play_light_step(combo_step)
-	
-	if Input.is_action_pressed("attack"): light_hold_timer = 0.15
-	else: light_hold_timer = 0.0
 
 func start_heavy_attack() -> void:
 	if step_cooldown > 0:
 		is_attacking = false
 		return
-	
 	step_cooldown = 0.15
 	air_attack_locked = false
 	
 	if not is_attacking:
 		var current_time = Time.get_ticks_msec() / 1000.0
-		if current_time - last_attack_time > combo_timeout:
-			combo_step = 0
+		if current_time - last_attack_time > combo_timeout: combo_step = 0
 			
 	is_attacking = true
 	is_launch_triggered = false
 	is_wave_fired = false
 	is_time_stop_triggered = false 
 
+	var input_dir = Input.get_axis("move_left", "move_right")
+	if input_dir != 0 and player is Player:
+		player.direction = 1 if input_dir > 0 else -1
+
 	if not player.is_on_floor():
-		if Input.is_action_pressed("move_down"):
-			combo_step = skill_3_current_step
-			_play_skill_step(combo_step)
-			
-			if combo_step == 20:
-				skill_3_current_step = 21
-				skill_3_combo_timer = 5.0 
-			elif combo_step == 21:
-				skill_3_current_step = 22
-				skill_3_combo_timer = 5.0 
-			else:
-				skill_3_current_step = 20
-				skill_3_combo_timer = 0.0
-				skill_3_timer = skill_3_cd
-		elif is_enhanced_ready:
-			_play_skill_step(42) 
-			is_enhanced_ready = false
-			consume_chain_link(50)
-		else:
-			is_attacking = false 
+		is_attacking = false 
 		return
 
-	if Input.is_action_pressed("move_up"): 
-		combo_step = skill_2_current_step
-		_play_skill_step(combo_step)
-		
-		if combo_step == 11:
-			skill_2_current_step = 12
-			skill_2_combo_timer = 5.0 
-		else:
-			skill_2_current_step = 11
-			skill_2_combo_timer = 0.0
-			skill_2_timer = skill_2_cd 
-			
-	elif Input.is_action_pressed("move_down"): 
-		combo_step = skill_3_current_step
-		_play_skill_step(combo_step)
-		
-		if combo_step == 20:
-			skill_3_current_step = 21
-			skill_3_combo_timer = 5.0 
-		elif combo_step == 21:
-			skill_3_current_step = 22
-			skill_3_combo_timer = 5.0 
-		else:
-			skill_3_current_step = 20
-			skill_3_combo_timer = 0.0
-			skill_3_timer = skill_3_cd 
-			
-	else:
-		if is_enhanced_ready:
-			_play_skill_step(42) 
-			is_enhanced_ready = false
-			consume_chain_link(50)
-		else:
-			_play_skill_step(41)
+	# ⛓️ C 技專屬派生樞紐
+	match combo_step:
+		1:
+			combo_step = 11 
+			skill_2_timer = skill_2_cd
+			_play_skill_step(combo_step)
+		2:
+			combo_step = 41
 			skill_1_timer = skill_1_cd
+			_play_skill_step(combo_step)
+		3:
+			combo_step = 20
+			skill_3_timer = skill_3_cd
+			_play_skill_step(combo_step)
+		_:
+			is_attacking = false
 
 func start_ultimate() -> void:
 	if player.has_method("consume_weapon_energy"):
@@ -278,7 +223,6 @@ func start_ultimate() -> void:
 	is_attacking = true
 	is_time_stop_triggered = false 
 	_tsubame_zoom_phase = 0 
-	light_hold_timer = 0.0 
 	
 	ult_timer = ult_cd 
 	combo_step = 80
@@ -292,7 +236,6 @@ func start_intro_skill() -> void:
 	is_attacking = true
 	is_time_stop_triggered = false 
 	_tsubame_zoom_phase = 0 
-	light_hold_timer = 0.0 
 	
 	if is_instance_valid(player):
 		player.invincible_time_left = 1.5
@@ -341,87 +284,14 @@ func get_current_velocity(delta: float) -> Vector2:
 	var new_x = player.velocity.x
 	var new_y = player.velocity.y
 
-	# ==========================================
 	# 🚨 終極防爆衝基底：統一套用 M平方定律
-	# ==========================================
 	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
 	var base_friction = player.FLOOR_ACCELERATION * (speed_mult * speed_mult) * delta
 
-	if combo_step in [1, 2, 3, 4, 61, 62]: 
-		if current_chain_link >= 10 and Input.is_action_pressed("attack"):
-			light_hold_timer += delta
-			if light_hold_timer >= 0.35:
-				var anim_len = player.animation_player.current_animation_length
-				var anim_pos = player.animation_player.current_animation_position
-				
-				if anim_len > 0.0 and (anim_pos / anim_len) >= 0.5:
-					if current_chain_link >= 10:
-						combo_step = 30 
-						current_charge_timer = 0.0
-						current_charge_tier = 0
-						_play_skill_step(30)
-					else:
-						light_hold_timer = 0.0
-		else:
-			light_hold_timer = 0.0
-
-	if combo_step == 30:
-		var move_dir := Input.get_axis("move_left", "move_right")
-		if not is_zero_approx(move_dir) and player is Player:
-			player.direction = player.Direction.LEFT if move_dir < 0 else player.Direction.RIGHT
-			
-		new_x = move_toward(new_x, 0.0, base_friction * 2.0)
-		
-		var is_holding = Input.is_action_pressed("attack")
-		if not (player is Player):
-			is_holding = false
-		
-		if is_holding:
-			current_charge_timer += delta
-			var new_tier = min(max_charge_tiers, floori(current_charge_timer / charge_time_per_tier))
-			
-			if new_tier > current_charge_tier:
-				if current_chain_link >= 10:
-					current_charge_tier = new_tier
-					consume_chain_link(10)
-					player.spawn_anim_vfx("Aggregation ring", 0, -20, Vector2(1.5, 1.5), 0, Color.WHITE, Color.WHITE, false, 2, 1.0)
-					if CombatManager.has_method("apply_camera_shake"):
-						CombatManager.apply_camera_shake(2.0 + current_charge_tier * 1.5)
-					_apply_charge_zoom(ZOOM_LEVELS[current_charge_tier])
-				else:
-					current_charge_timer = current_charge_tier * charge_time_per_tier
-					
-			if not player.animation_player.is_playing():
-				player.play_safe_anim("sickle/attack_c0_charge_loop")
-		else:
-			_apply_charge_zoom(ZOOM_LEVELS[0])
-			if current_charge_tier == 0:
-				is_attacking = false
-				combo_step = 0
-				current_charge_timer = 0.0
-				light_hold_timer = 0.0
-				player.is_input_locked = false 
-				
-				var p_scabbard = player.get("scabbard")
-				if p_scabbard: p_scabbard.fade_in()
-			else:
-				var release_step = 34 
-				if current_charge_tier == 2: release_step = 32
-				elif current_charge_tier == 3: release_step = 33
-				_play_skill_step(release_step)
-
-	elif combo_step in [32, 33, 34]:
-		var anim_time = player.animation_player.current_animation_position
-		if anim_time < 0.05:
-			var speed_multiplier = 1.0
-			if combo_step == 34: speed_multiplier = 4.5
-			elif combo_step == 32: speed_multiplier = 6.5 
-			elif combo_step == 33: speed_multiplier = 8.0
-			new_x = player.direction * (thrust_speed * speed_multiplier)
-		else: 
-			new_x = move_toward(new_x, 0.0, base_friction)
-		
-	elif combo_step == 12:
+	# ----------------------------------------
+	# 物理摩擦力與重力分流
+	# ----------------------------------------
+	if combo_step == 12:
 		if player.animation_player.current_animation_position >= launch_start_time and not is_launch_triggered:
 			is_launch_triggered = true
 			launch_timer = launch_duration
@@ -472,40 +342,6 @@ func get_current_velocity(delta: float) -> Vector2:
 			
 		if anim_time >= 0.18 and _tsubame_zoom_phase == 1:
 			_tsubame_zoom_phase = 2
-			
-	elif combo_step == 42: 
-		new_x = move_toward(new_x, 0.0, base_friction * 5.0)
-		
-		if player.is_on_floor(): new_y = 0.0
-		else: new_y = player.default_gravity * air_skill_gravity_rate * delta 
-		
-		var anim_time = player.animation_player.current_animation_position
-		if anim_time >= 0.08 and not is_time_stop_triggered:
-			is_time_stop_triggered = true 
-			if player is Player:
-				player.invincible_time_left = 2.0 
-			
-		if anim_time >= 0.10 and _tsubame_zoom_phase == 0:
-			_tsubame_zoom_phase = 1
-			_apply_charge_zoom(Vector2(0.75, 0.75), 1.6) 
-				
-		if anim_time >= 1.76 and not is_wave_fired:
-			is_wave_fired = true 
-			if CombatManager.has_method("apply_camera_shake"):
-				CombatManager.apply_camera_shake(60.0) 
-				
-			if is_instance_valid(current_active_hitbox):
-				current_active_hitbox.hit_targets.clear() 
-				current_active_hitbox.max_hits = 1        
-				current_active_hitbox.sticky_multi_hit = false 
-				current_active_hitbox.damage_amount = 1500 
-				current_active_hitbox.knockback_force = Vector2(200.0, -500.0) 
-				current_active_hitbox.shake_intensity = 400.0
-				_has_granted_resources_this_step = false
-				
-			_is_hitbox_locked = false 
-			disable_hitbox() 
-			enable_hitbox("CollisionShape2D2")
 			
 	elif combo_step == 80: 
 		new_x = move_toward(new_x, 0.0, base_friction * 5.0)
@@ -568,24 +404,13 @@ func is_attack_finished() -> bool:
 			return false
 		
 		if combo_step == 90:
-			combo_step = 33
+			combo_step = 1 # 變奏後接普攻第一段
 			_play_skill_step(combo_step)
 			_tsubame_zoom_phase = 0
 			_apply_charge_zoom(ZOOM_LEVELS[0], 0.2)
-			
 			player.animation_player.speed_scale = 1.0 
-			if player.has_method("clear_time_stop"):
-				player.clear_time_stop()
+			if player.has_method("clear_time_stop"): player.clear_time_stop()
 			return false
-			
-		if Input.is_action_pressed("attack"):
-			if combo_step in [1, 2, 3, 4, 12, 21, 32, 33, 34, 41, 61, 62]:
-				if current_chain_link >= 10:
-					combo_step = 30 
-					current_charge_timer = 0.0
-					current_charge_tier = 0
-					_play_skill_step(30)
-					return false 
 
 		player.is_input_locked = false 
 		
@@ -600,7 +425,7 @@ func is_attack_finished() -> bool:
 		is_attacking = false
 		step_cooldown = 0.0
 		
-		if combo_step in [42, 80] or _tsubame_zoom_phase > 0:
+		if combo_step == 80 or _tsubame_zoom_phase > 0:
 			_tsubame_zoom_phase = 0
 			_apply_charge_zoom(ZOOM_LEVELS[0], 0.4)
 			if player.has_method("clear_time_stop"): player.clear_time_stop()
@@ -616,7 +441,7 @@ func is_attack_finished() -> bool:
 	return false
 
 func cancel_attack() -> void:
-	if not player.is_on_floor() and combo_step in [30, 61, 62]:
+	if not player.is_on_floor() and combo_step in [61, 62]:
 		air_attack_locked = true
 		
 	player.is_input_locked = false 
@@ -625,9 +450,6 @@ func cancel_attack() -> void:
 	combo_step = 0
 	step_cooldown = 0.0
 	is_launch_triggered = false
-	current_charge_tier = 0
-	current_charge_timer = 0.0
-	light_hold_timer = 0.0
 	is_wave_fired = false 
 	_tsubame_zoom_phase = 0
 	
@@ -673,13 +495,9 @@ func _play_skill_step(step: int) -> void:
 	if current_active_hitbox:
 		if step in [11, 12]: current_active_hitbox.spark_type = 1; current_active_hitbox.spark_scale = 0.8
 		elif step == 41: current_active_hitbox.max_hits = 5; current_active_hitbox.hit_interval = 0.1; current_active_hitbox.sticky_multi_hit = true
-		elif step == 34: current_active_hitbox.max_hits = 2; current_active_hitbox.hit_interval = 0.1; current_active_hitbox.sticky_multi_hit = true
-		elif step == 32: current_active_hitbox.max_hits = 4; current_active_hitbox.hit_interval = 0.1; current_active_hitbox.sticky_multi_hit = true
-		elif step == 33: current_active_hitbox.max_hits = 7; current_active_hitbox.hit_interval = 0.1; current_active_hitbox.sticky_multi_hit = true; current_active_hitbox.spark_scale = 0.6; current_active_hitbox.spark_color = Color(1.0, 0.0, 0.0, 1.0); current_active_hitbox.aura_color = Color(1.0, 0.0, 0.0, 1.0)  
-		elif step == 42: current_active_hitbox.spark_scale = 0.6
 		elif step == 80: current_active_hitbox.spark_scale = 1.0
 	
-	if not player.is_on_floor() and step in [20, 21, 22, 42]:
+	if not player.is_on_floor() and step in [20, 21, 22]:
 		player.velocity.y = air_thrust_force * 0.5
 		
 	combo_step = step
@@ -832,26 +650,18 @@ func can_air_light() -> bool:
 	return true
 
 func can_use_heavy() -> bool:
-	if combo_step == 11: return true 
-	
-	if not player.is_on_floor():
-		if Input.is_action_pressed("move_down"):
-			if skill_3_timer > 0:
-				return false
-			return true 
-		elif is_enhanced_ready:
+	if not player.is_on_floor(): return false
+	match combo_step:
+		1: 
+			if skill_2_timer > 0: return false
 			return true
-		return false 
-			
-	if Input.is_action_pressed("move_up"):
-		if skill_2_timer > 0: return false
-	elif Input.is_action_pressed("move_down"):
-		if skill_3_timer > 0: return false
-	else:
-		if is_enhanced_ready: return true
-		if skill_1_timer > 0: return false
-		
-	return true
+		2: 
+			if skill_1_timer > 0: return false
+			return true
+		3: 
+			if skill_3_timer > 0: return false
+			return true
+	return false
 
 func can_use_ultimate() -> bool:
 	if ult_timer > 0: return false 
