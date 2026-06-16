@@ -18,6 +18,12 @@ const SICKLE_VFX_SCENE = preload("res://player/Sickle/SickleVFX.tscn")
 const SICKLE_HOOK_SCENE = preload("res://player/Sickle/SickleHook.tscn")
 const SICKLE_WAVE_SCENE = preload("res://player/Katana/c_3_wave.tscn") 
 
+const HOOK_OFFSET = Vector2(10.0, -30.0)
+
+# 🌟 新增：根據玩家當前面向，動態計算鏡像翻轉後的胸口發射點
+func _get_player_hook_offset() -> Vector2:
+	return Vector2(HOOK_OFFSET.x * player.direction, HOOK_OFFSET.y)
+	
 const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.01, 1.01), 2: Vector2(1.02, 1.02), 3: Vector2(1.03, 1.03) }
 
 # ==========================================
@@ -95,7 +101,9 @@ var is_launch_triggered: bool = false
 var launch_timer: float = 0.0
 
 var is_wave_fired: bool = false                 
-var air_attack_locked: bool = false             
+var air_attack_locked: bool = false
+
+var has_used_air_hook: bool = false             
 
 var is_time_stop_triggered: bool = false 
 var _tsubame_zoom_phase: int = 0 
@@ -111,7 +119,7 @@ var hook_target_node: Node2D = null
 
 var pull_delay_timer: float = 0.0  # 🌟 新增：飛索拉拽前的停頓計時器
 var active_hook: Node2D = null
-
+var hook_pull_dir: Vector2 = Vector2.ZERO
 # ==========================================
 # 🌟 多段戰技連段系統 (Combo Skill Cooldown)
 # ==========================================
@@ -156,6 +164,7 @@ func start_light_attack() -> void:
 	
 	is_vfx_fired = false
 	_phantom_flags_synced = false
+	is_wave_fired = false # 🌟 核心修復：每次按普攻都要重置震動與波浪特效開關！
 
 	if not is_attacking:
 		var current_time = Time.get_ticks_msec() / 1000.0
@@ -166,33 +175,48 @@ func start_light_attack() -> void:
 		if air_attack_locked or _get_ground_distance() < min_air_attack_height:
 			return
 			
-		if combo_step == 61:
+		# 🌟 核心升級：只要這趟升空丟過鐮刀 (61)，下一次按攻擊絕對是下砸 (62)！
+		if has_used_air_hook:
 			combo_step = 62
-			air_attack_locked = true 
-		else:
-			combo_step = 61
+			air_attack_locked = true # 下砸完才真正鎖死空攻權限
+			
+			# 🌟 核心修復：提早派生 62 砸地時，立刻強制清空還插在怪身上的鐮刀！
 			is_hooking = false
 			hook_target_node = null
+			if is_instance_valid(active_hook):
+				if active_hook.has_method("fade_and_die"):
+					active_hook.fade_and_die()
+				else:
+					active_hook.queue_free()
+				active_hook = null
+				
+		else:
+			combo_step = 61
+			has_used_air_hook = true 
+			is_hooking = false
+			hook_target_node = null
+			hook_pull_dir = Vector2.ZERO # 🌟 核心新增：每次新發射時，清空上一次的方向鎖
 			
-			# 🌟 核心改動：計算出鉤方向向量 (Launch Direction)
-			var launch_dir = Vector2(player.direction, 0.0) # 預設水平發射
-			
+			var launch_dir = Vector2(player.direction, 0.0) 
 			var move_dir = Input.get_axis("move_left", "move_right")
+			
 			if is_zero_approx(move_dir):
-				# 無方向鍵：自動尋敵
 				var target = _get_auto_target(300.0)
 				if target:
 					player.direction = 1 if target.global_position.x > player.global_position.x else -1
-					# 算出指向敵人的精準方向
-					launch_dir = player.global_position.direction_to(target.global_position)
+					
+					# 🌟 核心修復：發射向量必須是「胸口對胸口」！
+					# 否則腳底對腳底的角度往下斜，鐮刀會提早砸到地板或矮牆！
+					var start_pos = player.global_position + HOOK_OFFSET
+					var end_pos = target.global_position + HOOK_OFFSET
+					launch_dir = start_pos.direction_to(end_pos)
+					
 					print("🎯 [鎖鐮] 自動鎖定並瞄準敵人：", target.name)
 			else:
-				# 有方向鍵：朝推的方向直線發射
 				player.direction = 1 if move_dir > 0 else -1
 				launch_dir = Vector2(player.direction, 0.0)
 				print("➡️ [鎖鐮] 手動方向！朝前方直線發射鎖鐮！")
 			
-			# 🌟 發射實體投射物鐮刀！
 			spawn_sickle_hook(launch_dir)
 			
 		is_attacking = true
@@ -317,6 +341,7 @@ func update_timers_only(delta: float) -> void:
 			
 	if player.is_on_floor():
 		air_attack_locked = false 
+		has_used_air_hook = false # 🌟 核心新增：落地時重置飛索次數
 		if not is_attacking and combo_step in [61, 62]:
 			combo_step = 0
 
@@ -452,79 +477,95 @@ func get_current_velocity(delta: float) -> Vector2:
 			_tsubame_zoom_phase = 2
 
 	# ----------------------------------------
-	# 空戰 61: 飛索突進 (停頓、降速、高度安全鎖)
+	# 空戰 61: 飛索突進 (丟鉤 -> 連續飛行 -> 抵達彈起)
 	# ----------------------------------------
 	elif combo_step == 61:
 		if is_hooking and is_instance_valid(hook_target_node):
 			
-			# 👇 3. 停頓機制：如果計時器還沒跑完，在空中懸停定格，產生拉扯張力！
 			if pull_delay_timer > 0.0:
 				pull_delay_timer -= delta
 				new_x = 0.0
 				new_y = 0.0
 			else:
-
+				# 停頓結束，正式收線飛過去！
 				var target_pos = hook_target_node.global_position
-				
-				# 如果勾到的是活體怪物，才需要加上胸口偏移 (因為怪物的原點在腳底)
-				# 如果勾到的是死物牆壁 (SickleHook)，它本來就在胸口高度，絕對不偏移！
 				if not hook_target_node is SickleHook:
-					target_pos += Vector2(0.0, -20.0)
-					
-				# 玩家的起點也必須設定在「胸口」，腳底對腳底、胸口對胸口，才能完美水平飛行！
-				var start_pos = player.global_position + Vector2(0.0, -20.0)
-				var dir = start_pos.direction_to(target_pos)
+					# 🌟 修改：怪物端保持置中，不吃 X 軸偏移
+					target_pos += Vector2(0.0, HOOK_OFFSET.y)
 				
-				var pull_speed = 1100.0 
-				new_x = dir.x * pull_speed * speed_mult
-				new_y = dir.y * pull_speed * speed_mult
+				# 🌟 修改：使用統一的動態鏡像胸口座標來計算剩餘距離
+				var current_chest_pos = player.global_position + _get_player_hook_offset()
 				
-				# 👇 5. 最高指導防線：空戰高度保險鎖！
-				# 如果玩家距離地面低於能施放 62 的起跳線，強制封鎖向下修正，改為在怪物斜上方水平懸浮
-				if _get_ground_distance() <= min_air_attack_height + 5.0:
-					if new_y > 0.0: 
-						new_y = 0.0 # 強制煞車，絕對不准再往下掉
+				var is_wall = (hook_target_node is SickleHook)
+				# 🌟 核心修復：牆壁的停止距離必須壓縮到極小 (10.0)！
+				# 強迫玩家繼續飛，直到肉體真正撞上牆壁觸發 player.is_on_wall() 為止
+				var stop_distance = 15.0 if is_wall else 60.0
 				
-				# 如果已經貼臉了 (距離小於 60)，停止突進
-				if player.global_position.distance_to(target_pos) < 60.0:
+				# 🌟 核心修復 2：先判斷到了沒！
+				var has_arrived = false
+				if current_chest_pos.distance_to(target_pos) < stop_distance:
+					has_arrived = true
+				# 🚨 終極物理防線：無論目標是怪還是牆，只要肉體撞到「任何地形」(地板/牆壁/天花板)
+				# 就代表物理軌跡已被強制切斷，必須立刻判定抵達終點！
+				elif player.is_on_wall() or player.is_on_floor() or player.is_on_ceiling():
+					has_arrived = true
+				
+				if has_arrived:
+					# ========================================
+					# ✅ 已經抵達終點 (或貼臉發射) 的結算
+					# ========================================
 					is_hooking = false
-					
-					# 🌟 記錄這次撞到的到底是不是牆壁
-					var was_wall = (hook_target_node is SickleHook)
-					
 					hook_target_node = null 
-					new_x = move_toward(new_x, 0.0, base_friction * 2.0)
-					new_y = 0.0
+					hook_pull_dir = Vector2.ZERO
 					
-					# 讓留在敵人身上的鐮刀漸變消失
+					# 讓留在目標身上的鐮刀漸變消失
 					if is_instance_valid(active_hook) and active_hook.has_method("fade_and_die"):
 						active_hook.fade_and_die()
 						active_hook = null
-						
-					# 🌟 核心新增：如果勾到的是牆壁，抵達後直接跳轉滑牆狀態！
-					if was_wall:
-						cancel_attack() # 提早結束空戰攻擊狀態
-						
-						# 呼叫玩家的狀態機跳轉
-						if player.get("state_machine") and player.state_machine.has_method("change_state"):
-							player.state_machine.change_state("WallSlide")
-						elif player.has_method("change_state"):
-							player.change_state("WallSlide")
-							
-						# 👇 核心修復：狀態已經切換，立刻 return 退出函數，阻止底下的 VFX 讀取崩潰！
+					
+					if is_wall:
+						# 🧱 撞到牆：大道至簡！瞬間煞車並收招，把物理控制權還給基礎狀態機！
+						new_x = 0.0
+						new_y = 0.0
+						cancel_attack() 
 						return Vector2(new_x, new_y)
+					else:
+						# 👾 撞到怪：保留些微往前慣性，並賦予向上彈跳推力
+						new_x = move_toward(new_x, 0.0, base_friction * 2.0)
+						new_y = -200.0 * speed_mult 
+						# 離開飛行動畫，播一個短暫的滯空動作
+						player.play_safe_anim("sickle/air_fly_end")
+				
+				else:
+					# ========================================
+					# ✈️ 還沒抵達，繼續賦予飛行速度與動畫！
+					# ========================================
+					var dir = hook_pull_dir
+					
+					# 如果是極近距離貼臉發射，根本不會進到這一步，所以絕對不會卡飛行動畫！
+					if player.animation_player.current_animation != "sickle/air_fly":
+						player.play_safe_anim("sickle/air_fly")
+					
+					var pull_speed = 1100.0 
+					new_x = dir.x * pull_speed * speed_mult
+					new_y = dir.y * pull_speed * speed_mult
 		else:
-			# 未命中或手動揮空時的滯空與緩降
+			# 未命中、或已經撞完彈起時的物理處理
 			new_x = move_toward(new_x, 0.0, base_friction)
-			if anim_time < 0.2:
+			
+			# 🌟 核心修復 B：只在「剛丟出鐮刀 (air_attack_1)」的前 0.15 秒沒收 Y 軸動能！
+			# 絕對不可以影響「撞擊彈起後」的推力！
+			if player.animation_player.current_animation == "sickle/air_attack_1" and anim_time < 0.15:
 				new_y = 0.0
 			else:
 				new_y += (player.default_gravity * air_skill_gravity_rate) * delta
 
 		if anim_time >= 0.1 and not is_vfx_fired:
 			is_vfx_fired = true
-			_spawn_weapon_vfx(AIR_ATTACK_CONFIG[combo_step])
-
+			# 🌟 核心修復：傳送門打斷可能導致 combo_step 突變為 0，必須先檢查字典裡有沒有這個招式！
+			if AIR_ATTACK_CONFIG.has(combo_step):
+				_spawn_weapon_vfx(AIR_ATTACK_CONFIG[combo_step])
+			
 	# ----------------------------------------
 	# 空戰 62: 下墜砸地
 	# ----------------------------------------
@@ -536,14 +577,13 @@ func get_current_velocity(delta: float) -> Vector2:
 		else:
 			new_y = 1200.0 * speed_mult    # 砸地極速下墜！
 			
-		# 落地瞬間觸發震動與特效
+		# 落地瞬間觸發震動 (純粹的下砸！)
 		if player.is_on_floor() and not is_wave_fired:
 			is_wave_fired = true
 			new_y = 0.0
-			if CombatManager.has_method("apply_camera_shake"):
+			# 🌟 核心修復：防震動疊加！只有玩家本體砸地才會震動，殘影砸地只播特效不震畫面！
+			if player is Player and CombatManager.has_method("apply_camera_shake"):
 				CombatManager.apply_camera_shake(30.0, 0.15)
-			if player.has_method("spawn_anim_vfx"):
-				player.spawn_anim_vfx("Aggregation ring", 0, 0, Vector2(2, 2))
 				
 		if anim_time >= 0.1 and not is_vfx_fired:
 			is_vfx_fired = true
@@ -553,7 +593,20 @@ func get_current_velocity(delta: float) -> Vector2:
 		new_x = move_toward(new_x, 0.0, base_friction)
 
 	return Vector2(new_x, new_y)
-	
+
+# ==========================================
+# 🧹 生命週期管理 (自動清理與絕對解耦)
+# ==========================================
+func _exit_tree() -> void:
+	# 當這把武器被銷毀 (例如殘影壽命結束、或者玩家切換場景) 時
+	# 自己負責把自己產生的外部投射物清乾淨，絕不依賴父節點的呼叫！
+	if is_instance_valid(active_hook):
+		if active_hook.has_method("fade_and_die"):
+			active_hook.fade_and_die()
+		else:
+			active_hook.queue_free()
+		active_hook = null
+
 func is_handling_gravity() -> bool:
 	if combo_step == 11 and is_launch_triggered: return true
 	# 🌟 核心修復：必須把 61 (飛索) 和 62 (下砸) 加進來，這兩招由武器完全接管 Y 軸！
@@ -616,8 +669,14 @@ func is_attack_finished() -> bool:
 		
 		# 🌟 核心修復：如果 61 號出鉤動畫自然播完了，玩家卻還沒貼臉，強制收回/消失鐮刀！
 		if combo_step == 61:
+			# 🚨 核心攔截：如果此時「還在飛行突進中 (is_hooking)」，絕對不能收招，直接返回 false 繼續飛！
+			if is_hooking: 
+				return false
+				
+			# 只有在揮空、沒勾到任何東西且動畫播完時，才走常規收招
 			is_hooking = false
 			hook_target_node = null
+			hook_pull_dir = Vector2.ZERO
 			if is_instance_valid(active_hook):
 				if active_hook.has_method("fade_and_die"):
 					active_hook.fade_and_die()
@@ -625,7 +684,7 @@ func is_attack_finished() -> bool:
 					active_hook.queue_free()
 				active_hook = null
 		
-		if combo_step in [61, 62]: 
+		if combo_step == 62: 
 			air_attack_locked = true
 			
 		last_attack_time = Time.get_ticks_msec() / 1000.0
@@ -649,7 +708,7 @@ func is_attack_finished() -> bool:
 	return false
 
 func cancel_attack() -> void:
-	if not player.is_on_floor() and combo_step in [61, 62]:
+	if not player.is_on_floor() and combo_step == 62:
 		air_attack_locked = true
 		
 	player.is_input_locked = false 
@@ -684,7 +743,17 @@ func cancel_attack() -> void:
 	
 	var p_scabbard = player.get("scabbard")
 	if p_scabbard: p_scabbard.fade_in()
-		
+
+# ==========================================
+# 👻 殘影系統合約接口 (解耦設計)
+# ==========================================
+func can_spawn_phantom() -> bool:
+	# 飛索突進 (61) 期間，屬於特殊幾何位移，嚴禁生成殘影
+	# 直接回傳 false 讓主系統知道這招必須純粹地被打斷
+	if combo_step == 61:
+		return false
+	return true
+
 func requires_sheath() -> bool:
 	if combo_step == 0:
 		return false
@@ -901,14 +970,15 @@ func spawn_sickle_hook(fly_direction: Vector2) -> void:
 	if not SICKLE_HOOK_SCENE: return
 	
 	var hook = SICKLE_HOOK_SCENE.instantiate()
-	hook.global_position = player.global_position + Vector2(0.0, -20.0)
+	# 🌟 修改：玩家生成點改用動態鏡像偏移
+	hook.global_position = player.global_position + _get_player_hook_offset() 
 	hook.z_index = player.z_index + 1
 	
 	if "fly_direction" in hook: hook.fly_direction = fly_direction
 	if "direction" in hook: hook.direction = player.direction
 	if "thrower" in hook: hook.thrower = player
 	if "speed" in hook: hook.speed = 1100.0 
-	if "max_distance" in hook: hook.max_distance = 200.0 
+	if "max_distance" in hook: hook.max_distance = 300.0
 	
 	get_tree().current_scene.add_child(hook)
 	active_hook = hook # 🌟 將發射的飛索記入口袋
@@ -933,14 +1003,17 @@ func spawn_sickle_hook(fly_direction: Vector2) -> void:
 		if not is_hooking:
 			is_hooking = true
 			hook_target_node = hurtbox.owner
-			pull_delay_timer = 0.2 
+			pull_delay_timer = 0.1 
+			
+			# 🌟 修改：計算拉扯方向時，玩家起點用動態偏移，怪物終點保持 X 置中 (0.0) 避免歪斜
+			var start_pos = player.global_position + _get_player_hook_offset()
+			var target_pos = hurtbox.owner.global_position + Vector2(0.0, HOOK_OFFSET.y)
+			hook_pull_dir = start_pos.direction_to(target_pos)
 			
 			if player is Player:
 				player.invincible_time_left = 0.9 
 				
-			print("🔗 [物理反饋] 鎖鐮咬住目標！釘在怪物身上...")
-			
-			# 🌟 核心修改：不直接刪除，而是呼叫狀態機讓它釘在敵人身上！
+			print("🔗 [物理反饋] 鎖鐮咬住目標！鎖定軌跡向量：", hook_pull_dir)
 			if is_instance_valid(hook) and hook.has_method("stick_to_target"):
 				hook.stick_to_target(hurtbox.owner)
 	)
@@ -964,8 +1037,9 @@ func _get_auto_target(radius: float) -> Node2D:
 		# 🌟 局部新增：隔牆寻敵攔截網
 		var space_state = player.get_world_2d().direct_space_state
 		
-		var start_pos = player.global_position + Vector2(0.0, -20.0)
-		var end_pos = target_owner.global_position + Vector2(0.0, -20.0)
+		# 🌟 修改：雷達探測的發射源使用玩家的動態鏡像點，目標點保持置中
+		var start_pos = player.global_position + _get_player_hook_offset()
+		var end_pos = target_owner.global_position + Vector2(0.0, HOOK_OFFSET.y)
 		
 		var query = PhysicsRayQueryParameters2D.create(start_pos, end_pos)
 		
@@ -991,12 +1065,17 @@ func _get_auto_target(radius: float) -> Node2D:
 func trigger_wall_hook(hook_instance: Node2D) -> void:
 	if not is_hooking:
 		is_hooking = true
-		# 🌟 把牆壁特效本體當作目標！因為它已經靜止釘在牆上了
 		hook_target_node = hook_instance 
-		pull_delay_timer = 0.2 # 勾牆的停頓可以短一點
+		pull_delay_timer = 0.2 
+		
+		# 🌟 修改：勾牆瞬間的方向計算起點
+		var start_pos = player.global_position + _get_player_hook_offset()
+		var target_pos = hook_instance.global_position
+		hook_pull_dir = start_pos.direction_to(target_pos)
+		
 		if player is Player:
 			player.invincible_time_left = 0.6
-		print("🧱 [物理反饋] 鎖鐮抓住了牆體！準備拉拽突進！")
+		print("🧱 [物理反饋] 鎖鐮抓住了牆體！鎖定軌跡向量：", hook_pull_dir)
 		
 func enable_hitbox(shape_name: String = "") -> void:
 	if _is_hitbox_locked: return

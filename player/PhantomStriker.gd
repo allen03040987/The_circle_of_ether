@@ -26,6 +26,12 @@ var _is_initializing: bool = false # 🌟 新增：快進定位保護鎖
 # 🧬 靈魂轉移與初始化 (由 Player 呼叫)
 # ==========================================
 func setup(player: CharacterBody2D, weapon: Weapon) -> void:
+	
+	# 🌟 完美解耦：主動詢問武器，當下狀態是否「拒絕」生成殘影？
+	if weapon.has_method("can_spawn_phantom") and not weapon.can_spawn_phantom():
+		queue_free()
+		return
+	
 	self.name = "Phantom_" + weapon.name
 	self.global_position = player.global_position
 	
@@ -100,7 +106,10 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 				# 🌟 終極修復：把解耦後被遺忘的「資源記憶體」全部交接給殘影！
 				"_current_energy_reward", "_current_switch_reward", 
 				"_current_pozhen_reward", "_current_iai_reward", "_current_charge_reward",
-				"_multi_hit_energy", "_has_granted_resources_this_step"
+				"_multi_hit_energy", "_has_granted_resources_this_step",
+				
+				# 🌟 鎖鏈鐮刀專屬：讓殘影記得本尊這趟升空有沒有丟過飛索！
+				"has_used_air_hook" 
 			]
 			for prop in props_to_copy:
 				if prop in outgoing_weapon:
@@ -236,8 +245,7 @@ func add_weapon_resource(w_id: String, e: float, s: float) -> void:
 func die_gracefully() -> void:
 	var hb = outgoing_weapon.get("current_active_hitbox") if is_instance_valid(outgoing_weapon) else null
 	
-	# 🌟 核心修復：加上 _death_retries < 5 的限制！
-	# 如果等了 0.5 秒 (5次) 打擊清單還是沒清空，就不管了，強制銷毀！防範無限迴圈！
+	# 🌟 只保留通用的防卡死邏輯，絕不干涉特定武器內部運作
 	if is_instance_valid(hb) and hb.get("sticky_multi_hit") and hb.get("hit_targets") and not hb.hit_targets.is_empty() and _death_retries < 5:
 		_death_retries += 1
 		get_tree().create_timer(0.1, true, false, true).timeout.connect(die_gracefully)

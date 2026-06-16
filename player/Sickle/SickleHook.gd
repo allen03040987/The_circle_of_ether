@@ -4,6 +4,7 @@ extends Node2D
 var fly_direction: Vector2 = Vector2.RIGHT
 var direction: int = 1
 var thrower: Node = null
+var weapon: Node = null # 🌟 新增：直接儲存武器腳本的參照
 var speed: float = 1100.0
 var max_distance: float = 500.0
 
@@ -14,7 +15,7 @@ var current_state: HookState = HookState.FLY_OUT
 
 var stuck_target: Node2D = null
 var stuck_offset: Vector2 = Vector2.ZERO
-
+var is_wall_hook: bool = false
 @onready var hitbox: Hitbox = $Hitbox
 
 # 🌟 新增：鎖鏈視覺線條
@@ -42,14 +43,18 @@ func _ready() -> void:
 	
 	add_child(chain_line)
 
-# 🌟 新增：視覺更新，每一幀讓線條連接鐮刀與玩家！
 func _process(_delta: float) -> void:
 	if is_instance_valid(chain_line) and is_instance_valid(thrower):
 		chain_line.clear_points()
 		# 點 0：鐮刀本體的中心點
 		chain_line.add_point(Vector2.ZERO)
-		# 點 1：玩家胸口的相對座標
-		var thrower_local_pos = to_local(thrower.global_position + Vector2(0.0, -20.0))
+		
+		# 🌟 核心修復：鎖鏈連回玩家的終點也必須吃「動態鏡像翻轉」！
+		# 完全對齊主腳本的 Vector2(10.0 * direction, -30.0)
+		var player_chest_offset = Vector2(10.0 * direction, -30.0)
+		var thrower_local_pos = to_local(thrower.global_position + player_chest_offset)
+		
+		# 點 1：玩家胸口動態發射點的相對座標
 		chain_line.add_point(thrower_local_pos)
 
 func _physics_process(delta: float) -> void:
@@ -78,10 +83,12 @@ func _physics_process(delta: float) -> void:
 				queue_free()
 				
 		HookState.STUCK:
-			if is_instance_valid(stuck_target):
+			if is_wall_hook:
+				pass # 🌟 牆壁是死物，不需要跟隨，永遠留在原地！
+			elif is_instance_valid(stuck_target):
 				global_position = stuck_target.global_position + stuck_offset
 			else:
-				fade_and_die()
+				fade_and_die() # 只有怪物死掉才消失
 
 func stick_to_target(target: Node2D) -> void:
 	current_state = HookState.STUCK 
@@ -93,6 +100,7 @@ func _on_wall_entered(body: Node2D) -> void:
 	if current_state == HookState.FLY_OUT:
 		current_state = HookState.STUCK
 		stuck_target = null 
+		is_wall_hook = true # 🌟 核心修復：大喊一聲「我是牆壁！不要殺我！」
 		_disable_hitbox()
 		
 		if is_instance_valid(thrower) and thrower.current_weapon.has_method("trigger_wall_hook"):
@@ -101,9 +109,18 @@ func _on_wall_entered(body: Node2D) -> void:
 func fade_and_die() -> void:
 	if current_state == HookState.FADING: return 
 	current_state = HookState.FADING 
+	
+	# 🌟 終極安全鎖：如果節點正在被傳送門拔除，絕對不准建立 Tween，直接自我銷毀！
+	if not is_inside_tree():
+		queue_free()
+		return
+		
 	var tween = create_tween()
-	tween.tween_property(self, "modulate:a", 0.0, 0.3)
-	tween.tween_callback(queue_free)
+	if tween:
+		tween.tween_property(self, "modulate:a", 0.0, 0.3)
+		tween.tween_callback(queue_free)
+	else:
+		queue_free()
 
 func _disable_hitbox() -> void:
 	if hitbox:

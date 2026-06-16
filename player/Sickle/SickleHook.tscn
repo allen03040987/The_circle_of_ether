@@ -40,7 +40,7 @@ texture = ExtResource("3_rq16i")
 [node name="Aura" type="Sprite2D" parent="."]
 modulate = Color(0.988396, 0, 0.0957472, 0.356863)
 material = SubResource("CanvasItemMaterial_agtfw")
-position = Vector2(0, 1)
+position = Vector2(20, 6)
 texture = SubResource("GradientTexture2D_x6g8q")
 
 [node name="WallDetector" type="Area2D" parent="."]
