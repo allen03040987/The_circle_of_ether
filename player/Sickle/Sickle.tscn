@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://2cvi0k4e61hv"]
+[gd_scene load_steps=11 format=3 uid="uid://2cvi0k4e61hv"]
 
 [ext_resource type="Script" path="res://player/Sickle/Sickle.gd" id="1_03mu0"]
 [ext_resource type="Script" path="res://classes/Hitbox.gd" id="1_ew3ct"]
@@ -19,6 +19,9 @@ size = Vector2(208, 54)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_dw8lo"]
 size = Vector2(272, 77)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_wkahd"]
+size = Vector2(176, 77)
 
 [node name="Sickle" type="Node2D"]
 script = ExtResource("1_03mu0")
@@ -72,4 +75,18 @@ spark_random_offset = Vector2(0, 0)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="C1"]
 position = Vector2(0, -41.5)
 shape = SubResource("RectangleShape2D_dw8lo")
+disabled = true
+
+[node name="Air_J" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("1_ew3ct")
+knockback_force = Vector2(50, 0)
+spark_base_offset = Vector2(0, -5)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Air_J"]
+position = Vector2(0, -41.5)
+shape = SubResource("RectangleShape2D_wkahd")
 disabled = true

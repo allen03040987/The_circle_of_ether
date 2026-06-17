@@ -91,7 +91,7 @@ tracks/2/path = NodePath("CPUParticles2D/Sprite-0001:modulate")
 tracks/2/interp = 1
 tracks/2/loop_wrap = true
 tracks/2/keys = {
-"times": PackedFloat32Array(0.08, 0.2),
+"times": PackedFloat32Array(0.08, 0.16),
 "transitions": PackedFloat32Array(1, 1),
 "update": 0,
 "values": [Color(1, 1, 1, 1), Color(1, 1, 1, 0)]
@@ -103,7 +103,7 @@ tracks/3/path = NodePath("Aura:modulate")
 tracks/3/interp = 1
 tracks/3/loop_wrap = true
 tracks/3/keys = {
-"times": PackedFloat32Array(0, 0.2),
+"times": PackedFloat32Array(0, 0.17),
 "transitions": PackedFloat32Array(1, 1),
 "update": 0,
 "values": [Color(1, 1, 1, 0.341176), Color(1, 1, 1, 0)]

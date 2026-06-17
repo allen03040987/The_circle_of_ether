@@ -28,6 +28,8 @@ script = ExtResource("1_1gqmj")
 collision_layer = 0
 collision_mask = 17
 script = ExtResource("3_sdcpj")
+hit_sfx_type = "hit_5"
+shake_intensity = -20.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
 position = Vector2(19, 5)

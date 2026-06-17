@@ -92,7 +92,7 @@ const SKILL_CONFIG = {
 		"laser_type": Damage.Type.HEAVY,             
 		"laser_knockback": Vector2(600.0, -500.0),   
 		"laser_shake": 70.0 ,
-		"hit_sfx_type": "hit_7"                                        
+		"hit_sfx_type": "hit"                                        
 	},
 	81: {
 		"anim": "talisman/attack_ult_end", "hitbox_name": "None", 

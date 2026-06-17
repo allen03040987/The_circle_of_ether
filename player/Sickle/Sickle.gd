@@ -16,7 +16,7 @@ const WEAPON_ID: String = "sickle"
 const SICKLE_VFX_SCENE = preload("res://player/Sickle/SickleVFX.tscn") 
 # 🌟 修改這行！把它指向你真正會飛的鐮刀投射物場景
 const SICKLE_HOOK_SCENE = preload("res://player/Sickle/SickleHook.tscn")
-const SICKLE_WAVE_SCENE = preload("res://player/Katana/c_3_wave.tscn") 
+
 
 const HOOK_OFFSET = Vector2(10.0, -30.0)
 
@@ -51,7 +51,7 @@ const SKILL_CONFIG = {
 	41: { "anim": "katana/attack_c2", "hitbox_name": "C2", "base_dmg": 250, "energy": 10, "switch": 15, "link_reward": 5 },
 	
 	# 預留 C4：戰技下
-	20: { "anim": "katana/attack_c3", "hitbox_name": "C3", "base_dmg": 300, "energy": 15, "switch": 20, "link_reward": 10 },
+	20: { "anim": "katana/attack_c3", "hitbox_name": "C3", "interval": 0.0, "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -500.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "link_reward": 2,},
 	
 	# 強化戰技 (滿鏈心值)
 	42: { "anim": "sickle/attack_enhanced", "hitbox_name": "attack_enhanced", "base_dmg": 400, "energy": 25, "switch": 30 },
@@ -64,7 +64,7 @@ const SKILL_CONFIG = {
 
 const AIR_ATTACK_CONFIG = {
 	61: { "anim": "sickle/air_attack_1", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(20.0, -200.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "link_reward": 2, "action_type": Weapon.ActionType.NORMAL},
-	62: { "anim": "katana/air_attack_2", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(20.0, -300.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "link_reward": 2, "action_type": Weapon.ActionType.NORMAL},
+	62: { "anim": "sickle/air_attack_2_start", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "type": Damage.Type.HEAVY, "knockback": Vector2(20.0, -300.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "link_reward": 2, "action_type": Weapon.ActionType.NORMAL},
 }
 
 # ==========================================
@@ -532,7 +532,7 @@ func get_current_velocity(delta: float) -> Vector2:
 					else:
 						# 👾 撞到怪：保留些微往前慣性，並賦予向上彈跳推力
 						new_x = move_toward(new_x, 0.0, base_friction * 2.0)
-						new_y = -200.0 * speed_mult 
+						new_y = -250.0 * speed_mult 
 						# 離開飛行動畫，播一個短暫的滯空動作
 						player.play_safe_anim("sickle/air_fly_end")
 				
@@ -567,27 +567,47 @@ func get_current_velocity(delta: float) -> Vector2:
 				_spawn_weapon_vfx(AIR_ATTACK_CONFIG[combo_step])
 			
 	# ----------------------------------------
-	# 空戰 62: 下墜砸地
+	# 空戰 62: 下墜砸地 (分拆為：起手 -> 下墜 -> 落地)
 	# ----------------------------------------
 	elif combo_step == 62:
-		new_x = move_toward(new_x, 0.0, base_friction * 0.5) # 允許微幅水平位移
+		var current_anim = player.animation_player.current_animation
+		var start_anim = AIR_ATTACK_CONFIG[62]["anim"] # 抓取配置裡的起手動畫
 		
-		if anim_time < 0.1:
-			new_y = air_thrust_force * 0.5 # 砸地前搖稍微抬升
-		else:
-			new_y = 1200.0 * speed_mult    # 砸地極速下墜！
+		# 🌟 核心修復：利用 is_wave_fired 當作「絕對狀態鎖」！
+		# 一旦落地 (is_wave_fired = true)，就不管 is_on_floor 怎麼閃爍，死死扣在落地階段！
+		if not is_wave_fired and not player.is_on_floor():
+			new_x = move_toward(new_x, 0.0, base_friction * 0.5) # 允許微幅水平位移
 			
-		# 落地瞬間觸發震動 (純粹的下砸！)
-		if player.is_on_floor() and not is_wave_fired:
-			is_wave_fired = true
-			new_y = 0.0
-			# 🌟 核心修復：防震動疊加！只有玩家本體砸地才會震動，殘影砸地只播特效不震畫面！
-			if player is Player and CombatManager.has_method("apply_camera_shake"):
-				CombatManager.apply_camera_shake(30.0, 0.15)
+			# ✈️ 階段 1：起手滯空前搖 (前 0.4 秒)
+			if current_anim == start_anim and anim_time < 0.4:
+				new_y = air_thrust_force * 0.5 # 砸地前搖稍微抬升
+			else:
+				# ✈️ 階段 2：無限下墜途中
+				new_y = 1200.0 * speed_mult
+				# 如果還沒切換到下墜動畫，或動畫被 Godot 清空，就確保維持下墜姿勢
+				if current_anim != "sickle/air_attack_2_fall":
+					player.play_safe_anim("sickle/air_attack_2_fall")
+					
+		else:
+			# 💥 階段 3：觸地瞬間與落地硬直 (已觸發過落地，或正在落地)
+			if not is_wave_fired:
+				is_wave_fired = true
+				player.play_safe_anim("sickle/air_attack_2_land")
 				
-		if anim_time >= 0.1 and not is_vfx_fired:
-			is_vfx_fired = true
-			_spawn_weapon_vfx(AIR_ATTACK_CONFIG[combo_step])
+				# 觸地瞬間震動螢幕
+				if player is Player and CombatManager.has_method("apply_camera_shake"):
+					CombatManager.apply_camera_shake(30.0, 0.15)
+					
+			# 🌟 物理修復：給予一個微小的向下重力 (10.0) 壓住地板
+			# 防止 Godot 在速度為 0 時誤判「離開地面」導致狀態機崩潰！
+			new_x = 0.0
+			new_y = 10.0 
+			
+			# 觸地特效 (在落地動畫播到 0.1 秒時爆發)
+			if anim_time >= 0.1 and not is_vfx_fired:
+				is_vfx_fired = true
+				if AIR_ATTACK_CONFIG.has(combo_step):
+					_spawn_weapon_vfx(AIR_ATTACK_CONFIG[combo_step])
 
 	else:
 		new_x = move_toward(new_x, 0.0, base_friction)
@@ -754,6 +774,27 @@ func can_spawn_phantom() -> bool:
 		return false
 	return true
 
+func get_phantom_lifespan() -> float:
+	# 🌟 核心升級：62 是三階段下墜攻擊，可能從很高的地方掉下來！
+	# 強烈要求殘影系統給予長達 5.0 秒的保險壽命，確保它能活著砸到地面！
+	# (等它順利落地播完 _land 後，自然會提早觸發 animation_finished 優雅死亡)
+	if combo_step == 62:
+		return 5.0 
+		
+	# 回傳 -1.0 代表不干涉，讓殘影系統使用預設的短暫壽命
+	return -1.0
+
+func should_phantom_keep_alive(anim_name: String) -> bool:
+	# 🌟 核心升級：62 號招式是「三階段連鎖狀態機」！
+	# 絕對不准在「起手 (_start)」或「下墜 (_fall)」播完時銷毀殘影！
+	# 只有當「落地 (_land)」播完時，才允許殘影自然死亡！
+	if combo_step == 62:
+		var start_anim = AIR_ATTACK_CONFIG[62]["anim"]
+		if anim_name == start_anim or anim_name == "sickle/air_attack_2_fall":
+			return true
+			
+	return false
+	
 func requires_sheath() -> bool:
 	if combo_step == 0:
 		return false
@@ -1066,7 +1107,7 @@ func trigger_wall_hook(hook_instance: Node2D) -> void:
 	if not is_hooking:
 		is_hooking = true
 		hook_target_node = hook_instance 
-		pull_delay_timer = 0.2 
+		pull_delay_timer = 0.1 
 		
 		# 🌟 修改：勾牆瞬間的方向計算起點
 		var start_pos = player.global_position + _get_player_hook_offset()

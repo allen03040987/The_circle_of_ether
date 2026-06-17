@@ -175,15 +175,24 @@ func _ready() -> void:
 		animation_player.seek(_target_pos, true)
 		animation_player.advance(0)
 		
-		# (中間綁定壽命與銷毀的邏輯維持不變)
-		animation_player.animation_finished.connect(die_gracefully.unbind(1))
+		# 🌟 核心修復：不再無腦自殺，改交給專屬的過濾器判斷！
+		animation_player.animation_finished.connect(_on_animation_finished)
 		
 		var max_lifespan: float = 2.0
 		if animation_player.has_animation(_target_anim):
 			var anim_data = animation_player.get_animation(_target_anim)
 			if anim_data.loop_mode == Animation.LOOP_NONE:
 				max_lifespan = max(0.5, anim_data.length - _target_pos + 0.2)
-				
+		
+		# ==========================================
+		# 🌟 完美解耦：詢問武器是否需要為這招「延長殘影的壽命保險」！
+		# ==========================================
+		if is_instance_valid(outgoing_weapon) and outgoing_weapon.has_method("get_phantom_lifespan"):
+			var custom_lifespan = outgoing_weapon.get_phantom_lifespan()
+			if custom_lifespan > 0.0:
+				max_lifespan = custom_lifespan
+				print("👻 [殘影系統] 武器要求延長壽命至：", max_lifespan, " 秒")
+		
 		get_tree().create_timer(max_lifespan, true, false, true).timeout.connect(die_gracefully)
 		
 		# ==========================================
@@ -309,6 +318,18 @@ func custom_move_and_slide() -> void:
 	
 	# 算完後立刻還原真實速度
 	velocity = original_velocity
+	
+# ==========================================
+# 👻 殘影生命週期過濾器
+# ==========================================
+func _on_animation_finished(anim_name: String) -> void:
+	# 詢問武器：這個動畫播完時，殘影可以死嗎？(防禦多段狀態機招式)
+	if is_instance_valid(outgoing_weapon) and outgoing_weapon.has_method("should_phantom_keep_alive"):
+		if outgoing_weapon.should_phantom_keep_alive(anim_name):
+			print("👻 [殘影系統] 武器要求續命，忽略動畫結束信號：", anim_name)
+			return
+			
+	die_gracefully()
 	
 func _apply_vfx_colors(node: Node, main_color: Color, aura_color: Color) -> void:
 	if node is CanvasItem and node.name != "AnimationPlayer":
