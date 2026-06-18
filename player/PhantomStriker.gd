@@ -71,6 +71,8 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 	# 拔除殘影的碰撞受擊能力
 	if cloned_graphics.has_node("Hurtbox"):
 		var phantom_hurtbox = cloned_graphics.get_node("Hurtbox")
+		
+		
 		phantom_hurtbox.collision_layer = 0
 		phantom_hurtbox.collision_mask = 0
 		for child in phantom_hurtbox.get_children():

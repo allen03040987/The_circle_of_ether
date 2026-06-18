@@ -198,24 +198,34 @@ func start_light_attack() -> void:
 			hook_pull_dir = Vector2.ZERO # 🌟 核心新增：每次新發射時，清空上一次的方向鎖
 			
 			var launch_dir = Vector2(player.direction, 0.0) 
+			# 🌟 恢復機制：優先檢查玩家是否輸入了方向鍵
 			var move_dir = Input.get_axis("move_left", "move_right")
 			
-			if is_zero_approx(move_dir):
-				var target = _get_auto_target(300.0)
-				if target:
-					player.direction = 1 if target.global_position.x > player.global_position.x else -1
-					
-					# 🌟 核心修復：發射向量必須是「胸口對胸口」！
-					# 否則腳底對腳底的角度往下斜，鐮刀會提早砸到地板或矮牆！
-					var start_pos = player.global_position + HOOK_OFFSET
-					var end_pos = target.global_position + HOOK_OFFSET
-					launch_dir = start_pos.direction_to(end_pos)
-					
-					print("🎯 [鎖鐮] 自動鎖定並瞄準敵人：", target.name)
-			else:
+			if not is_zero_approx(move_dir):
+				# ➡️ 玩家按著方向鍵：絕對優先！強制手動平射，不啟動自動索敵
 				player.direction = 1 if move_dir > 0 else -1
 				launch_dir = Vector2(player.direction, 0.0)
-				print("➡️ [鎖鐮] 手動方向！朝前方直線發射鎖鐮！")
+				print("➡️ [鎖鐮] 手動輸入方向！強制朝前方直線發射！")
+			else:
+				# 🎯 玩家沒按方向鍵（中立狀態）：啟動自動索敵雷達（已過濾殘影）
+				var target = _get_auto_target(400.0)
+				if target:
+					var diff_x = target.global_position.x - player.global_position.x
+					if abs(diff_x) > 5.0:
+						player.direction = 1 if diff_x > 0 else -1
+					
+					var true_start = player.global_position + Vector2(0.0, HOOK_OFFSET.y)
+					var true_end = target.global_position + Vector2(0.0, HOOK_OFFSET.y)
+					
+					if true_start.is_equal_approx(true_end):
+						launch_dir = Vector2(player.direction, 0.0)
+					else:
+						launch_dir = true_start.direction_to(true_end)
+					print("🎯 [鎖鐮] 自動鎖定並瞄準敵人：", target.name)
+				else:
+					# ➡️ 沒按鍵也沒敵人：往預設前方平射
+					launch_dir = Vector2(player.direction, 0.0)
+					print("➡️ [鎖鐮] 無目標且無輸入，朝預設前方發射！")
 			
 			spawn_sickle_hook(launch_dir)
 			
@@ -540,9 +550,15 @@ func get_current_velocity(delta: float) -> Vector2:
 					# ========================================
 					# ✈️ 還沒抵達，繼續賦予飛行速度與動畫！
 					# ========================================
-					var dir = hook_pull_dir
+					# 🌟 完美修復 4：捨棄靜態死板的角度，改為「每一幀動態追蹤」！
+					# 確保不論玩家掉落多少、或是怪物怎麼移動，永遠朝著目標精準飛過去！
+					var true_start = player.global_position + Vector2(0.0, HOOK_OFFSET.y)
+					var dir = true_start.direction_to(target_pos)
 					
-					# 如果是極近距離貼臉發射，根本不會進到這一步，所以絕對不會卡飛行動畫！
+					# 近距離防抖 (防止重疊時小數點浮動導致上下亂竄)
+					if true_start.distance_to(target_pos) < 30.0:
+						dir = Vector2(player.direction, 0.0)
+					
 					if player.animation_player.current_animation != "sickle/air_fly":
 						player.play_safe_anim("sickle/air_fly")
 					
@@ -1075,11 +1091,14 @@ func _get_auto_target(radius: float) -> Node2D:
 		if not is_instance_valid(target_owner) or target_owner == player: continue
 		if target_owner.get("is_dead") == true: continue
 		
+		if target_owner.name.begins_with("Phantom"): continue
+		
 		# 🌟 局部新增：隔牆寻敵攔截網
 		var space_state = player.get_world_2d().direct_space_state
 		
-		# 🌟 修改：雷達探測的發射源使用玩家的動態鏡像點，目標點保持置中
-		var start_pos = player.global_position + _get_player_hook_offset()
+		# 🌟 完美修復 3：雷達探測的發射源必須絕對置中！
+		# 不要吃偏移量，防止背貼牆壁時射線起點卡進牆壁裡！
+		var start_pos = player.global_position + Vector2(0.0, HOOK_OFFSET.y)
 		var end_pos = target_owner.global_position + Vector2(0.0, HOOK_OFFSET.y)
 		
 		var query = PhysicsRayQueryParameters2D.create(start_pos, end_pos)
