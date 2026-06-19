@@ -1685,6 +1685,7 @@ script = ExtResource("20_aq8jv")
 script = ExtResource("15_2814w")
 
 [node name="BossUI" type="CanvasLayer" parent="."]
+layer = 0
 script = ExtResource("15_02l1h")
 
 [node name="V" type="VBoxContainer" parent="BossUI"]
