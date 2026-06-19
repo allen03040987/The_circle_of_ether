@@ -45,7 +45,7 @@ const LIGHT_ATTACK_CONFIG = {
 
 const SKILL_CONFIG = {
 	# 預留 C2：戰技上
-	11: { "anim": "sickle/attack_c1", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -400.0), "shake": 30.0, "base_dmg": 200, "hit_sfx_type": "hit", "energy": 10, "switch": 15, "link_reward": 5, "vfx_anim": "c2" },
+	11: { "anim": "sickle/attack_c1", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -400.0), "shake": 30.0, "base_dmg": 200, "hit_sfx_type": "hit", "energy": 10, "switch": 15, "link_reward": 5, "vfx_anim": "c0" },
 	
 	# 預留 C3：戰技中立
 	41: { "anim": "katana/attack_c2", "hitbox_name": "C2", "base_dmg": 250, "energy": 10, "switch": 15, "link_reward": 5 },
@@ -349,9 +349,10 @@ func update_timers_only(delta: float) -> void:
 			skill_3_timer = skill_3_cd     
 			skill_3_current_step = 20      
 			
-	if player.is_on_floor():
+	# 🌟 核心升級：落地 (is_on_floor) 或摸牆 (is_on_wall) 時，皆能解鎖空攻權限與重置飛索！
+	if player.is_on_floor() or player.is_on_wall():
 		air_attack_locked = false 
-		has_used_air_hook = false # 🌟 核心新增：落地時重置飛索次數
+		has_used_air_hook = false 
 		if not is_attacking and combo_step in [61, 62]:
 			combo_step = 0
 
@@ -362,7 +363,7 @@ func get_current_velocity(delta: float) -> Vector2:
 	if not is_attacking:
 		return player.velocity
 
-	if player.is_on_floor(): air_attack_locked = false
+	if player.is_on_floor() or player.is_on_wall(): air_attack_locked = false
 
 	var new_x = player.velocity.x
 	var new_y = player.velocity.y

@@ -38,15 +38,9 @@ func enter() -> void:
 	ghost_timer = 0.0
 	current_speed = 400.0 # 一般閃避的高速
 	
-	# 🧭 智能方向判定
-	if player.is_on_wall():
-		# 牆邊閃避：強制朝向遠離牆壁的方向閃，防止卡牆
-		var wall_normal = player.get_wall_normal().x
-		dodge_dir = sign(wall_normal) if wall_normal != 0 else -player.direction
-	else:
-		# 平地閃避：有按方向就照方向，沒按方向就照目前面朝方向
-		var movement := Input.get_axis("move_left", "move_right")
-		dodge_dir = sign(movement) if not is_zero_approx(movement) else player.direction
+	# 🧭 絕對服從玩家方向：有按方向就照方向，沒按方向就照目前面朝方向
+	var movement := Input.get_axis("move_left", "move_right")
+	dodge_dir = sign(movement) if not is_zero_approx(movement) else player.direction
 			
 	# 強制轉身面向閃避方向
 	player.direction = player.Direction.LEFT if dodge_dir < 0 else player.Direction.RIGHT

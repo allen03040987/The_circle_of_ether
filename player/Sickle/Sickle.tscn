@@ -18,7 +18,7 @@ size = Vector2(102, 63)
 size = Vector2(208, 54)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_dw8lo"]
-size = Vector2(272, 77)
+size = Vector2(352, 88)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wkahd"]
 size = Vector2(176, 77)
@@ -73,7 +73,7 @@ spark_random_angle = 360.0
 spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="C1"]
-position = Vector2(0, -41.5)
+position = Vector2(0, -36)
 shape = SubResource("RectangleShape2D_dw8lo")
 disabled = true
 
