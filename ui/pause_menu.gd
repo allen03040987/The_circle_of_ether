@@ -4,122 +4,138 @@ extends CanvasLayer
 # 🎒 裝備介面專用變數
 # ==========================================
 @onready var status_label: Label = $LoadoutPanel/StatusLabel
-@onready var btn_katana: Button = $LoadoutPanel/HBoxContainer/BtnKatana
-@onready var btn_spear: Button = $LoadoutPanel/HBoxContainer/BtnSpear
-@onready var btn_talisman: Button = $LoadoutPanel/HBoxContainer/BtnTalisman
-@onready var btn_sickle: Button = $LoadoutPanel/HBoxContainer/BtnSickle
 @onready var apply_button: Button = $LoadoutPanel/ApplyButton
 
-# 暫存玩家在面板上選了哪些武器
-var selected_weapons: Array[String] = []
+# 左右兩側的武器選單
+@onready var weapon_opt_1: OptionButton = $LoadoutPanel/HBoxContainer/WeaponSlot1/WeaponOpt
+@onready var weapon_opt_2: OptionButton = $LoadoutPanel/HBoxContainer/WeaponSlot2/WeaponOpt
+
+# 左右兩側的武藝選單陣列
+@onready var slot1_arts: Array[OptionButton] = [
+	$LoadoutPanel/HBoxContainer/WeaponSlot1/ArtOpt1,
+	$LoadoutPanel/HBoxContainer/WeaponSlot1/ArtOpt2,
+	$LoadoutPanel/HBoxContainer/WeaponSlot1/ArtOpt3
+]
+
+@onready var slot2_arts: Array[OptionButton] = [
+	$LoadoutPanel/HBoxContainer/WeaponSlot2/ArtOpt1,
+	$LoadoutPanel/HBoxContainer/WeaponSlot2/ArtOpt2,
+	$LoadoutPanel/HBoxContainer/WeaponSlot2/ArtOpt3
+]
 
 # ==========================================
-# 🔗 節點參考 (Node References)
+# 🥋 武器與武藝資料庫 (DB)
+# ==========================================
+const AVAILABLE_WEAPONS = [
+	{"id": "katana", "name": "太刀 (Katana)"},
+	{"id": "spear", "name": "長槍 (Spear)"},
+	{"id": "talisman", "name": "靈符 (Talisman)"},
+	{"id": "sickle", "name": "鎖鐮 (Sickle)"}
+]
+
+const AVAILABLE_ARTS = {
+	"katana": [
+		{"name": "挑飛斬 (11)", "path": "res://player/MartialArts/Katana/Art_Katana_11.gd"},
+		{"name": "升龍螺旋 (12)", "path": "res://player/MartialArts/Katana/Art_Katana_12.gd"},
+		{"name": "裂地連斬·壹 (20)", "path": "res://player/MartialArts/Katana/Art_Katana_20.gd"},
+		{"name": "裂地連斬·貳 (21)", "path": "res://player/MartialArts/Katana/Art_Katana_21.gd"},
+		{"name": "斷空劍氣 (22)", "path": "res://player/MartialArts/Katana/Art_Katana_22.gd"}
+	],
+	"spear": [
+		{"name": "向上挑飛 (22)", "path": "res://player/MartialArts/Spear/Art_Spear_22.gd"},
+		{"name": "大範圍聚怪 (21)", "path": "res://player/MartialArts/Spear/Art_Spear_21.gd"}
+	],
+	"talisman": [
+		{"name": "靈能護身塔 (20)", "path": "res://player/MartialArts/Talisman/Art_Talisman_20.gd"},
+		{"name": "逐風符·昇 (30)", "path": "res://player/MartialArts/Talisman/Art_Talisman_30.gd"},
+		{"name": "馭雷符·降 (31)", "path": "res://player/MartialArts/Talisman/Art_Talisman_31.gd"}
+	],
+	"sickle": []
+}
+
+# 暫存玩家的配置
+var selected_weapons: Array[String] = ["katana", "spear"]
+var selected_arts: Dictionary = {
+	"katana": ["", "", ""], "spear": ["", "", ""], 
+	"talisman": ["", "", ""], "sickle": ["", "", ""]
+}
+
+# ==========================================
+# 🔗 節點參考與初始化
 # ==========================================
 @onready var settings_panel: Control = $SettingsPanel 
 @onready var main_pause_ui: Control = $VBoxContainer 
+var loadout_panel: Control = null
 
-# 🎵 暫停音量控制變數
 var _volume_tween: Tween
 var _normal_volume: float = 0.0
 @onready var _master_bus_idx: int = AudioServer.get_bus_index("Master")
 
-# 改為不強制綁定，等 _ready 時再安全獲取
-var loadout_panel: Control = null
-
-# ==========================================
-# ⚙️ 初始化 (Initialization)
-# ==========================================
 func _ready() -> void:
-	# 🌟 記錄遊戲原本的 Master 音量
 	_normal_volume = AudioServer.get_bus_volume_db(_master_bus_idx)
-	
-	# 使用 get_node_or_null，這樣就算你還沒做裝備介面也不會報錯！
 	loadout_panel = get_node_or_null("LoadoutPanel")
 	
 	hide_menu()
 	if loadout_panel: loadout_panel.hide()
 	
-	if loadout_panel:
-		btn_katana.pressed.connect(_on_weapon_toggle.bind("katana"))
-		btn_spear.pressed.connect(_on_weapon_toggle.bind("spear"))
-		btn_talisman.pressed.connect(_on_weapon_toggle.bind("talisman"))
-		btn_sickle.pressed.connect(_on_weapon_toggle.bind("sickle"))
-		apply_button.pressed.connect(_on_apply_loadout_pressed)
+	if loadout_panel and is_instance_valid(weapon_opt_1):
+		_setup_ui_styles()
+		_populate_weapon_dropdowns()
 		
+		# 連接訊號
+		weapon_opt_1.item_selected.connect(_on_weapon_selected.bind(0))
+		weapon_opt_2.item_selected.connect(_on_weapon_selected.bind(1))
+		
+		for i in range(3):
+			slot1_arts[i].item_selected.connect(_on_art_selected.bind(0, i))
+			slot2_arts[i].item_selected.connect(_on_art_selected.bind(1, i))
+			
+		apply_button.pressed.connect(_on_apply_loadout_pressed)
+
+# 🌟 自動字體縮小系統：防止字體過大導致 UI 擠爆
+func _setup_ui_styles() -> void:
+	var all_opts = [weapon_opt_1, weapon_opt_2] + slot1_arts + slot2_arts
+	for opt in all_opts:
+		if is_instance_valid(opt):
+			opt.add_theme_font_size_override("font_size", 16) # 強制將下拉選單字體縮小為 16
+			
+
 # ==========================================
-# 🎮 全域輸入攔截 (Global Input)
+# 🎮 全域輸入與暫停控制
 # ==========================================
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
-		
 		var current_scene = get_tree().current_scene
 		if not current_scene: return
 		
-		# ==========================================
-		# 🛡️ 出場限制防護牆 (The Bouncer's List)
-		# ==========================================
-		# 1. 標題畫面絕對不准暫停！
-		if current_scene.name == "TitleScreen":
-			return
-			
-		if current_scene.name == "Select":
-			return
-			
-		
-			
-		# 2. 轉場期間 (Game.is_transitioning) 絕對不准暫停！
-		if Game.is_transitioning:
-			print("🚫 [PauseMenu] 轉場中，拒絕暫停！")
-			return
+		if current_scene.name == "TitleScreen" or current_scene.name == "Select": return
+		if Game.is_transitioning: return
 			
 		var players = get_tree().get_nodes_in_group("Player")
 		if players.size() > 0:
 			var p = players[0]
-			
-				
-			# 4. 玩家死掉 (Dying/Death) 時絕對不准暫停！(防止死亡畫面被暫停卡死)
 			if p.has_node("StateMachine") and p.state_machine.current_state:
 				var p_state = p.state_machine.current_state.name.to_lower()
-				if p_state in ["dying", "death"]:
-					print("🚫 [PauseMenu] 玩家已陣亡，拒絕暫停！")
-					return
-					
-			# 5. 如果有 GameOverScreen 且正在顯示，拒絕暫停！
-			if p.has_node("CanvasLayer/GameOverScreen") and p.get_node("CanvasLayer/GameOverScreen").visible:
-				return
+				if p_state in ["dying", "death"]: return
+			if p.has_node("CanvasLayer/GameOverScreen") and p.get_node("CanvasLayer/GameOverScreen").visible: return
 		
-		# ==========================================
-		# 🚦 放行區 (進入選單邏輯)
-		# ==========================================
-		# 如果在設定或裝備介面，按 Esc 就退回暫停主選單
-		if settings_panel.visible:
-			_on_back_from_settings()
-		elif loadout_panel and loadout_panel.visible:
-			_on_back_from_loadout()
-		else:
-			toggle_pause()
+		if settings_panel.visible: _on_back_from_settings()
+		elif loadout_panel and loadout_panel.visible: _on_back_from_loadout()
+		else: toggle_pause()
 
-# ==========================================
-# ⏸️ 暫停邏輯控制 (Pause Controls)
-# ==========================================
 func toggle_pause() -> void:
 	var new_pause_state = !get_tree().paused
 	get_tree().paused = new_pause_state
 	visible = new_pause_state
-	
 	_set_game_ui_visible(!new_pause_state)
 	
-	# 🌟 通知時間仲裁者：切換暫停狀態！
-	if CombatManager.has_method("set_ui_paused"):
-		CombatManager.set_ui_paused(new_pause_state)
+	if CombatManager.has_method("set_ui_paused"): CombatManager.set_ui_paused(new_pause_state)
 	
 	if new_pause_state:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		main_pause_ui.show()
 		settings_panel.hide()
 		if loadout_panel: loadout_panel.hide()
-		
 		_fade_game_volume(-20.0, 0.3)
 	else:
 		hide_menu()
@@ -130,153 +146,179 @@ func _set_game_ui_visible(is_visible: bool) -> void:
 	var players = get_tree().get_nodes_in_group("Player")
 	if players.size() > 0:
 		var p = players[0]
-		if p.has_node("InteractionIcon"):
-			if is_visible:
-				p.get_node("InteractionIcon").visible = not p.interacting_with.is_empty()
-			else:
-				p.get_node("InteractionIcon").visible = false
+		if p.has_node("InteractionIcon"): p.get_node("InteractionIcon").visible = not p.interacting_with.is_empty() if is_visible else false
 				
 func hide_menu() -> void:
 	get_tree().paused = false
 	visible = false
 	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN 
-	
-	# 🌟 確保關閉選單時，徹底解除 UI 時停鎖定！
-	if CombatManager.has_method("set_ui_paused"):
-		CombatManager.set_ui_paused(false)
+	if CombatManager.has_method("set_ui_paused"): CombatManager.set_ui_paused(false)
 
-# 處理音量平滑漸變的工具函數
 func _fade_game_volume(target_db: float, duration: float) -> void:
-	if _volume_tween:
-		_volume_tween.kill() # 確保前一次的漸變不會互相衝突
-		
+	if _volume_tween: _volume_tween.kill()
 	_volume_tween = create_tween()
-	# 核心：確保這個 Tween 在遊戲暫停 (tree.paused = true) 時也能正常運作！
 	_volume_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	
 	var current_vol = AudioServer.get_bus_volume_db(_master_bus_idx)
-	_volume_tween.tween_method(
-		func(vol: float): AudioServer.set_bus_volume_db(_master_bus_idx, vol),
-		current_vol,
-		target_db,
-		duration
-	)
+	_volume_tween.tween_method(func(vol: float): AudioServer.set_bus_volume_db(_master_bus_idx, vol), current_vol, target_db, duration)
 	
 # ==========================================
-# 📡 按鈕訊號接收 (Button Signals)
+# 📡 選單導航信號
 # ==========================================
-func _on_resume_button_pressed() -> void:
-	toggle_pause()
-
-func _on_settings_button_pressed() -> void:
-	main_pause_ui.hide()
-	settings_panel.show()
-
-func _on_back_from_settings() -> void:
-	settings_panel.hide()
-	main_pause_ui.show()
-
-func _on_loadout_button_pressed() -> void:
-	var players = get_tree().get_nodes_in_group("Player")
-	if players.size() > 0:
-		var p = players[0]
-		var current_state = p.state_machine.current_state.name.to_lower()
-		
-		if current_state != "idle":
-			print("🚫 [系統] 戰鬥中或處於非待機狀態，無法更換裝備！")
-			return
-			
-		# 🌟 讀取玩家當前的裝備，載入到面板的暫存陣列裡
-		selected_weapons = p.get("equipped_weapon_ids").duplicate()
-		_update_loadout_ui() # 刷新畫面文字
-			
-	print("🎒 [系統] 玩家處於安全待機狀態，允許開啟裝備介面！")
-	main_pause_ui.hide()
-	if loadout_panel: loadout_panel.show()
-
-# ==========================================
-# 🎒 裝備面板邏輯 (Loadout System)
-# ==========================================
-
-# 1. 玩家點擊單個武器按鈕時觸發
-func _on_weapon_toggle(weapon_id: String) -> void:
-	# 如果這把武器已經被選了，就取消選擇
-	if weapon_id in selected_weapons:
-		selected_weapons.erase(weapon_id)
-	else:
-		# 如果還沒選，且目前已經選滿 2 把了，就把最舊的那把踢掉 (pop_front)
-		if selected_weapons.size() >= 2:
-			selected_weapons.pop_front()
-		# 加入新選的武器
-		selected_weapons.append(weapon_id)
-		
-	_update_loadout_ui()
-
-# 2. 更新面板上的文字提示 (與按鈕狀態)
-func _update_loadout_ui() -> void:
-	# 🌟 重置按鈕文字
-	btn_katana.text = "太刀"
-	btn_spear.text = "長槍"
-	btn_talisman.text = "靈符"
-	btn_sickle.text = "鎖鐮" 
-	
-	# 🌟 直覺化標記！誰是主武器？誰是副武器？
-	for i in range(selected_weapons.size()):
-		var w_id = selected_weapons[i]
-		var slot_text = " [主]" if i == 0 else " [副]"
-		
-		match w_id:
-			"katana": btn_katana.text += slot_text
-			"spear": btn_spear.text += slot_text
-			"talisman": btn_talisman.text += slot_text
-			"sickle": btn_sickle.text += slot_text # 🌟 新增：為鐮刀加上主副武器標籤
-
-	if status_label:
-		if selected_weapons.size() == 0:
-			status_label.text = "⚠️ 請選擇主副武器！"
-		elif selected_weapons.size() == 1:
-			status_label.text = "目前裝備：主武器-" + selected_weapons[0] + " (還可再選一把)"
-		else:
-			status_label.text = "目前裝備：主武器-" + selected_weapons[0] + " | 副武器-" + selected_weapons[1]
-
-# 3. 按下「確認裝備」時觸發
-func _on_apply_loadout_pressed() -> void:
-	if selected_weapons.size() == 0:
-		status_label.text = "⚠️ 請至少選擇一把武器！"
-		return
-		
-	var players = get_tree().get_nodes_in_group("Player")
-	if players.size() > 0:
-		var p = players[0]
-		
-		# 🌟 核心防護 1：比對陣列！如果玩家根本沒換裝備(連順序都沒變)，直接關閉面板，不扣任何能量！
-		var current_equipped = p.get("equipped_weapon_ids")
-		if current_equipped == selected_weapons:
-			print("♻️ [系統] 裝備沒有更動，保留所有能量與狀態！")
-			_on_back_from_loadout()
-			return
-			
-		# 如果真的有改動，才呼叫 Player 的大腦去換武器
-		p.equip_loadout(selected_weapons.duplicate())
-		print("✅ 裝備更新成功：", selected_weapons)
-		
-		_on_back_from_loadout()
-		
-func _on_back_from_loadout() -> void:
-	if loadout_panel: loadout_panel.hide()
-	main_pause_ui.show()
+func _on_resume_button_pressed() -> void: toggle_pause()
+func _on_settings_button_pressed() -> void: main_pause_ui.hide(); settings_panel.show()
+func _on_back_from_settings() -> void: settings_panel.hide(); main_pause_ui.show()
+func _on_back_from_loadout() -> void: if loadout_panel: loadout_panel.hide(); main_pause_ui.show()
 
 func _on_quit_button_pressed() -> void:
 	get_tree().paused = false          
 	hide()                             
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE 
-	
-	# 🌟 核心修復：退出場景前，強制格式化時間仲裁者！
-	if CombatManager.has_method("force_reset_time"):
-		CombatManager.force_reset_time()
-		
-	# 🌟 新增防護：退出前立刻把音量還原，並清空計時器
+	if CombatManager.has_method("force_reset_time"): CombatManager.force_reset_time()
 	if _volume_tween: _volume_tween.kill()
 	AudioServer.set_bus_volume_db(_master_bus_idx, _normal_volume)
-	
 	Game.back_to_title()
+
+func _on_loadout_button_pressed() -> void:
+	var players = get_tree().get_nodes_in_group("Player")
+	if players.size() > 0:
+		var p = players[0]
+		if p.state_machine.current_state.name.to_lower() != "idle":
+			print("🚫 [系統] 戰鬥中或處於非待機狀態，無法更換裝備！")
+			return
+			
+		selected_weapons = p.get("equipped_weapon_ids").duplicate()
+		if p.has_method("get_all_weapons_martial_arts"):
+			selected_arts = p.call("get_all_weapons_martial_arts").duplicate(true)
+			
+		_sync_ui_to_data()
+			
+	main_pause_ui.hide()
+	if loadout_panel: loadout_panel.show()
+
+# ==========================================
+# 🎒 裝備面板核心邏輯 (Dual-Column System)
+# ==========================================
+
+# 初始化武器下拉選單內容
+func _populate_weapon_dropdowns() -> void:
+	weapon_opt_1.clear()
+	weapon_opt_2.clear()
+	
+	for i in range(AVAILABLE_WEAPONS.size()):
+		var w_data = AVAILABLE_WEAPONS[i]
+		weapon_opt_1.add_item(w_data["name"])
+		weapon_opt_1.set_item_metadata(i, w_data["id"])
+		weapon_opt_2.add_item(w_data["name"])
+		weapon_opt_2.set_item_metadata(i, w_data["id"])
+
+# 根據暫存資料，同步所有下拉選單的顯示狀態
+func _sync_ui_to_data() -> void:
+	if selected_weapons.size() < 2: selected_weapons = ["katana", "spear"] # 防呆
+	
+	# 設定武器下拉選單
+	_set_opt_by_metadata(weapon_opt_1, selected_weapons[0])
+	_set_opt_by_metadata(weapon_opt_2, selected_weapons[1])
+	
+	# 刷新兩邊的武藝下拉選單
+	_refresh_art_dropdowns(0)
+	_refresh_art_dropdowns(1)
+	
+	if status_label: status_label.text = "配置你的主副武器與武藝："
+
+# 武器變更時：智慧防撞與同步更新
+func _on_weapon_selected(item_index: int, slot_index: int) -> void:
+	var new_weapon_id = AVAILABLE_WEAPONS[item_index]["id"]
+	var other_slot = 1 if slot_index == 0 else 0
+	
+	# 如果選了另一邊已經裝備的武器，智慧互換兩者位置！
+	if selected_weapons[other_slot] == new_weapon_id:
+		selected_weapons[other_slot] = selected_weapons[slot_index]
+	
+	selected_weapons[slot_index] = new_weapon_id
+	_sync_ui_to_data()
+
+# 武藝變更時：寫入暫存字典，並防止重複裝備
+func _on_art_selected(item_index: int, main_slot_index: int, art_slot_index: int) -> void:
+	var w_id = selected_weapons[main_slot_index]
+	var ui_slots = slot1_arts if main_slot_index == 0 else slot2_arts
+	var selected_path = ui_slots[art_slot_index].get_item_metadata(item_index)
+	
+	# ==========================================
+	# 🌟 新增：防止重複裝備武藝的智慧互換邏輯
+	# ==========================================
+	if selected_path != "": # 允許玩家重複選擇「未裝備武藝」(空字串)
+		for i in range(3):
+			# 如果發現其他槽位已經裝備了這個武藝
+			if i != art_slot_index and selected_arts[w_id][i] == selected_path:
+				# 把那個被搶走武藝的槽位，換成我們現在這個槽位原本裝的武藝
+				var old_path = selected_arts[w_id][art_slot_index]
+				selected_arts[w_id][i] = old_path
+				break # 最多只會跟一個槽位重複，處理完就可以跳出迴圈
+	
+	# 正式寫入新的武藝路徑
+	selected_arts[w_id][art_slot_index] = selected_path
+	print("🥋 UI 配置快取：[", w_id, "] 的槽位 ", art_slot_index + 1, " 修改為 -> ", selected_path)
+	
+	# 🌟 強制刷新一次該欄位的 UI，確保剛剛發生「互換」的下拉選單文字正確更新！
+	_refresh_art_dropdowns(main_slot_index)
+
+# 刷新指定欄位的武藝下拉選單 (0=左欄, 1=右欄)
+func _refresh_art_dropdowns(main_slot_index: int) -> void:
+	var w_id = selected_weapons[main_slot_index]
+	var target_arts_ui = slot1_arts if main_slot_index == 0 else slot2_arts
+	var current_chosen_paths = selected_arts[w_id]
+	var art_list = AVAILABLE_ARTS.get(w_id, [])
+	
+	for slot_idx in range(3):
+		var opt_btn = target_arts_ui[slot_idx]
+		opt_btn.clear()
+		opt_btn.add_item("-- 未裝備武藝 --")
+		opt_btn.set_item_metadata(0, "")
+		
+		# 如果這個武器根本沒有武藝可以選（例如鐮刀），直接禁用該下拉選單
+		if art_list.size() == 0:
+			opt_btn.disabled = true
+			continue
+			
+		opt_btn.disabled = false
+		var saved_path = current_chosen_paths[slot_idx]
+		var select_target_id = 0
+		
+		for i in range(art_list.size()):
+			var art_data = art_list[i]
+			var item_id = i + 1
+			opt_btn.add_item(art_data["name"])
+			opt_btn.set_item_metadata(item_id, art_data["path"])
+			
+			if art_data["path"] == saved_path:
+				select_target_id = item_id
+				
+		opt_btn.selected = select_target_id
+
+func _set_opt_by_metadata(opt: OptionButton, meta_value: String) -> void:
+	for i in range(opt.item_count):
+		if opt.get_item_metadata(i) == meta_value:
+			opt.selected = i
+			return
+
+# 打包發送設定
+func _on_apply_loadout_pressed() -> void:
+	var players = get_tree().get_nodes_in_group("Player")
+	if players.size() > 0:
+		var p = players[0]
+		
+		var current_equipped = p.get("equipped_weapon_ids")
+		var current_arts = p.call("get_all_weapons_martial_arts") if p.has_method("get_all_weapons_martial_arts") else {}
+		
+		if current_equipped == selected_weapons and current_arts == selected_arts:
+			print("♻️ [系統] 裝備與武藝皆無更動！")
+			_on_back_from_loadout()
+			return
+			
+		if p.has_method("equip_loadout_with_arts"):
+			p.call("equip_loadout_with_arts", selected_weapons.duplicate(), selected_arts.duplicate(true))
+		else:
+			p.equip_loadout(selected_weapons.duplicate())
+			
+		print("✅ 雙武器與武藝組件同步更新成功！")
+		_on_back_from_loadout()

@@ -72,9 +72,13 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 	if cloned_graphics.has_node("Hurtbox"):
 		var phantom_hurtbox = cloned_graphics.get_node("Hurtbox")
 		
+		# 🌟 絕對不要改名！保留原名讓 AnimationPlayer 找得到它，就不會報錯
+		phantom_hurtbox.name = "Hurtbox"
 		
+		# 🌟 只要把物理圖層歸零，就算動畫強行把 monitorable 設為 true，它也是個瞎子，絕對不會受傷！
 		phantom_hurtbox.collision_layer = 0
 		phantom_hurtbox.collision_mask = 0
+		
 		for child in phantom_hurtbox.get_children():
 			if child is CollisionShape2D or child is CollisionPolygon2D:
 				child.queue_free()
@@ -99,23 +103,55 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 				"is_wave_fired", "air_attack_locked", "is_time_stop_triggered",
 				"_tsubame_zoom_phase", "_is_hitbox_locked", "is_spear_thrown",
 				
-				# 🌟 核心修復：治好殘影的失憶症！把我們近期新增的變數全部補上！
-				"is_vfx_fired", "is_proj_fired",                # 符咒：防止重複發射的鎖
-				"current_talisman_charge",                      # 符咒：把靈符值也繼承過來！
-				"skill_2_current_step", "skill_3_current_step", # 太刀：多段戰技進度
-				"skill_2_combo_timer", "skill_3_combo_timer",   # 太刀：多段戰技計時器
+				# 🌟 補上 is_tower_spawned，殘影才不會無限重複放塔！
+				"is_vfx_fired", "is_proj_fired", "is_tower_spawned",
+				"current_talisman_charge", 
+				"skill_2_current_step", "skill_3_current_step", 
+				"skill_2_combo_timer", "skill_3_combo_timer",   
 				
-				# 🌟 終極修復：把解耦後被遺忘的「資源記憶體」全部交接給殘影！
 				"_current_energy_reward", "_current_switch_reward", 
 				"_current_pozhen_reward", "_current_iai_reward", "_current_charge_reward",
 				"_multi_hit_energy", "_has_granted_resources_this_step",
-				
-				# 🌟 鎖鏈鐮刀專屬：讓殘影記得本尊這趟升空有沒有丟過飛索！
 				"has_used_air_hook" 
 			]
 			for prop in props_to_copy:
 				if prop in outgoing_weapon:
 					child.set(prop, outgoing_weapon.get(prop))
+
+			# ==========================================
+			# 🌟 終極解耦：用 get_index() 繞過 Godot 匿名名稱陷阱，完美接管卡帶
+			# ==========================================
+			var orig_art = outgoing_weapon.get("active_martial_art")
+			var orig_slots = outgoing_weapon.get("martial_slots")
+			var new_cloned_slots: Array[Node] = [null, null, null]
+
+			# 1. 利用絕對子節點位置，重新校正殘影武器內部的 slots 陣列 reference
+			if orig_slots is Array:
+				for i in range(min(orig_slots.size(), 3)):
+					if is_instance_valid(orig_slots[i]):
+						# 🎯 取得本尊卡帶在武器底下的絕對子節點順序 (例如第 4 個)
+						var child_idx = orig_slots[i].get_index()
+						if child_idx >= 0 and child_idx < child.get_child_count():
+							var found_clone = child.get_child(child_idx)
+							if is_instance_valid(found_clone):
+								new_cloned_slots[i] = found_clone
+			child.set("martial_slots", new_cloned_slots)
+
+			# 2. 設置並激活當前正在執行的武藝狀態
+			if is_instance_valid(orig_art):
+				var art_idx = orig_art.get_index()
+				if art_idx >= 0 and art_idx < child.get_child_count():
+					var cloned_art = child.get_child(art_idx)
+					if is_instance_valid(cloned_art):
+						child.set("active_martial_art", cloned_art)
+						cloned_art.set("is_active", orig_art.get("is_active"))
+						
+						# 重新把殘影與複製的武器接上武藝卡帶，完成神經對接
+						if cloned_art.has_method("setup"):
+							cloned_art.setup(self, child)
+						else:
+							cloned_art.set("player", self)
+							cloned_art.set("weapon", child)
 
 			# 綁定正確的判定框
 			if "current_active_hitbox" in outgoing_weapon and outgoing_weapon.get("current_active_hitbox") != null:
@@ -124,7 +160,6 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 				var cloned_hb = child.get_node(hb_path)
 				child.set("current_active_hitbox", cloned_hb)
 				
-				# 🌟 終極修復：把失聯的 hit 信號重新接上！確保打中怪會觸發 _on_hitbox_hit！
 				if cloned_hb.has_signal("hit") and child.has_method("_on_hitbox_hit"):
 					cloned_hb.hit.connect(child._on_hitbox_hit)
 				
@@ -132,6 +167,7 @@ func setup(player: CharacterBody2D, weapon: Weapon) -> void:
 					cloned_hb.hit_targets = orig_hb.hit_targets.duplicate()
 					
 	outgoing_weapon = cloned_weapon # 替換為複製品
+
 
 	# 4. 靜音處理 (塞住 AnimationPlayer 的嘴)
 	var original_sfx = player.get_node_or_null("SfxPlayer")
@@ -249,9 +285,11 @@ func play_safe_anim(anim_name: String) -> void:
 		if animation_player.current_animation != anim_name:
 			animation_player.play(anim_name)
 
-func add_weapon_resource(w_id: String, e: float, s: float) -> void:
-	if real_player and real_player.has_method("add_weapon_resource"):
-		real_player.add_weapon_resource(w_id, e, s)
+# 🌟 核心修復：把 _base_switch 設為 = 0.0，完美相容 2 個或 3 個參數的呼叫！
+func add_weapon_resource(weapon_id: String, base_energy: float, _base_switch: float = 0.0) -> void:
+	# 殘影只是個無情的打工仔，收到能量後直接呼叫老爸的快遞專線轉交！
+	if is_instance_valid(real_player) and real_player.has_method("add_weapon_resource"):
+		real_player.add_weapon_resource(weapon_id, base_energy)
 
 func die_gracefully() -> void:
 	var hb = outgoing_weapon.get("current_active_hitbox") if is_instance_valid(outgoing_weapon) else null

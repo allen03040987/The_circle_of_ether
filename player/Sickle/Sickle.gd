@@ -120,23 +120,12 @@ var hook_target_node: Node2D = null
 var pull_delay_timer: float = 0.0  # 🌟 新增：飛索拉拽前的停頓計時器
 var active_hook: Node2D = null
 var hook_pull_dir: Vector2 = Vector2.ZERO
-# ==========================================
-# 🌟 多段戰技連段系統 (Combo Skill Cooldown)
-# ==========================================
-var skill_2_combo_timer: float = 0.0
-var skill_2_current_step: int = 11  
-
-var skill_3_combo_timer: float = 0.0
-var skill_3_current_step: int = 20  
 
 # ==========================================
 # 🎨 動態圖標
 # ==========================================
 @export_group("動態圖標")
 @export var skill_1_enhanced_icon: Texture2D
-@export var skill_2_step2_icon: Texture2D
-@export var skill_3_step2_icon: Texture2D
-@export var skill_3_step3_icon: Texture2D
 
 # ==========================================
 # 🌀 5. 共鳴迴路邏輯 (Resonance Circuit)
@@ -273,15 +262,12 @@ func start_heavy_attack() -> void:
 	match combo_step:
 		1:
 			combo_step = 11 
-			skill_2_timer = skill_2_cd
 			_play_skill_step(combo_step)
 		2:
 			combo_step = 41
-			skill_1_timer = skill_1_cd
 			_play_skill_step(combo_step)
 		3:
 			combo_step = 20
-			skill_3_timer = skill_3_cd
 			_play_skill_step(combo_step)
 		0:
 			if is_enhanced_ready:
@@ -332,24 +318,8 @@ func start_intro_skill() -> void:
 
 func update_timers_only(delta: float) -> void:
 	if step_cooldown > 0: step_cooldown -= delta 
-	if skill_1_timer > 0: skill_1_timer -= delta
-	if skill_2_timer > 0: skill_2_timer -= delta 
-	if skill_3_timer > 0: skill_3_timer -= delta 
 	if ult_timer > 0: ult_timer -= delta
 
-	if skill_2_combo_timer > 0:
-		skill_2_combo_timer -= delta
-		if skill_2_combo_timer <= 0:
-			skill_2_timer = skill_2_cd     
-			skill_2_current_step = 11      
-
-	if skill_3_combo_timer > 0:
-		skill_3_combo_timer -= delta
-		if skill_3_combo_timer <= 0:
-			skill_3_timer = skill_3_cd     
-			skill_3_current_step = 20      
-			
-	# 🌟 核心升級：落地 (is_on_floor) 或摸牆 (is_on_wall) 時，皆能解鎖空攻權限與重置飛索！
 	if player.is_on_floor() or player.is_on_wall():
 		air_attack_locked = false 
 		has_used_air_hook = false 
@@ -965,20 +935,11 @@ func can_air_light() -> bool:
 
 func can_use_heavy() -> bool:
 	if not player.is_on_floor(): return false
-	match combo_step:
-		1: 
-			if skill_2_timer > 0: return false
-			return true
-		2: 
-			if skill_1_timer > 0: return false
-			return true
-		3: 
-			if skill_3_timer > 0: return false
-			return true
-		0:
-			if is_enhanced_ready: return true
-			return false
-	return false
+	
+	# 如果沒有任何冷卻限制，重擊永遠放行
+	if combo_step == 0:
+		return is_enhanced_ready
+	return true
 
 func can_use_ultimate() -> bool:
 	if ult_timer > 0: return false 
@@ -994,31 +955,18 @@ func get_dynamic_skill_icon(slot: int) -> Texture2D:
 	match slot:
 		1:
 			if is_enhanced_ready and skill_1_enhanced_icon: return skill_1_enhanced_icon
-		2:
-			if skill_2_current_step == 12 and skill_2_step2_icon: return skill_2_step2_icon
-		3:
-			if skill_3_current_step == 21 and skill_3_step2_icon: return skill_3_step2_icon
-			if skill_3_current_step == 22 and skill_3_step3_icon: return skill_3_step3_icon
-			
 	return super.get_dynamic_skill_icon(slot)
 
 func export_weapon_data() -> Dictionary:
 	return {
 		"current_chain_link": current_chain_link,
 		"is_enhanced_ready": is_enhanced_ready,
-		"skill_1_timer": skill_1_timer if "skill_1_timer" in self else 0.0,
-		"skill_2_timer": skill_2_timer if "skill_2_timer" in self else 0.0,
-		"skill_3_timer": skill_3_timer if "skill_3_timer" in self else 0.0,
 		"ult_timer": ult_timer if "ult_timer" in self else 0.0
 	}
 
 func import_weapon_data(data: Dictionary) -> void:
 	current_chain_link = data.get("current_chain_link", 0)
 	is_enhanced_ready = data.get("is_enhanced_ready", false)
-	
-	if "skill_1_timer" in self: skill_1_timer = data.get("skill_1_timer", 0.0)
-	if "skill_2_timer" in self: skill_2_timer = data.get("skill_2_timer", 0.0)
-	if "skill_3_timer" in self: skill_3_timer = data.get("skill_3_timer", 0.0)
 	if "ult_timer" in self: ult_timer = data.get("ult_timer", 0.0)
 
 # ==========================================

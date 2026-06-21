@@ -1,12 +1,10 @@
-[gd_scene load_steps=24 format=3 uid="uid://c18ugfjxauur6"]
+[gd_scene load_steps=22 format=3 uid="uid://c18ugfjxauur6"]
 
 [ext_resource type="Script" path="res://player/Katana/Katana.gd" id="1_8dhj7"]
 [ext_resource type="Texture2D" uid="uid://cffvkmas3ihmr" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (2).png" id="2_awpfg"]
 [ext_resource type="Texture2D" uid="uid://bqpsoqqtxlauo" path="res://player/Katana/Katana.png" id="2_cocv7"]
 [ext_resource type="Script" path="res://classes/Hitbox.gd" id="2_ieebl"]
 [ext_resource type="Texture2D" uid="uid://ctrgf4ga2poh3" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (5).png" id="3_pa6tr"]
-[ext_resource type="Texture2D" uid="uid://c3hhlbn5i1i0c" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (1).png" id="4_jdmsc"]
-[ext_resource type="Texture2D" uid="uid://gjxg3xjlo2kw" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (3).png" id="5_x6d44"]
 [ext_resource type="Texture2D" uid="uid://3ui0qpcn8v1" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (4).png" id="6_pdw6q"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_kqkt2"]
@@ -56,19 +54,13 @@ size = Vector2(680.318, 292.263)
 
 [node name="Katana" type="Node2D"]
 script = ExtResource("1_8dhj7")
+equipped_martial_arts = Array[String](["res://player/MartialArts/Katana/Art_Katana_22.gd", "res://player/MartialArts/Katana/Art_Katana_21.gd", "res://player/MartialArts/Katana/Art_Katana_20.gd"])
 charge_time_per_tier = 0.3
 skill_1_tsubame_icon = ExtResource("3_pa6tr")
-skill_2_step2_icon = ExtResource("2_awpfg")
-skill_3_step2_icon = ExtResource("2_awpfg")
-skill_3_step3_icon = ExtResource("2_awpfg")
 scabbard_texture = ExtResource("2_cocv7")
 skill_1_icon = ExtResource("2_awpfg")
-skill_2_icon = ExtResource("4_jdmsc")
-skill_3_icon = ExtResource("5_x6d44")
 ult_icon = ExtResource("6_pdw6q")
 skill_1_cd = 1.0
-skill_2_cd = 1.0
-skill_3_cd = 1.0
 
 [node name="Hitbox" type="Area2D" parent="."]
 collision_layer = 0

@@ -7,14 +7,12 @@ extends Control
 # --- 基礎技能槽 ---
 @onready var skill_slots = $HBoxContainer
 @onready var skill_1_ui = $HBoxContainer/Skill1
-@onready var skill_2_ui = $HBoxContainer/Skill2
-@onready var skill_3_ui = $HBoxContainer/Skill3
 @onready var ult_ui = $HBoxContainer/Ult
 @onready var switch_ui = $HBoxContainer/SwitchWeapon
 
 # --- 外圈能量環 ---
 @onready var ult_ring_ui = $HBoxContainer/Ult/EnergyRing
-@onready var switch_ring_ui = $HBoxContainer/SwitchWeapon/SwitchRing
+
 
 # --- 🌟 太刀專屬資源面版 ---
 @onready var katana_ui = $KatanaResources
@@ -79,46 +77,24 @@ func _process(_delta: float) -> void:
 		var icon_1 = current_weapon.get_dynamic_skill_icon(1)
 		if icon_1 and skill_1_ui.texture_under != icon_1:
 			_swap_dynamic_icon(skill_1_ui, icon_1)
-			
-		var icon_2 = current_weapon.get_dynamic_skill_icon(2)
-		if icon_2 and skill_2_ui.texture_under != icon_2:
-			_swap_dynamic_icon(skill_2_ui, icon_2)
-			
-		var icon_3 = current_weapon.get_dynamic_skill_icon(3)
-		if icon_3 and skill_3_ui.texture_under != icon_3:
-			_swap_dynamic_icon(skill_3_ui, icon_3)
 
 	# --- 🌟 冷卻條邏輯 (含連段寬限期提示) ---
 	_update_radial_cooldown(skill_1_ui, current_weapon.get("skill_1_timer"), current_weapon.get("skill_1_cd"))
 	_update_radial_cooldown(ult_ui, current_weapon.get("ult_timer"), current_weapon.get("ult_cd"))
 	
-	# 處理技能二 (若有 5 秒寬限期，優先顯示寬限期倒數，並把顏色換成橘色！)
-	var s2_combo_time = current_weapon.get("skill_2_combo_timer")
-	if s2_combo_time != null and s2_combo_time > 0:
-		_update_radial_cooldown(skill_2_ui, s2_combo_time, 5.0, true) # true 代表進入寬限期模式
-	else:
-		_update_radial_cooldown(skill_2_ui, current_weapon.get("skill_2_timer"), current_weapon.get("skill_2_cd"))
-
-	# 處理技能三 (若有 5 秒寬限期，優先顯示寬限期倒數，並把顏色換成橘色！)
-	var s3_combo_time = current_weapon.get("skill_3_combo_timer")
-	if s3_combo_time != null and s3_combo_time > 0:
-		_update_radial_cooldown(skill_3_ui, s3_combo_time, 5.0, true) # true 代表進入寬限期模式
-	else:
-		_update_radial_cooldown(skill_3_ui, current_weapon.get("skill_3_timer"), current_weapon.get("skill_3_cd"))
+	
 	
 	# ==========================================
-	# 🔋 3. 外圈：大招能量與切換(合軸)值累積
+	# 🔋 3. 外圈：大招能量累積
 	# ==========================================
 	var current_energy = 0.0
-	var current_switch = 0.0
 	
 	if current_weapon_id != "" and player.weapon_resources.has(current_weapon_id):
 		var resource = player.weapon_resources[current_weapon_id]
+		# 🌟 安全讀取：現在武器帳戶裡只有純粹的大招能量了
 		current_energy = resource["energy"]
-		current_switch = resource["switch"]
 		
 	if is_instance_valid(ult_ring_ui): ult_ring_ui.value = current_energy
-	if is_instance_valid(switch_ring_ui): switch_ring_ui.value = current_switch
 		
 	# ==========================================
 	# 🗡️ 4. 專屬面版更新 (太刀 / 長槍)
@@ -223,8 +199,6 @@ func _update_talisman_values(weapon: Node) -> void:
 # ==========================================
 func _refresh_weapon_icons(weapon: Node) -> void:
 	_apply_icon(skill_1_ui, weapon.get("skill_1_icon"))
-	_apply_icon(skill_2_ui, weapon.get("skill_2_icon"))
-	_apply_icon(skill_3_ui, weapon.get("skill_3_icon"))
 	_apply_icon(ult_ui, weapon.get("ult_icon"))
 
 func _apply_icon(ui_element: TextureProgressBar, icon_texture: Texture2D) -> void:

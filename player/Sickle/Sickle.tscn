@@ -27,12 +27,8 @@ size = Vector2(176, 77)
 script = ExtResource("1_03mu0")
 scabbard_texture = ExtResource("2_80wq1")
 skill_1_icon = ExtResource("3_21shy")
-skill_2_icon = ExtResource("3_21shy")
-skill_3_icon = ExtResource("3_21shy")
 ult_icon = ExtResource("3_21shy")
 skill_1_cd = 1.0
-skill_2_cd = 1.0
-skill_3_cd = 1.0
 
 [node name="Hitbox" type="Area2D" parent="."]
 collision_layer = 0

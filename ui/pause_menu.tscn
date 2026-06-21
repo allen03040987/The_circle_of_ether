@@ -44,49 +44,64 @@ offset_bottom = 3.0
 offset_right = 385.0
 offset_bottom = 220.0
 
-[node name="BackButton" type="Button" parent="LoadoutPanel"]
-layout_mode = 0
-offset_left = 4.0
-offset_top = 184.0
-offset_right = 44.0
-offset_bottom = 215.0
-text = "返回
-"
-
 [node name="StatusLabel" type="Label" parent="LoadoutPanel"]
 layout_mode = 0
-offset_right = 40.0
+offset_left = 8.0
+offset_right = 72.0
 offset_bottom = 23.0
-text = "目前選擇"
 
 [node name="HBoxContainer" type="HBoxContainer" parent="LoadoutPanel"]
 layout_mode = 0
-offset_left = 1.0
-offset_top = 34.0
-offset_right = 145.0
-offset_bottom = 74.0
+offset_left = 8.0
+offset_top = 24.0
+offset_right = 332.0
+offset_bottom = 116.0
 
-[node name="BtnKatana" type="Button" parent="LoadoutPanel/HBoxContainer"]
+[node name="WeaponSlot1" type="VBoxContainer" parent="LoadoutPanel/HBoxContainer"]
 layout_mode = 2
-text = "武士刀"
 
-[node name="BtnSpear" type="Button" parent="LoadoutPanel/HBoxContainer"]
+[node name="WeaponOpt" type="OptionButton" parent="LoadoutPanel/HBoxContainer/WeaponSlot1"]
 layout_mode = 2
-text = "長槍"
 
-[node name="BtnTalisman" type="Button" parent="LoadoutPanel/HBoxContainer"]
+[node name="ArtOpt1" type="OptionButton" parent="LoadoutPanel/HBoxContainer/WeaponSlot1"]
 layout_mode = 2
-text = "符咒"
 
-[node name="BtnSickle" type="Button" parent="LoadoutPanel/HBoxContainer"]
+[node name="ArtOpt2" type="OptionButton" parent="LoadoutPanel/HBoxContainer/WeaponSlot1"]
 layout_mode = 2
+
+[node name="ArtOpt3" type="OptionButton" parent="LoadoutPanel/HBoxContainer/WeaponSlot1"]
+layout_mode = 2
+
+[node name="WeaponSlot2" type="VBoxContainer" parent="LoadoutPanel/HBoxContainer"]
+layout_mode = 2
+
+[node name="WeaponOpt" type="OptionButton" parent="LoadoutPanel/HBoxContainer/WeaponSlot2"]
+layout_mode = 2
+
+[node name="ArtOpt1" type="OptionButton" parent="LoadoutPanel/HBoxContainer/WeaponSlot2"]
+layout_mode = 2
+
+[node name="ArtOpt2" type="OptionButton" parent="LoadoutPanel/HBoxContainer/WeaponSlot2"]
+layout_mode = 2
+
+[node name="ArtOpt3" type="OptionButton" parent="LoadoutPanel/HBoxContainer/WeaponSlot2"]
+layout_mode = 2
+
+[node name="BackButton" type="Button" parent="LoadoutPanel"]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 176.0
+offset_right = 48.0
+offset_bottom = 207.0
+text = "返回
+"
 
 [node name="ApplyButton" type="Button" parent="LoadoutPanel"]
 layout_mode = 2
-offset_left = 1.0
-offset_top = 133.0
-offset_right = 73.0
-offset_bottom = 173.0
+offset_left = 56.0
+offset_top = 176.0
+offset_right = 128.0
+offset_bottom = 208.0
 text = "確認裝備"
 
 [connection signal="pressed" from="VBoxContainer/ResumeButton" to="." method="_on_resume_button_pressed"]

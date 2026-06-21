@@ -61,12 +61,16 @@ func enter() -> void:
 	# ------------------------------------------
 	# 🎯 輸入緩衝與攻擊優先級發放
 	# ------------------------------------------
+	var wants_martial = player.is_martial_requested
+	var martial_slot = player.requested_martial_slot
 	var wants_heavy = player.is_heavy_requested 
 	var wants_light = player.is_combo_requested
 	
 	player.can_combo = false
+	player.is_martial_requested = false
 	player.is_combo_requested = false
 	player.is_heavy_requested = false
+	player.martial_buffer_time = 0.0
 	player.combo_buffer_time = 0.0
 	player.heavy_buffer_time = 0.0
 
@@ -79,7 +83,15 @@ func enter() -> void:
 			player.current_weapon.start_ultimate()
 		return
 		
-	# [優先級 2]：常規輕重擊
+	# 🌟 [優先級 2]：武藝 (Martial Arts)
+	if wants_martial:
+		if player.current_weapon.has_method("execute_martial_art"):
+			player.current_weapon.execute_martial_art(martial_slot)
+		else:
+			state_machine.transition_to("Idle")
+		return
+		
+	# [優先級 3]：戰技中立 (Heavy) 與 常規普攻 (Light)
 	if wants_heavy:
 		player.current_weapon.start_heavy_attack()
 	elif wants_light:
@@ -118,7 +130,20 @@ func physics_update(delta: float) -> void:
 
 		# 🔗 特權 2：連段派生 (Combo Chaining)
 		if player.can_combo and _frames_in_state > 3:
-			if player.is_heavy_requested:
+			# 🌟 連段優先級：武藝 > 重擊 > 普攻
+			if player.is_martial_requested:
+				var m_slot = player.requested_martial_slot
+				_frames_in_state = 0 
+				player.can_combo = false 
+				player.is_martial_requested = false
+				player.martial_buffer_time = 0.0
+				
+				_update_facing()
+				if player.current_weapon.has_method("execute_martial_art"):
+					player.current_weapon.execute_martial_art(m_slot)
+				return
+				
+			elif player.is_heavy_requested:
 				_frames_in_state = 0 
 				player.can_combo = false 
 				player.is_heavy_requested = false
@@ -136,7 +161,7 @@ func physics_update(delta: float) -> void:
 				
 				_update_facing()
 				player.current_weapon.start_light_attack()
-				return 
+				return
 				
 		# ⚡ 特權 3：閃避取消 (Dodge Cancel)
 		if player.slide_request_timer.time_left > 0 and player.stats.energy >= 3:

@@ -1,11 +1,9 @@
-[gd_scene load_steps=14 format=3 uid="uid://cv7qein1mmn2f"]
+[gd_scene load_steps=12 format=3 uid="uid://cv7qein1mmn2f"]
 
 [ext_resource type="Script" path="res://player/Talisman/Talisman.gd" id="1_wghj6"]
 [ext_resource type="Texture2D" uid="uid://cm1hg1jt811rr" path="res://player/Talisman/Talisman.png" id="2_242wf"]
 [ext_resource type="Texture2D" uid="uid://p33sdv1866xl" path="res://player/UI/talisman/Untitled 04-18-2026 12-09-12 (2).png" id="3_7dvm0"]
-[ext_resource type="Texture2D" uid="uid://bqhqgtvut3yka" path="res://player/UI/talisman/Untitled 04-18-2026 12-09-12.png" id="4_4lydl"]
 [ext_resource type="Script" path="res://classes/Hitbox.gd" id="4_5pdgr"]
-[ext_resource type="Texture2D" uid="uid://c72qei7vesse1" path="res://player/UI/talisman/Untitled 04-18-2026 12-09-12 (3).png" id="5_0ic36"]
 [ext_resource type="Texture2D" uid="uid://fe7al7pt2p8" path="res://player/UI/talisman/Untitled 04-18-2026 12-09-12 (1).png" id="6_53hdb"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_t18ap"]
@@ -30,12 +28,8 @@ size = Vector2(583.576, 146.131)
 script = ExtResource("1_wghj6")
 scabbard_texture = ExtResource("2_242wf")
 skill_1_icon = ExtResource("3_7dvm0")
-skill_2_icon = ExtResource("4_4lydl")
-skill_3_icon = ExtResource("5_0ic36")
 ult_icon = ExtResource("6_53hdb")
 skill_1_cd = 1.0
-skill_2_cd = 1.0
-skill_3_cd = 1.0
 
 [node name="Hitbox" type="Area2D" parent="."]
 collision_layer = 0

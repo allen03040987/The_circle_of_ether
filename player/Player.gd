@@ -70,26 +70,26 @@ var is_walking := false
 @export var can_combo := false
 var is_combo_requested := false
 var is_heavy_requested := false
+var is_martial_requested := false # 🌟 武藝輸入緩衝
+var requested_martial_slot := 0   # 🌟 記錄要求的是哪一槽 (1, 2, 3)
+
+signal martial_mode_changed(is_active: bool) # 🌟 通知 UI 顯示發光的信號
+var _last_martial_mode := false
+
 var is_weapon_invincible := false
 var is_ult_requested := false 
 var is_input_locked := false  # 領域展開絕對鎖死標記
 
 var combo_buffer_time: float = 0.0
 var heavy_buffer_time: float = 0.0
-const ATTACK_BUFFER_DURATION: float = 0.2 
+var martial_buffer_time: float = 0.0 # 🌟 武藝倒數
+const ATTACK_BUFFER_DURATION: float = 0.2
 
 var is_counter_requested := false
 
 var is_perfect_dodging := false
 var pending_damage = null
 var current_weapon: Weapon = null
-
-# ==========================================
-# 🔄 合軸切換系統 
-# ==========================================
-var switch_hold_timer: float = 0.0
-const SWITCH_LONG_PRESS_TIME: float = 0.3 
-var is_switch_handled: bool = false  
 
 # 武器切換冷卻系統
 const WEAPON_SWITCH_COOLDOWN: float = 1.0 
@@ -171,7 +171,7 @@ func equip_loadout(weapon_ids: Array[String]) -> void:
 				print("♻️ [系統] 武器 [", w_id, "] 成功繼承內部資源狀態（居合/破陣值等）。")
 			
 			if not weapon_resources.has(w_id):
-				weapon_resources[w_id] = {"energy": 0.0, "switch": 0.0}
+				weapon_resources[w_id] = {"energy": 0.0}
 				print("🏦 [系統] 裝備新武器！已為 [", w_id, "] 建立資源帳戶。")
 		else:
 			printerr("❌ 找不到武器藍圖：", w_id)
@@ -182,6 +182,13 @@ func equip_loadout(weapon_ids: Array[String]) -> void:
 		print("🎒 裝備更新完成！目前持有：", equipped_weapon_ids)
 		
 func _process(delta: float) -> void:
+	
+	# 🌟 武藝模式切換偵測與 UI 通知
+	var current_martial_mode = Input.is_action_pressed("martial_modifier") and not is_input_locked
+	if current_martial_mode != _last_martial_mode:
+		_last_martial_mode = current_martial_mode
+		martial_mode_changed.emit(current_martial_mode) # 讓你的 UI 接收信號發光！
+	
 	interaction_icon.visible = not interacting_with.is_empty()
 	
 	# ==========================================
@@ -231,11 +238,17 @@ func _process(delta: float) -> void:
 		heavy_buffer_time -= unscaled_delta
 	else:
 		is_heavy_requested = false
+		
+	# 🌟 新增：武藝輸入的倒數與清理
+	if martial_buffer_time > 0 and not is_input_locked:
+		martial_buffer_time -= unscaled_delta
+	else:
+		is_martial_requested = false
 	
 	# 鎖死狀態下的強制清潔
 	if is_input_locked:
-		is_combo_requested = false; is_heavy_requested = false; is_ult_requested = false
-		combo_buffer_time = 0.0; heavy_buffer_time = 0.0
+		is_combo_requested = false; is_heavy_requested = false; is_ult_requested = false; is_martial_requested = false
+		combo_buffer_time = 0.0; heavy_buffer_time = 0.0; martial_buffer_time = 0.0
 		
 	# 落地解鎖空戰限制
 	if is_on_floor() and is_instance_valid(current_weapon):
@@ -251,26 +264,10 @@ func _process(delta: float) -> void:
 	
 	# 🛡️ 絕對防護網：未鎖死、未死亡、不在受擊硬直中、且沒有正在排隊準備放的大招，才允許切換！
 	if not is_input_locked and not is_dead and not is_in_hitstun and not is_ult_requested and weapon_slot.get_child_count() >= 2:
-		
-		# 如果還在冷卻中，直接封鎖切換，並清空按鍵緩衝，防止連點卡死
-		if weapon_switch_cooldown_timer > 0:
-			switch_hold_timer = 0.0
-			is_switch_handled = false
-		else:
-			if Input.is_action_pressed("switch_weapon"):
-				if not is_switch_handled:
-					switch_hold_timer += unscaled_delta
-					if switch_hold_timer >= SWITCH_LONG_PRESS_TIME:
-						_execute_weapon_switch(true) # 長按變奏
-						is_switch_handled = true
-						weapon_switch_cooldown_timer = WEAPON_SWITCH_COOLDOWN # 🌟 觸發冷卻
-			else:
-				if switch_hold_timer > 0.0 and not is_switch_handled:
-					_execute_weapon_switch(false) # 短按切換
-					weapon_switch_cooldown_timer = WEAPON_SWITCH_COOLDOWN # 🌟 觸發冷卻
-				
-				switch_hold_timer = 0.0
-				is_switch_handled = false
+		if weapon_switch_cooldown_timer <= 0:
+			if Input.is_action_just_pressed("switch_weapon"):
+				_execute_weapon_switch()
+				weapon_switch_cooldown_timer = WEAPON_SWITCH_COOLDOWN # 🌟 觸發冷卻
 			
 # ==========================================
 # 🎮 玩家輸入控制 
@@ -292,25 +289,51 @@ func _unhandled_input(event: InputEvent) -> void:
 		toggle_walk_mode()
 		
 	# --- 攻擊輸入緩衝 ---
-	if event.is_action_pressed("attack"):
-		var can_buffer = true
-		if not is_on_floor() and is_instance_valid(current_weapon) and current_weapon.has_method("can_air_light"):
-			can_buffer = current_weapon.can_air_light()
-			
-		if can_buffer:
-			is_combo_requested = true
-			combo_buffer_time = ATTACK_BUFFER_DURATION
+	var is_mod_held = Input.is_action_pressed("martial_modifier")
 	
-	if event.is_action_pressed("heavy_attack"):
-		var can_buffer = true
-		
-		# 第一時間向武器確認「現在能不能放戰技？」
-		if is_instance_valid(current_weapon) and current_weapon.has_method("can_use_heavy"):
-			can_buffer = current_weapon.can_use_heavy()
+	# 🌟 左鍵：普攻 或 武藝1
+	if event.is_action_pressed("attack"):
+		if is_mod_held:
+			if _has_martial_art(0): # 🛡️ 防呆：確認 1 號槽有裝備卡帶才允許發動！
+				is_martial_requested = true
+				is_combo_requested = true 
+				requested_martial_slot = 1
+				martial_buffer_time = ATTACK_BUFFER_DURATION
+				combo_buffer_time = ATTACK_BUFFER_DURATION
+		else:
+			var can_buffer = true
+			if not is_on_floor() and is_instance_valid(current_weapon) and current_weapon.has_method("can_air_light"):
+				can_buffer = current_weapon.can_air_light()
+			if can_buffer:
+				is_combo_requested = true
+				combo_buffer_time = ATTACK_BUFFER_DURATION
+	
+	# 🌟 中鍵：專屬武藝2
+	if event.is_action_pressed("middle_click"):
+		if is_mod_held:
+			if _has_martial_art(1): # 🛡️ 防呆：確認 2 號槽有裝備卡帶
+				is_martial_requested = true
+				is_combo_requested = true 
+				requested_martial_slot = 2
+				martial_buffer_time = ATTACK_BUFFER_DURATION
+				combo_buffer_time = ATTACK_BUFFER_DURATION
 			
-		if can_buffer:
-			is_heavy_requested = true
-			heavy_buffer_time = ATTACK_BUFFER_DURATION
+	# 🌟 右鍵：戰技中立 或 武藝3
+	if event.is_action_pressed("heavy_attack"):
+		if is_mod_held:
+			if _has_martial_art(2): # 🛡️ 防呆：確認 3 號槽有裝備卡帶
+				is_martial_requested = true
+				is_combo_requested = true 
+				requested_martial_slot = 3
+				martial_buffer_time = ATTACK_BUFFER_DURATION
+				combo_buffer_time = ATTACK_BUFFER_DURATION
+		else:
+			var can_buffer = true
+			if is_instance_valid(current_weapon) and current_weapon.has_method("can_use_heavy"):
+				can_buffer = current_weapon.can_use_heavy()
+			if can_buffer:
+				is_heavy_requested = true
+				heavy_buffer_time = ATTACK_BUFFER_DURATION
 		
 	if event.is_action_pressed("ultimate"):
 		var can_buffer = true
@@ -708,17 +731,13 @@ var switch_regen_mult: float = 1.0
 var weapon_resources: Dictionary = {}
 var current_outro_buff: String = "" 
 
-func add_weapon_resource(weapon_id: String, base_energy: float, base_switch: float) -> void:
+func add_weapon_resource(weapon_id: String, base_energy: float, _base_switch: float = 0.0) -> void:
 	if not weapon_resources.has(weapon_id): 
-		weapon_resources[weapon_id] = {"energy": 0.0, "switch": 0.0}
+		weapon_resources[weapon_id] = {"energy": 0.0}
 		print("🏦 [系統] 大腦偵測到新武器，已自動為 [", weapon_id, "] 建立專屬資源帳戶！")
 	
 	var data = weapon_resources[weapon_id]
 	data["energy"] = clamp(data["energy"] + (base_energy * energy_regen_mult), 0.0, 100.0)
-	data["switch"] = clamp(data["switch"] + (base_switch * switch_regen_mult), 0.0, 100.0)
-	
-	if base_switch > 0:
-		print("🔄 [", weapon_id, "] 獲得合軸值: ", base_switch, " | 目前合軸: ", data["switch"], "/100")
 
 func get_weapon_energy(weapon_id: String) -> float:
 	if weapon_resources.has(weapon_id):
@@ -737,6 +756,65 @@ func consume_switch_value(weapon_id: String) -> bool:
 		weapon_resources[weapon_id]["switch"] = 0.0
 		return true
 	return false
+
+# ==========================================
+# 🥋 高自由度武藝配置路由器 (UI 選單對接端)
+# ==========================================
+
+## 供 UI 選單開啟時，初始化讀取本尊目前的配置狀態
+func get_all_weapons_martial_arts() -> Dictionary:
+	var current_config = {
+		"katana": ["", "", ""],
+		"spear": ["", "", ""],
+		"talisman": ["", "", ""],
+		"sickle": ["", "", ""]
+	}
+	
+	# 遍歷裝備槽，將各武器的實際配置路徑拉出來給 UI
+	if is_instance_valid(weapon_slot):
+		for weapon_node in weapon_slot.get_children():
+			var w_id = weapon_node.get("WEAPON_ID")
+			var ma_paths = weapon_node.get("equipped_martial_arts")
+			if w_id and ma_paths is Array:
+				current_config[w_id] = ma_paths.duplicate()
+	return current_config
+
+# 🛡️ 檢查當前武器的指定槽位是否有裝備武藝
+func _has_martial_art(slot_index: int) -> bool:
+	if not is_instance_valid(current_weapon): return false
+	var m_slots = current_weapon.get("martial_slots")
+	if m_slots is Array and m_slots.size() > slot_index:
+		return is_instance_valid(m_slots[slot_index])
+	return false
+	
+## 終極接口：接收選單確認後的武器名單與武藝字典，進行神經重組
+func equip_loadout_with_arts(new_weapon_ids: Array[String], new_arts_config: Dictionary) -> void:
+	# 1. 呼叫原本的換裝備邏輯 (這樣能順便結算資源帳戶與生成新武器)
+	equip_loadout(new_weapon_ids)
+	
+	# 2. 新武器生成完畢後，強行將選單中配置好的「3張卡帶路徑」塞進去並立刻載入
+	if is_instance_valid(weapon_slot):
+		for weapon_node in weapon_slot.get_children():
+			var w_id = weapon_node.get("WEAPON_ID")
+			if w_id and new_arts_config.has(w_id):
+				
+				# ==========================================
+				# 🌟 核心修復：強制將泛用 Array 轉換為嚴格的 Array[String]！
+				# ==========================================
+				var raw_paths = new_arts_config[w_id]
+				var safe_paths: Array[String] = []
+				for path in raw_paths:
+					safe_paths.append(str(path))
+				
+				# 修改武器內部的導航字串陣列
+				weapon_node.set("equipped_martial_arts", safe_paths)
+				
+				# 呼叫武器的卡帶讀取槽，動態實例化子節點！
+				if weapon_node.has_method("load_martial_arts"):
+					weapon_node.load_martial_arts(safe_paths)
+					
+	# 3. 強制刷新一次 UI 圖標，確保切換後的技能圖示正確
+	get_tree().call_group("HUD", "_refresh_weapon_icons", current_weapon)
 	
 # ==========================================
 # 📡 跨實例武器專線路由器 (Weapon Router) 
@@ -748,38 +826,20 @@ func route_weapon_method(target_weapon_id: String, method_name: String, amount: 
 		if w.get("WEAPON_ID") == target_weapon_id and w.has_method(method_name):
 			w.call(method_name, amount)
 			return
-	
-# ==========================================
-# 🔄 切換執行樞紐 (Swap Execution)
-# ==========================================
-func _execute_weapon_switch(request_intro: bool) -> void:
+
+func _execute_weapon_switch() -> void:
 	var total_weapons = weapon_slot.get_child_count()
-	# 防呆：如果只有一把武器，不准切換！
 	if total_weapons <= 1:
 		print("⚠️ 只有一把武器，無法切換！")
 		return
 		
-	# 🌟 動態輪盤切換邏輯：找到當前武器的索引，並切換到「下一把」
 	var current_idx = current_weapon.get_index() if is_instance_valid(current_weapon) else 0
 	var next_idx = (current_idx + 1) % total_weapons
 	var next_weapon = weapon_slot.get_child(next_idx)
-	
-	var next_weapon_id = next_weapon.get("WEAPON_ID") if next_weapon.get("WEAPON_ID") else "unknown"
-	var current_weapon_id = current_weapon.get("WEAPON_ID") if is_instance_valid(current_weapon) and "WEAPON_ID" in current_weapon else "unknown"
 
-	var is_intro_skill = false
-	if request_intro:
-		if weapon_resources.has(current_weapon_id) and weapon_resources[current_weapon_id]["switch"] >= 100.0:
-			weapon_resources[current_weapon_id]["switch"] = 0.0 
-			is_intro_skill = true
-			print("🌪️ [", current_weapon_id, "] 滿合軸退場！觸發 [", next_weapon_id, "] 的變奏技能！")
-		else:
-			var current_sw = weapon_resources[current_weapon_id]["switch"] if weapon_resources.has(current_weapon_id) else 0.0
-			print("⚠️ [", current_weapon_id, "] 合軸值不足 (", current_sw, "/100)，降級為一般切換！")
+	_perform_swap(next_weapon)
 
-	_perform_swap(next_weapon, is_intro_skill)
-
-func _perform_swap(next_weapon: Node, is_intro_skill: bool) -> void:
+func _perform_swap(next_weapon: Node) -> void:
 	is_input_locked = false
 	var is_attacking = state_machine.current_state.name.to_lower() == "weaponattack"
 	
@@ -808,25 +868,15 @@ func _perform_swap(next_weapon: Node, is_intro_skill: bool) -> void:
 	
 	weapon_switched.emit(current_weapon)
 	
-	# --- 狀態機分流 ---
-	if is_intro_skill:
-		is_combo_requested = false
-		is_heavy_requested = false
-		is_ult_requested = false
-		
-		state_machine.transition_to("WeaponAttack")
-		if current_weapon.has_method("start_intro_skill"):
-			current_weapon.start_intro_skill()
-			
+	# --- 狀態機分流 (直接走一般切換與常規收招) ---
+	if is_attacking:
+		state_machine.transition_to("Idle" if is_on_floor() else "Fall")
+	elif not is_on_floor():
+		var current_state = state_machine.current_state.name.to_lower()
+		if current_state not in ["jump", "fall", "wallslide"]:
+			state_machine.transition_to("Fall") 
 	else:
-		if is_attacking:
-			state_machine.transition_to("Idle" if is_on_floor() else "Fall")
-		elif not is_on_floor():
-			var current_state = state_machine.current_state.name.to_lower()
-			if current_state not in ["jump", "fall", "wallslide"]:
-				state_machine.transition_to("Fall") 
-		else:
-			state_machine.transition_to("SwapWeapon")
+		state_machine.transition_to("SwapWeapon")
 	
 # ==========================================
 # 👻 殘影代打系統核心 (Phantom Striker)

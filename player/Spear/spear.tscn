@@ -1,30 +1,28 @@
-[gd_scene load_steps=16 format=3 uid="uid://crojrivmyls3b"]
+[gd_scene load_steps=14 format=3 uid="uid://crojrivmyls3b"]
 
 [ext_resource type="Script" path="res://player/Spear/Spear.gd" id="1_18skl"]
 [ext_resource type="Texture2D" uid="uid://c3gh0neiqsscu" path="res://player/Spear/spear.png" id="2_uwi20"]
 [ext_resource type="Texture2D" uid="uid://df70a5mh02s0o" path="res://player/UI/spear/Untitled 04-18-2026 12-09-12.png" id="3_0lwll"]
-[ext_resource type="Texture2D" uid="uid://cggubh4t3dod2" path="res://player/UI/spear/Untitled 04-18-2026 12-09-12 (1).png" id="4_uwvs8"]
-[ext_resource type="Texture2D" uid="uid://did3nlobgrhvq" path="res://player/UI/spear/Untitled 04-18-2026 12-09-12 (2).png" id="5_bphk6"]
 [ext_resource type="Texture2D" uid="uid://d4nur7s1qgmyp" path="res://player/UI/spear/Untitled 04-18-2026 12-09-12 (3).png" id="6_s3x6a"]
 [ext_resource type="Script" path="res://classes/Hitbox.gd" id="7_ew6yt"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_6d6el"]
-size = Vector2(128, 54)
+size = Vector2(173, 58)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_7f7ob"]
-size = Vector2(133, 67)
+size = Vector2(179, 67)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_s2uwu"]
-size = Vector2(133, 57)
+size = Vector2(179, 57)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_gcxfr"]
-size = Vector2(123, 69)
+size = Vector2(235, 69)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_6kf2a"]
-size = Vector2(222, 76)
+size = Vector2(300, 76)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_n8ie8"]
-size = Vector2(404, 214)
+size = Vector2(416, 214)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_e5d2s"]
 size = Vector2(180, 101)
@@ -36,12 +34,8 @@ size = Vector2(139, 99)
 script = ExtResource("1_18skl")
 scabbard_texture = ExtResource("2_uwi20")
 skill_1_icon = ExtResource("3_0lwll")
-skill_2_icon = ExtResource("4_uwvs8")
-skill_3_icon = ExtResource("5_bphk6")
 ult_icon = ExtResource("6_s3x6a")
 skill_1_cd = 1.0
-skill_2_cd = 1.0
-skill_3_cd = 1.0
 
 [node name="Hitbox" type="Area2D" parent="."]
 collision_layer = 0
@@ -53,22 +47,22 @@ spark_random_angle = 360.0
 spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
-position = Vector2(27, -28)
+position = Vector2(49.5, -30)
 shape = SubResource("RectangleShape2D_6d6el")
 disabled = true
 
 [node name="CollisionShape2D2" type="CollisionShape2D" parent="Hitbox"]
-position = Vector2(23.5, -29.5)
+position = Vector2(46.5, -29.5)
 shape = SubResource("RectangleShape2D_7f7ob")
 disabled = true
 
 [node name="CollisionShape2D3" type="CollisionShape2D" parent="Hitbox"]
-position = Vector2(23.5, -29.5)
+position = Vector2(46.5, -29.5)
 shape = SubResource("RectangleShape2D_s2uwu")
 disabled = true
 
 [node name="CollisionShape2D4" type="CollisionShape2D" parent="Hitbox"]
-position = Vector2(28.5, -30.5)
+position = Vector2(29.5, -30.5)
 shape = SubResource("RectangleShape2D_gcxfr")
 disabled = true
 
@@ -81,7 +75,7 @@ spark_random_angle = 360.0
 spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="attack_enhanced"]
-position = Vector2(-2, -17)
+position = Vector2(37, -17)
 shape = SubResource("RectangleShape2D_6kf2a")
 disabled = true
 
@@ -94,7 +88,7 @@ spark_random_angle = 360.0
 spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="C2"]
-position = Vector2(2, -63)
+position = Vector2(8, -63)
 shape = SubResource("RectangleShape2D_n8ie8")
 disabled = true
 
