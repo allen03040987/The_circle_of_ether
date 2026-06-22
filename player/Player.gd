@@ -908,12 +908,14 @@ func _flash_character() -> void:
 # ==========================================
 func export_combat_state() -> Dictionary:
 	var state = {
-		# 🌟 核心修復 1：把身上的武器清單打包帶走！
 		"equipped_weapon_ids": equipped_weapon_ids, 
 		"weapon_resources": weapon_resources,
 		"weapon_switch_cooldown_timer": weapon_switch_cooldown_timer,
 		"current_weapon_index": current_weapon.get_index() if is_instance_valid(current_weapon) else 0,
-		"weapons_data": {}
+		"weapons_data": {},
+		
+		# 🌟 核心修復：把現在所有武器上的武藝卡帶清單，呼叫接口打包成字典帶走！
+		"martial_arts_config": get_all_weapons_martial_arts() if has_method("get_all_weapons_martial_arts") else {}
 	}
 	
 	for weapon in weapon_slot.get_children():
@@ -923,18 +925,20 @@ func export_combat_state() -> Dictionary:
 	return state
 
 func import_combat_state(state: Dictionary) -> void:
-	print("📥 [時空法術] 偵測到跨場景背包，正在強制覆蓋預設武器！") # 加這行
+	print("📥 [時空法術] 偵測到跨場景背包，正在強制覆蓋預設武器與武藝！")
 	
 	if state.has("equipped_weapon_ids"):
 		var raw_array = state["equipped_weapon_ids"]
 		var safe_array: Array[String] = []
 		
-		# 手動把無型別的內容，一個一個轉成字串塞進安全陣列裡
 		for item in raw_array:
 			safe_array.append(str(item))
 			
-		# 現在這個陣列是純粹的 Array[String]，不會再報錯了！
-		equip_loadout(safe_array)
+		# 🌟 核心修復：如果背包裡有「武藝配置」，就改用新的高自由度接口來裝備武器與武藝！
+		if state.has("martial_arts_config") and not state["martial_arts_config"].is_empty():
+			equip_loadout_with_arts(safe_array, state["martial_arts_config"])
+		else:
+			equip_loadout(safe_array) # 舊存檔相容保險
 		
 	if state.has("weapon_resources"): weapon_resources = state["weapon_resources"]
 	if state.has("weapon_switch_cooldown_timer"): weapon_switch_cooldown_timer = state["weapon_switch_cooldown_timer"]
@@ -947,7 +951,7 @@ func import_combat_state(state: Dictionary) -> void:
 				
 	# 恢復原本拿在手上的武器 (無聲強制切換)
 	if state.has("current_weapon_index"):
-		var target_idx = int(state["current_weapon_index"]) # 🌟 強制轉為整數，防 JSON 浮點數報錯
+		var target_idx = int(state["current_weapon_index"])
 		if target_idx >= 0 and target_idx < weapon_slot.get_child_count():
 			_force_equip_weapon(weapon_slot.get_child(target_idx))
 

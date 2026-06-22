@@ -44,6 +44,7 @@ var action_sfx_bank: Dictionary = {
 	
 	"laser": preload("res://sound/SFX/attack/laser.wav") ,
 	"beam": preload("res://sound/SFX/attack/beam.wav") ,
+	"beam_2": preload("res://sound/SFX/attack/beam_2.wav") ,
 	"lightsaber": preload("res://sound/SFX/attack/lightsaber.wav") ,
 	"Energy Beam": preload("res://sound/SFX/attack/Energy Beam.wav") ,
 	"Explosive bass": preload(	"res://sound/SFX/attack/Explosive bass.wav") ,
@@ -56,6 +57,7 @@ var action_sfx_bank: Dictionary = {
 	"ding": preload("res://sound/Scene sound/ding.wav"), 
 	"elevator": preload("res://sound/Scene sound/elevator.wav"), 
 	"Get_notification": preload("res://sound/Scene sound/Get notification sound.wav"), 
+	"christmas_bells": preload("res://sound/SFX/christmas bells.wav"), 
 }
 
 

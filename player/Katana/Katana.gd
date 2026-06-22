@@ -66,16 +66,12 @@ const LIGHT_ATTACK_CONFIG = {
 # [戰技與大招字典] 
 const SKILL_CONFIG = {
 	# --- 🌟 新版戰技下：三段連斬 (20 -> 21 -> 22) ---
-	20: { "anim": "katana/attack_c3", "hitbox_name": "C3", "type": Damage.Type.LIGHT,"max_hits": 3, "interval": 0.1, "knockback": Vector2(-100.0, -200.0), "shake": 15.0, "shake_on_hit_only": true, "base_dmg": 300, "energy": 5, "switch": 5, "iai_reward": 5,"hit_sfx_type": "hit" },
-	21: { "anim": "katana/attack_c3_2", "hitbox_name": "C3", "type": Damage.Type.LIGHT,"max_hits": 6, "interval": 0.1,"sticky": true, "knockback": Vector2(100.0, -100.0), "shake": 20.0, "shake_on_hit_only": true, "base_dmg": 450, "energy": 5, "switch": 5, "iai_reward": 5,"hit_sfx_type": "hit" },
-	# 原本的劍氣招式變成最後一段 (22)
-	22: { "anim": "katana/attack_c3_3", "hitbox_name": "None", "type": Damage.Type.HEAVY, "knockback": Vector2.ZERO, "shake": 30.0, "shake_on_hit_only": true, "base_dmg": 932, "energy": 15, "switch": 20, "iai_reward": 10 },
+	
 	30: { "anim": "katana/attack_c0_charge_start", "hitbox_name": "None", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 0, "energy": 0, "switch": 0, "iai_reward": 0 },
 	34: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2(50.0, 0.0), "shake": 6.0, "shake_on_hit_only": true, "base_dmg": 200,"hit_sfx_type": "hit", "energy": 1, "switch": 2, "iai_reward": 0 },
 	32: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 325,"hit_sfx_type": "hit", "energy": 1, "switch": 2, "iai_reward": 0, },
 	33: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 3.0, "shake_on_hit_only": true, "base_dmg": 325,"hit_sfx_type": "hit", "energy": 1, "switch": 2, "iai_reward": 0,  },
-	11: { "anim": "katana/attack_c1", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -400.0), "shake": 20.0, "shake_on_hit_only": false, "base_dmg": 560,"hit_sfx_type": "hit_2", "energy": 10, "switch": 15, "iai_reward": 5 },
-	12: { "anim": "katana/attack_c1_2", "hitbox_name": "C1", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -400.0), "shake": 30.0, "shake_on_hit_only": true, "base_dmg": 720,"hit_sfx_type": "hit", "energy": 10, "switch": 15, "iai_reward": 5 },
+	
 	41: { "anim": "katana/skill_down", "hitbox_name": "C2", "type": Damage.Type.LIGHT, "knockback": Vector2(100.0, 0.0), "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 200,"hit_sfx_type": "hit", "energy": 10, "switch": 15, "iai_reward": 10 },
 	
 	# 🌟 強化戰技 (42) - 燕返：第一段配置為 12 連擊的黏著攻擊
@@ -366,7 +362,11 @@ func get_current_velocity(delta: float) -> Vector2:
 				combo_step = 0
 				current_charge_timer = 0.0
 				light_hold_timer = 0.0
-				player.is_input_locked = false 
+				
+				# 🌟 精準修復：加上身分確認！只有真正的 Player 才有這個變數
+				if player is Player:
+					player.is_input_locked = false 
+					
 				var p_scabbard = player.get("scabbard")
 				if p_scabbard: p_scabbard.fade_in()
 			else:
@@ -391,21 +391,13 @@ func get_current_velocity(delta: float) -> Vector2:
 			new_x = move_toward(new_x, 0.0, base_friction)
 	
 	# ----------------------------------------
-	# 🌊 戰技下：三段式連斬與劍氣發射 (20, 21, 22)
+	# 🌊 戰技下：三段式連斬（21、22 已外包，此處僅留 20 常規處理）
 	# ----------------------------------------
-	elif combo_step in [20, 21, 22]: 
-		if combo_step == 22:
-			var anim_time = player.animation_player.current_animation_position
-			if anim_time >= 0.32 and not is_wave_fired:
-				is_wave_fired = true
-				if CombatManager.has_method("apply_camera_shake"): CombatManager.apply_camera_shake(20.0) 
-				spawn_sword_wave("skill_down")
-				
-		# 🌟 套用基準摩擦力
+	elif combo_step == 20: 
+		# 🌟 精準切除：刪掉已被移出的 combo_step == 22 與 spawn_sword_wave 盲腸
 		new_x = move_toward(new_x, 0.0, base_friction)
 		if not player.is_on_floor(): 
 			new_y += (player.default_gravity * air_skill_gravity_rate) * delta
-
 	elif combo_step == 41: 
 		# 🌟 套用基準摩擦力
 		new_x = move_toward(new_x, 0.0, base_friction * skill_neutral_friction_rate)
@@ -504,8 +496,8 @@ func is_handling_gravity() -> bool:
 		if active_martial_art.has_method("is_handling_gravity"):
 			return active_martial_art.is_handling_gravity()
 			
-	# 🚨 注意：記得把原本的 `if combo_step == 12 and is_launch_triggered: return true` 刪掉！
-	if not player.is_on_floor() and combo_step in [20, 21, 22, 42]: return true
+	# 🌟 精準修正：將 [20, 21, 22, 42] 修改為 [20, 42]，拿掉已外包的 21 和 22
+	if not player.is_on_floor() and combo_step in [20, 42]: return true
 	if combo_step == 80: return true
 	return false
 
@@ -655,7 +647,8 @@ func _play_skill_step(step: int) -> void:
 		elif step == 42: current_active_hitbox.spark_scale = 0.6
 		elif step == 80: current_active_hitbox.spark_scale = 1.0
 	
-	if not player.is_on_floor() and step in [20, 21, 22, 42]:
+	# 🌟 精準修正：將 step in [20, 21, 22, 42] 修改為 [20, 42]
+	if not player.is_on_floor() and step in [20, 42]:
 		player.velocity.y = air_thrust_force * 0.5
 		
 	combo_step = step
@@ -670,6 +663,22 @@ func _play_air_step(step: int) -> void:
 	if player.animation_player.current_animation == config["anim"]: player.animation_player.stop()
 	player.play_safe_anim(config["anim"])
 
+## 🌟 新增：供外部武藝卡帶呼叫的純淨發招接口，直接接收卡帶自帶的 CONFIG
+func _play_martial_art_attack(config: Dictionary) -> void:
+	disable_hitbox()
+	_apply_hitbox_config(config)
+	
+	# 處理原本硬編碼在老爸身上的特效特殊覆寫
+	if current_active_hitbox:
+		if config.has("spark_type"): current_active_hitbox.spark_type = config["spark_type"]
+		if config.has("spark_scale"): current_active_hitbox.spark_scale = config["spark_scale"]
+	
+	if config.has("sfx") and config["sfx"] != null:
+		AudioManager.play_sfx(config["sfx"], -5.0)
+		
+	if player.animation_player.current_animation == config["anim"]: player.animation_player.stop()
+	player.play_safe_anim(config["anim"])
+	
 func _apply_hitbox_config(config: Dictionary) -> void:
 	_is_hitbox_locked = false 
 	
@@ -784,53 +793,6 @@ func _apply_charge_zoom(target_zoom: Vector2, duration: float = 0.2) -> void:
 				
 			_camera_tween.tween_property(camera, "zoom", target_zoom, duration)
 
-func spawn_sword_wave(wave_type: String) -> void:
-	if not SWORD_WAVE_SCENE: return
-	var wave = SWORD_WAVE_SCENE.instantiate() as SwordWave
-	get_tree().current_scene.add_child(wave)
-	
-	wave.global_position = player.global_position + Vector2(30 * player.direction, -20)
-	wave.direction = player.direction
-	
-	await get_tree().process_frame 
-	if not is_instance_valid(wave) or not wave.hitbox: return
-	
-	wave.hitbox.spark_type = 0; wave.hitbox.spark_color = Color(0.7, 1.5, 0.5, 1.0); wave.hitbox.aura_color = Color(0, 1, 1, 1)
-	
-	match wave_type:
-		"skill_down":
-			var config = SKILL_CONFIG[21] 
-			wave.speed = 1500.0; wave.max_distance = 1200.0; wave.scale = Vector2(2.0 * player.direction, 2.0)
-			wave.hitbox.damage_amount = max(1, roundi(float(config["base_dmg"])))
-			
-			# 鎖死劍氣的絕對方向！
-			wave.hitbox.absolute_knockback = Vector2(400.0 * player.direction, 0.0)
-			
-			wave.hitbox.knockback_force = Vector2(400.0, -400.0)
-			wave.hitbox.attack_type = Damage.Type.LIGHT
-			wave.hitbox.spark_scale = 0.3
-			wave.hitbox.hit_sfx_type = "hit_4"
-			# ==========================================
-			# 🌟 核心解耦 3：讓劍氣自己掛載獨立的監視器！
-			# ==========================================
-			var w_energy = float(config.get("energy", 0))
-			var w_switch = float(config.get("switch", 0))
-			var w_iai = int(config.get("iai_reward", 0))
-			var w_multi = config.get("multi_hit_energy", false)
-			
-			# 利用陣列當作參照，確保 Lambda 內的布林值能正確被修改
-			var wave_state = [false] 
-			
-			wave.hitbox.hit.connect(func(hurtbox: Node):
-				if is_instance_valid(player) and is_instance_valid(hurtbox.owner) and hurtbox.owner == player: return
-				
-				if w_multi or not wave_state[0]:
-					if w_iai > 0: gain_iai(w_iai)
-					if w_energy > 0 and player.has_method("add_weapon_resource"):
-						player.add_weapon_resource(WEAPON_ID, w_energy) # ✅ 淨化為純能量
-					wave_state[0] = true
-			)
-			
 
 # ==========================================
 # 🛡️ 狀態機防護名單 (The Bouncer's List)
