@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://4ebxd2fnvob0"]
+[gd_scene load_steps=4 format=3 uid="uid://4ebxd2fnvob0"]
 
 [ext_resource type="Script" path="res://ui/pause_menu.gd" id="1_4p64w"]
 [ext_resource type="PackedScene" uid="uid://8lf6qf5bw1gn" path="res://ui/settings_panel.tscn" id="1_wc3ca"]
+[ext_resource type="PackedScene" uid="uid://dy5pocw7jg8tw" path="res://ui/WeaponLoadoutMenu.tscn" id="3_h0pfl"]
 
 [node name="PauseMenu" type="CanvasLayer"]
 process_mode = 3
@@ -14,8 +15,10 @@ color = Color(0, 0, 0, 0.392157)
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
 visible = false
-offset_right = 169.0
-offset_bottom = 153.0
+offset_left = 104.0
+offset_top = 32.0
+offset_right = 273.0
+offset_bottom = 185.0
 
 [node name="ResumeButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
@@ -34,78 +37,15 @@ layout_mode = 2
 text = "回到主選單"
 
 [node name="SettingsPanel" parent="." instance=ExtResource("1_wc3ca")]
-visible = false
 offset_left = 1.0
 offset_top = 1.0
 offset_right = 1.0
 offset_bottom = 3.0
 
-[node name="LoadoutPanel" type="Panel" parent="."]
-offset_right = 385.0
-offset_bottom = 220.0
-
-[node name="StatusLabel" type="Label" parent="LoadoutPanel"]
-layout_mode = 0
-offset_left = 8.0
-offset_right = 72.0
-offset_bottom = 23.0
-
-[node name="HBoxContainer" type="HBoxContainer" parent="LoadoutPanel"]
-layout_mode = 0
-offset_left = 8.0
-offset_top = 24.0
-offset_right = 332.0
-offset_bottom = 116.0
-
-[node name="WeaponSlot1" type="VBoxContainer" parent="LoadoutPanel/HBoxContainer"]
-layout_mode = 2
-
-[node name="WeaponOpt" type="OptionButton" parent="LoadoutPanel/HBoxContainer/WeaponSlot1"]
-layout_mode = 2
-
-[node name="ArtOpt1" type="OptionButton" parent="LoadoutPanel/HBoxContainer/WeaponSlot1"]
-layout_mode = 2
-
-[node name="ArtOpt2" type="OptionButton" parent="LoadoutPanel/HBoxContainer/WeaponSlot1"]
-layout_mode = 2
-
-[node name="ArtOpt3" type="OptionButton" parent="LoadoutPanel/HBoxContainer/WeaponSlot1"]
-layout_mode = 2
-
-[node name="WeaponSlot2" type="VBoxContainer" parent="LoadoutPanel/HBoxContainer"]
-layout_mode = 2
-
-[node name="WeaponOpt" type="OptionButton" parent="LoadoutPanel/HBoxContainer/WeaponSlot2"]
-layout_mode = 2
-
-[node name="ArtOpt1" type="OptionButton" parent="LoadoutPanel/HBoxContainer/WeaponSlot2"]
-layout_mode = 2
-
-[node name="ArtOpt2" type="OptionButton" parent="LoadoutPanel/HBoxContainer/WeaponSlot2"]
-layout_mode = 2
-
-[node name="ArtOpt3" type="OptionButton" parent="LoadoutPanel/HBoxContainer/WeaponSlot2"]
-layout_mode = 2
-
-[node name="BackButton" type="Button" parent="LoadoutPanel"]
-layout_mode = 0
-offset_left = 8.0
-offset_top = 176.0
-offset_right = 48.0
-offset_bottom = 207.0
-text = "返回
-"
-
-[node name="ApplyButton" type="Button" parent="LoadoutPanel"]
-layout_mode = 2
-offset_left = 56.0
-offset_top = 176.0
-offset_right = 128.0
-offset_bottom = 208.0
-text = "確認裝備"
+[node name="LoadoutPanel" parent="." instance=ExtResource("3_h0pfl")]
+visible = false
 
 [connection signal="pressed" from="VBoxContainer/ResumeButton" to="." method="_on_resume_button_pressed"]
 [connection signal="pressed" from="VBoxContainer/LoadoutButton" to="." method="_on_loadout_button_pressed"]
 [connection signal="pressed" from="VBoxContainer/SettingsButton" to="." method="_on_settings_button_pressed"]
 [connection signal="pressed" from="VBoxContainer/QuitButton" to="." method="_on_quit_button_pressed"]
-[connection signal="pressed" from="LoadoutPanel/BackButton" to="." method="_on_back_from_loadout"]

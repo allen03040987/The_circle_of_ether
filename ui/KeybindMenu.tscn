@@ -1,0 +1,52 @@
+[gd_scene load_steps=2 format=3 uid="uid://b2n8xjgkpo3s1"]
+
+[ext_resource type="Script" path="res://ui/KeybindMenu.gd" id="1_81jdo"]
+
+[node name="KeybindMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 48.0
+offset_top = 24.0
+offset_right = 56.0
+offset_bottom = 32.0
+script = ExtResource("1_81jdo")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+offset_left = -48.0
+offset_top = -24.0
+offset_right = 336.0
+offset_bottom = 197.0
+color = Color(0, 0, 0, 0.392157)
+
+[node name="ScrollContainer" type="ScrollContainer" parent="."]
+layout_mode = 2
+offset_left = -32.0
+offset_right = 328.0
+offset_bottom = 144.0
+
+[node name="ActionList" type="VBoxContainer" parent="ScrollContainer"]
+layout_mode = 2
+
+[node name="BackButton" type="Button" parent="."]
+layout_mode = 2
+anchor_left = -3.0
+anchor_right = 34.0
+anchor_bottom = 18.0
+offset_left = 304.0
+offset_top = 152.0
+offset_right = 48.0
+offset_bottom = 39.0
+text = "返回"
+
+[node name="ResetButton" type="Button" parent="."]
+layout_mode = 2
+anchor_left = -3.0
+anchor_right = 34.0
+anchor_bottom = 18.0
+offset_left = 192.0
+offset_top = 152.0
+offset_bottom = 39.0
+text = "回到初始設置"
+
+[connection signal="pressed" from="BackButton" to="." method="_on_back_button_pressed"]
+[connection signal="pressed" from="ResetButton" to="." method="_on_back_button_pressed"]

@@ -96,6 +96,11 @@ const WEAPON_SWITCH_COOLDOWN: float = 1.0
 var weapon_switch_cooldown_timer: float = 0.0     
 
 # ==========================================
+# 🧊 系統功能開關 (Feature Toggles)
+# ==========================================
+@export var enable_phantom_system: bool = false # 🌟 殘影系統冬眠開關
+
+# ==========================================
 # 🧰 武器庫目錄 (Weapon Arsenal)
 # ==========================================
 # 將所有的武器場景預載入，方便隨時實例化
@@ -291,43 +296,43 @@ func _unhandled_input(event: InputEvent) -> void:
 	# --- 攻擊輸入緩衝 ---
 	var is_mod_held = Input.is_action_pressed("martial_modifier")
 	
-	# 🌟 左鍵：普攻 或 武藝1
-	if event.is_action_pressed("attack"):
-		if is_mod_held:
-			if _has_martial_art(0): # 🛡️ 防呆：確認 1 號槽有裝備卡帶才允許發動！
-				is_martial_requested = true
-				is_combo_requested = true 
-				requested_martial_slot = 1
-				martial_buffer_time = ATTACK_BUFFER_DURATION
-				combo_buffer_time = ATTACK_BUFFER_DURATION
-		else:
+	# 🌟 姿態 A：按下武藝修改鍵 (martial_modifier) —— 專職響應與路由獨立的武藝代號 (art_1, art_2, art_3)
+	if is_mod_held:
+		if event.is_action_pressed("art_1") and _has_martial_art(0):
+			is_martial_requested = true
+			is_combo_requested = true 
+			requested_martial_slot = 1
+			martial_buffer_time = ATTACK_BUFFER_DURATION
+			combo_buffer_time = ATTACK_BUFFER_DURATION
+			get_viewport().set_input_as_handled() # 消耗事件，防止與底層可能重疊的普攻衝突
+		
+		elif event.is_action_pressed("art_2") and _has_martial_art(1):
+			is_martial_requested = true
+			is_combo_requested = true 
+			requested_martial_slot = 2
+			martial_buffer_time = ATTACK_BUFFER_DURATION
+			combo_buffer_time = ATTACK_BUFFER_DURATION
+			get_viewport().set_input_as_handled()
+			
+		elif event.is_action_pressed("art_3") and _has_martial_art(2):
+			is_martial_requested = true
+			is_combo_requested = true 
+			requested_martial_slot = 3
+			martial_buffer_time = ATTACK_BUFFER_DURATION
+			combo_buffer_time = ATTACK_BUFFER_DURATION
+			get_viewport().set_input_as_handled()
+	
+	# 🌟 姿態 B：未放開或未按下修改鍵 —— 正常監聽與觸發常規輕重擊普通連段
+	else:
+		if event.is_action_pressed("attack"):
 			var can_buffer = true
 			if not is_on_floor() and is_instance_valid(current_weapon) and current_weapon.has_method("can_air_light"):
 				can_buffer = current_weapon.can_air_light()
 			if can_buffer:
 				is_combo_requested = true
 				combo_buffer_time = ATTACK_BUFFER_DURATION
-	
-	# 🌟 中鍵：專屬武藝2
-	if event.is_action_pressed("middle_click"):
-		if is_mod_held:
-			if _has_martial_art(1): # 🛡️ 防呆：確認 2 號槽有裝備卡帶
-				is_martial_requested = true
-				is_combo_requested = true 
-				requested_martial_slot = 2
-				martial_buffer_time = ATTACK_BUFFER_DURATION
-				combo_buffer_time = ATTACK_BUFFER_DURATION
-			
-	# 🌟 右鍵：戰技中立 或 武藝3
-	if event.is_action_pressed("heavy_attack"):
-		if is_mod_held:
-			if _has_martial_art(2): # 🛡️ 防呆：確認 3 號槽有裝備卡帶
-				is_martial_requested = true
-				is_combo_requested = true 
-				requested_martial_slot = 3
-				martial_buffer_time = ATTACK_BUFFER_DURATION
-				combo_buffer_time = ATTACK_BUFFER_DURATION
-		else:
+				
+		elif event.is_action_pressed("heavy_attack"):
 			var can_buffer = true
 			if is_instance_valid(current_weapon) and current_weapon.has_method("can_use_heavy"):
 				can_buffer = current_weapon.can_use_heavy()
@@ -884,6 +889,11 @@ func _perform_swap(next_weapon: Node) -> void:
 const PHANTOM_SCENE = preload("res://player/PhantomStriker.tscn") 
 
 func spawn_phantom_striker(outgoing_weapon: Weapon) -> void:
+	
+	# 🌟 絕對防禦攔截網：如果開關沒開，函數直接結束，什麼都不做！
+	if not enable_phantom_system:
+		return
+	
 	if not PHANTOM_SCENE: return
 	
 	var phantom = PHANTOM_SCENE.instantiate()

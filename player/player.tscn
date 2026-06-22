@@ -2000,14 +2000,14 @@ tracks/5/path = NodePath(".")
 tracks/5/interp = 1
 tracks/5/loop_wrap = true
 tracks/5/keys = {
-"times": PackedFloat32Array(0.14, 0.15, 0.24),
+"times": PackedFloat32Array(0.15, 0.16, 0.24),
 "transitions": PackedFloat32Array(1, 1, 1),
 "values": [{
-"args": ["cut", 0.0, -20.0, Vector2(0.8, 0.4), 0.0, Color(1, 3, 1, 1), Color(1, 1, 1, 1), false, 1, 1.0],
-"method": &"spawn_anim_vfx"
-}, {
 "args": [""],
 "method": &"enable_weapon_hitbox"
+}, {
+"args": ["cut", 0.0, -20.0, Vector2(0.8, 0.4), 0.0, Color(1, 3, 1, 1), Color(1, 1, 1, 1), false, 1, 1.0],
+"method": &"spawn_anim_vfx"
 }, {
 "args": [""],
 "method": &"disable_weapon_hitbox"
@@ -2308,14 +2308,14 @@ tracks/8/path = NodePath(".")
 tracks/8/interp = 1
 tracks/8/loop_wrap = true
 tracks/8/keys = {
-"times": PackedFloat32Array(0.08, 0.09, 0.12),
+"times": PackedFloat32Array(0.09, 0.1, 0.12),
 "transitions": PackedFloat32Array(1, 1, 1),
 "values": [{
-"args": ["chop", 5.0, -40.0, Vector2(0.5, -0.5), -10.0, Color(0.993982, 0.468713, 0.378366, 1), Color(1, 0.647059, 0.258824, 1), false, 1, 1.0],
-"method": &"spawn_anim_vfx"
-}, {
 "args": ["CollisionShape2D"],
 "method": &"enable_weapon_hitbox"
+}, {
+"args": ["chop", 5.0, -40.0, Vector2(0.5, -0.5), -10.0, Color(0.993982, 0.468713, 0.378366, 1), Color(1, 0.647059, 0.258824, 1), false, 1, 1.0],
+"method": &"spawn_anim_vfx"
 }, {
 "args": ["CollisionShape2D"],
 "method": &"disable_weapon_hitbox"
@@ -2568,14 +2568,14 @@ tracks/5/path = NodePath(".")
 tracks/5/interp = 1
 tracks/5/loop_wrap = true
 tracks/5/keys = {
-"times": PackedFloat32Array(0.14, 0.15, 0.21, 0.23),
+"times": PackedFloat32Array(0.15, 0.16, 0.21, 0.23),
 "transitions": PackedFloat32Array(1, 1, 1, 1),
 "values": [{
-"args": ["cut", 30.0, -30.0, Vector2(0.5, 0.5), 0.0, Color(1, 3, 1, 1), Color(1, 1, 1, 1), false, -1, 1.0],
-"method": &"spawn_anim_vfx"
-}, {
 "args": ["CollisionShape2D3"],
 "method": &"enable_weapon_hitbox"
+}, {
+"args": ["cut", 30.0, -30.0, Vector2(0.5, 0.5), 0.0, Color(1, 3, 1, 1), Color(1, 1, 1, 1), false, -1, 1.0],
+"method": &"spawn_anim_vfx"
 }, {
 "args": ["CollisionShape2D3"],
 "method": &"disable_weapon_hitbox"
@@ -2706,14 +2706,14 @@ tracks/5/path = NodePath(".")
 tracks/5/interp = 1
 tracks/5/loop_wrap = true
 tracks/5/keys = {
-"times": PackedFloat32Array(0.09, 0.1, 0.15, 0.21),
+"times": PackedFloat32Array(0.1, 0.11, 0.15, 0.21),
 "transitions": PackedFloat32Array(1, 1, 1, 1),
 "values": [{
-"args": ["cut", 30.0, -30.0, Vector2(0.8, 0.5), 5.0, Color(1, 5, 1, 1), Color(1, 1, 1, 1), false, 1.0],
-"method": &"spawn_anim_vfx"
-}, {
 "args": ["CollisionShape2D4"],
 "method": &"enable_weapon_hitbox"
+}, {
+"args": ["cut", 30.0, -30.0, Vector2(0.8, 0.5), 5.0, Color(1, 5, 1, 1), Color(1, 1, 1, 1), false, 1.0],
+"method": &"spawn_anim_vfx"
 }, {
 "args": [500.0],
 "method": &"strike_impulse"
@@ -2844,14 +2844,14 @@ tracks/5/path = NodePath(".")
 tracks/5/interp = 1
 tracks/5/loop_wrap = true
 tracks/5/keys = {
-"times": PackedFloat32Array(0.33, 0.35, 0.37, 0.58),
+"times": PackedFloat32Array(0.35, 0.36, 0.37, 0.58),
 "transitions": PackedFloat32Array(1, 1, 1, 1),
 "values": [{
-"args": ["Thrust", 30.0, -60.0, Vector2(1, 2), 90.0, Color(1, 5, 1, 1), Color(1, 1, 1, 1), false, 1.0],
-"method": &"spawn_anim_vfx"
-}, {
 "args": [2000.0],
 "method": &"strike_impulse"
+}, {
+"args": ["Thrust", 30.0, -60.0, Vector2(1, 2), 90.0, Color(1, 5, 1, 1), Color(1, 1, 1, 1), false, 1.0],
+"method": &"spawn_anim_vfx"
 }, {
 "args": ["CollisionShape2D5"],
 "method": &"enable_weapon_hitbox"
@@ -3720,8 +3720,8 @@ tracks/10/path = NodePath(".")
 tracks/10/interp = 1
 tracks/10/loop_wrap = true
 tracks/10/keys = {
-"times": PackedFloat32Array(0, 0.01, 0.4),
-"transitions": PackedFloat32Array(1, 1, 1),
+"times": PackedFloat32Array(0, 0.01, 0.4, 0.42),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
 "values": [{
 "args": ["christmas_bells"],
 "method": &"trigger_swing_sfx"
@@ -3729,7 +3729,10 @@ tracks/10/keys = {
 "args": ["beam_2"],
 "method": &"trigger_swing_sfx"
 }, {
-"args": ["cut_5"],
+"args": ["cut_4"],
+"method": &"trigger_swing_sfx"
+}, {
+"args": ["cut"],
 "method": &"trigger_swing_sfx"
 }]
 }

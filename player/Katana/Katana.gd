@@ -18,10 +18,9 @@ const SWORD_WAVE_SCENE = preload("res://player/Katana/c_3_wave.tscn")
 # ==========================================
 # 🥋 專屬武藝系統 (Martial Arts Loadout)
 # ==========================================
-# 🌟 直接填入你武藝腳本的實際路徑！
 @export var equipped_martial_arts: Array[String] = [
-	"res://player/MartialArts/Katana/KatanaLaunch.gd", 
-	"", 
+	"res://player/MartialArts/Katana/Art_Katana_11.gd", 
+	"res://player/MartialArts/Katana/Art_Katana_22.gd", 
 	""
 ]
 
@@ -29,14 +28,10 @@ const SWORD_WAVE_SCENE = preload("res://player/Katana/c_3_wave.tscn")
 # ⚙️ 初始化與延遲載入
 # ==========================================
 func _ready() -> void:
-	super._ready() # 呼叫老爸的初始化
-	
-	# 🌟 核心修復：延遲一幀載入卡帶！
-	# 等待 Player.gd 確實把 player 變數塞給我們後，再來裝備武藝，避免拿到 null！
+	super._ready() 
 	call_deferred("_delayed_load_arts")
 
 func _delayed_load_arts() -> void:
-	# 此時 player 絕對已經有值了，安心派發給武藝組件！
 	load_martial_arts(equipped_martial_arts)
 
 const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.01, 1.01), 2: Vector2(1.02, 1.02), 3: Vector2(1.03, 1.03) }
@@ -44,18 +39,17 @@ const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.01, 1.01), 2: Vector2(1
 # ==========================================
 # 🌀 2. 共鳴迴路 (Resonance Circuit) 變數
 # ==========================================
-var current_iai: int = 0                    # 當前居合值
-var current_tsubame: int = 0                # 當前燕返值
+var current_iai: int = 0                    
+var current_tsubame: int = 0                
 const MAX_IAI: int = 60                     
 const MAX_TSUBAME: int = 60                 
-var is_tsubame_ready: bool = false          # 強化戰技 (燕返) 是否就緒
+var is_tsubame_ready: bool = false          
 
 # ==========================================
 # 📖 3. 招式數據庫 (Data-Driven Combat Config)
 # ==========================================
 # [普攻字典]
 const LIGHT_ATTACK_CONFIG = {
-	# 格式：招式編號: { 動畫名稱, 開啟哪個判定框, 最大連擊數, 打擊間隔, 擊退力, 基礎傷害, 大招能量回復, 切換值回復, 專屬居合值回復 }
 	1: {"anim": "katana/attack_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(100.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit_3", "energy": 200, "switch": 500, "iai_reward": 2, "action_type": Weapon.ActionType.NORMAL},
 	2: {"anim": "katana/attack_2", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(150.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "iai_reward": 2, "action_type": Weapon.ActionType.NORMAL},
 	3: {"anim": "katana/attack_3", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5,"iai_reward": 2, "action_type": Weapon.ActionType.NORMAL},
@@ -65,8 +59,6 @@ const LIGHT_ATTACK_CONFIG = {
 
 # [戰技與大招字典] 
 const SKILL_CONFIG = {
-	# --- 🌟 新版戰技下：三段連斬 (20 -> 21 -> 22) ---
-	
 	30: { "anim": "katana/attack_c0_charge_start", "hitbox_name": "None", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 0, "energy": 0, "switch": 0, "iai_reward": 0 },
 	34: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2(50.0, 0.0), "shake": 6.0, "shake_on_hit_only": true, "base_dmg": 200,"hit_sfx_type": "hit", "energy": 1, "switch": 2, "iai_reward": 0 },
 	32: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 325,"hit_sfx_type": "hit", "energy": 1, "switch": 2, "iai_reward": 0, },
@@ -74,17 +66,13 @@ const SKILL_CONFIG = {
 	
 	41: { "anim": "katana/skill_down", "hitbox_name": "C2", "type": Damage.Type.LIGHT, "knockback": Vector2(100.0, 0.0), "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 200,"hit_sfx_type": "hit", "energy": 10, "switch": 15, "iai_reward": 10 },
 	
-	# 🌟 強化戰技 (42) - 燕返：第一段配置為 12 連擊的黏著攻擊
 	42: { "anim": "katana/attack_tsubame", "hitbox_name": "attack_tsubame", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -80.0), "shake": 0.0, "shake_on_hit_only": true, 
 		"base_dmg": 200,"hit_sfx_type": "hit", "energy": 25, "switch": 30, "iai_reward": 0, 
 		"max_hits": 12, "interval": 0.1, "sticky": true },
 	
-	# 🌟 大招 (80) - 全屏 20 連斬：脫手黏著攻擊
 	80: { "anim": "katana/attack_ult", "hitbox_name": "UltHitbox", "type": Damage.Type.HEAVY, "knockback": Vector2(10.0, -100.0), "shake": 5.0, "shake_on_hit_only": true, "base_dmg": 150, "energy": 0, "switch": 0, "iai_reward": 0, 
 		"max_hits": 20,"hit_sfx_type": "hit", "interval": 0.1, "sticky": true },
-	# 🌟 大招結尾演出 (81) - 純收招，無傷害，無無敵
 	81: { "anim": "katana/attack_ult_end", "hitbox_name": "None", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 0, "energy": 0, "switch": 0, "iai_reward": 0 },
-	
 }
 
 # [空戰字典]
@@ -147,27 +135,20 @@ var _is_hitbox_locked: bool = false
 
 
 # ==========================================
-# 🌀 5. 共鳴迴路邏輯 (Resonance Circuit)
+# 🌀 5. 共鳴迴路邏輯
 # ==========================================
 func gain_iai(amount: int) -> void:
 	if amount <= 0: return
-	
-	# 🌟 終極解耦：呼叫老爸的快遞專線！如果我是殘影，老爸會幫我轉交給本尊，我就直接下班！
-	if try_forward_resource("gain_iai", amount):
-		return
-		
-	# 如果我是本尊，就安心收下放入錢包
+	if try_forward_resource("gain_iai", amount): return
 	current_iai = mini(current_iai + amount, MAX_IAI)
 	print("🟢 命中！獲得居合值: ", amount, " | 目前居合: ", current_iai, "/", MAX_IAI)
 
 func consume_iai_for_charge() -> void:
 	current_iai = maxi(current_iai - 10, 0)
 	current_tsubame = mini(current_tsubame + 10, MAX_TSUBAME)
-	print("消耗10點居合值，目前居合: ", current_iai, "| 增加燕反值", current_tsubame, "/", MAX_TSUBAME)
-	
 	if current_tsubame >= MAX_TSUBAME and not is_tsubame_ready:
 		is_tsubame_ready = true
-		skill_1_timer = 0.0 # 滿燕返即刻重置戰技 CD
+		skill_1_timer = 0.0 
 
 # ==========================================
 # 🎬 實作 Weapon.gd 合約接口
@@ -181,21 +162,18 @@ func start_light_attack() -> void:
 		if current_time - last_attack_time > combo_timeout:
 			combo_step = 0
 
-	# 🪽 空戰處理
 	if not player.is_on_floor():
 		if air_attack_locked or _get_ground_distance() < min_air_attack_height:
 			return
 		if combo_step == 61:
 			combo_step = 62
-			air_attack_locked = true # 打出最後一段，立刻宣告這趟空中旅程結束！
+			air_attack_locked = true 
 		else:
 			combo_step = 61
-			
 		is_attacking = true
 		_play_air_step(combo_step)
 		return
 
-	# 原本這裡是 return，現在改成：如果上一招是戰技或蓄力，直接把段數歸零！
 	if combo_step == 30 or SKILL_CONFIG.has(combo_step):
 		combo_step = 0
 
@@ -206,7 +184,6 @@ func start_light_attack() -> void:
 	is_attacking = true
 	_play_light_step(combo_step)
 	
-	# --- 蓄力預輸入補償 (Pre-input Buffer) ---
 	if Input.is_action_pressed("attack"): light_hold_timer = 0.15
 	else: light_hold_timer = 0.0
 
@@ -228,9 +205,6 @@ func start_heavy_attack() -> void:
 	is_wave_fired = false
 	is_time_stop_triggered = false 
 
-	# ==========================================
-	# 🪽 空戰處理 (純粹的空中燕返)
-	# ==========================================
 	if not player.is_on_floor():
 		if is_tsubame_ready:
 			_play_skill_step(42) 
@@ -240,9 +214,6 @@ func start_heavy_attack() -> void:
 			is_attacking = false 
 		return
 
-	# ==========================================
-	# 🗡️ 地面處理 (純粹的中立戰技/蓄力/燕返)
-	# ==========================================
 	if is_tsubame_ready:
 		_play_skill_step(42) 
 		is_tsubame_ready = false
@@ -260,13 +231,11 @@ func start_ultimate() -> void:
 	is_time_stop_triggered = false 
 	_tsubame_zoom_phase = 0 
 	light_hold_timer = 0.0 
-	
 	ult_timer = ult_cd 
 	combo_step = 80
 	player.invincible_time_left = 3.0
 	
 	_play_skill_step(combo_step)
-	
 	player.is_input_locked = true
 
 func update_timers_only(delta: float) -> void:
@@ -278,11 +247,11 @@ func update_timers_only(delta: float) -> void:
 		air_attack_locked = false 
 		if not is_attacking and combo_step in [61, 62]:
 			combo_step = 0
+
 # ==========================================
-# 🏃 物理與特效場控核心 (The Stage Director)
+# 🏃 物理與特效場控核心
 # ==========================================
 func get_current_velocity(delta: float) -> Vector2:
-	# 🌟 攔截器：如果有武藝在執行，物理位移全權交給它算！
 	if is_instance_valid(active_martial_art) and active_martial_art.is_active:
 		return active_martial_art.get_current_velocity(delta)
 		
@@ -294,16 +263,10 @@ func get_current_velocity(delta: float) -> Vector2:
 	var new_x = player.velocity.x
 	var new_y = player.velocity.y
 
-	# ==========================================
-	# 🚨 終極防爆衝基底：統一套用 M平方 (M^2) 定律！
-	# ==========================================
 	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-	# 將所有摩擦力都乘上 speed_mult 的平方，完美抵銷衝刺速度的放大！
 	var base_friction = player.FLOOR_ACCELERATION * (speed_mult * speed_mult) * delta
 
-	# ----------------------------------------
-	# ⏳ 長按普攻轉蓄力 (Hold to Charge)
-	# ----------------------------------------
+	# --- 蓄力邏輯 ---
 	if combo_step in [1, 2, 3, 4, 61, 62]: 
 		if current_iai >= 10 and Input.is_action_pressed("attack"):
 			light_hold_timer += delta
@@ -317,25 +280,18 @@ func get_current_velocity(delta: float) -> Vector2:
 						current_charge_timer = 0.0
 						current_charge_tier = 0
 						_play_skill_step(30)
-					else:
-						light_hold_timer = 0.0
-		else:
-			light_hold_timer = 0.0
+					else: light_hold_timer = 0.0
+		else: light_hold_timer = 0.0
 
-	# ----------------------------------------
-	# 🔋 蓄力結算 (Charge Resolution)
-	# ----------------------------------------
 	if combo_step == 30:
 		var move_dir := Input.get_axis("move_left", "move_right")
 		if not is_zero_approx(move_dir) and player is Player:
 			player.direction = player.Direction.LEFT if move_dir < 0 else player.Direction.RIGHT
 			
-		# 🌟 套用基準摩擦力
 		new_x = move_toward(new_x, 0.0, base_friction * 2.0)
 		
 		var is_holding = Input.is_action_pressed("attack")
-		if not (player is Player):
-			is_holding = false
+		if not (player is Player): is_holding = false
 		
 		if is_holding:
 			current_charge_timer += delta
@@ -358,15 +314,8 @@ func get_current_velocity(delta: float) -> Vector2:
 		else:
 			_apply_charge_zoom(ZOOM_LEVELS[0])
 			if current_charge_tier == 0:
-				is_attacking = false
-				combo_step = 0
-				current_charge_timer = 0.0
-				light_hold_timer = 0.0
-				
-				# 🌟 精準修復：加上身分確認！只有真正的 Player 才有這個變數
-				if player is Player:
-					player.is_input_locked = false 
-					
+				is_attacking = false; combo_step = 0; current_charge_timer = 0.0; light_hold_timer = 0.0
+				player.is_input_locked = false 
 				var p_scabbard = player.get("scabbard")
 				if p_scabbard: p_scabbard.fade_in()
 			else:
@@ -375,48 +324,24 @@ func get_current_velocity(delta: float) -> Vector2:
 				elif current_charge_tier == 3: release_step = 33
 				_play_skill_step(release_step)
 
-	# ----------------------------------------
-	# 🚀 蓄力衝刺 (Thrust)
-	# ----------------------------------------
 	elif combo_step in [32, 33, 34]:
 		var anim_time = player.animation_player.current_animation_position
 		if anim_time < 0.05:
-			var speed_multiplier = 1.0
-			if combo_step == 34: speed_multiplier = 4.5
-			elif combo_step == 32: speed_multiplier = 6.5 
-			elif combo_step == 33: speed_multiplier = 8.0
+			var speed_multiplier = 4.5 if combo_step == 34 else (6.5 if combo_step == 32 else 8.0)
 			new_x = player.direction * (thrust_speed * speed_multiplier)
-		else: 
-			# 🌟 套用基準摩擦力
-			new_x = move_toward(new_x, 0.0, base_friction)
+		else: new_x = move_toward(new_x, 0.0, base_friction)
 	
-	# ----------------------------------------
-	# 🌊 戰技下：三段式連斬（21、22 已外包，此處僅留 20 常規處理）
-	# ----------------------------------------
-	elif combo_step == 20: 
-		# 🌟 精準切除：刪掉已被移出的 combo_step == 22 與 spawn_sword_wave 盲腸
-		new_x = move_toward(new_x, 0.0, base_friction)
-		if not player.is_on_floor(): 
-			new_y += (player.default_gravity * air_skill_gravity_rate) * delta
 	elif combo_step == 41: 
-		# 🌟 套用基準摩擦力
 		new_x = move_toward(new_x, 0.0, base_friction * skill_neutral_friction_rate)
 		
-	# ----------------------------------------
-	# 🦅 強化戰技 (42) - 燕返
-	# ----------------------------------------
 	elif combo_step == 42: 
-		# 🌟 拔除原本手寫的 speed_mult，直接套用 base_friction
 		new_x = move_toward(new_x, 0.0, base_friction * 5.0)
-		
-		if player.is_on_floor(): new_y = 0.0
-		else: new_y = player.default_gravity * air_skill_gravity_rate * delta 
+		new_y = 0.0 if player.is_on_floor() else player.default_gravity * air_skill_gravity_rate * delta 
 		
 		var anim_time = player.animation_player.current_animation_position
 		if anim_time >= 0.08 and not is_time_stop_triggered:
 			is_time_stop_triggered = true 
-			if player is Player:
-				player.invincible_time_left = 2.0 
+			if player is Player: player.invincible_time_left = 2.0 
 			
 		if anim_time >= 0.10 and _tsubame_zoom_phase == 0:
 			_tsubame_zoom_phase = 1
@@ -424,8 +349,7 @@ func get_current_velocity(delta: float) -> Vector2:
 				
 		if anim_time >= 1.76 and not is_wave_fired:
 			is_wave_fired = true 
-			if CombatManager.has_method("apply_camera_shake"):
-				CombatManager.apply_camera_shake(60.0) 
+			if CombatManager.has_method("apply_camera_shake"): CombatManager.apply_camera_shake(60.0) 
 				
 			if is_instance_valid(current_active_hitbox):
 				current_active_hitbox.hit_targets.clear() 
@@ -440,19 +364,13 @@ func get_current_velocity(delta: float) -> Vector2:
 			disable_hitbox() 
 			enable_hitbox("CollisionShape2D2")
 			
-	# ----------------------------------------
-	# 🌌 大招 (80) - 全屏 20 連斬
-	# ----------------------------------------
 	elif combo_step == 80: 
-		# 🌟 拔除原本手寫的 speed_mult，直接套用 base_friction
 		new_x = move_toward(new_x, 0.0, base_friction * 5.0)
 		new_y = 0.0 
-		
 		var anim_time = player.animation_player.current_animation_position
 		if anim_time >= 0.05 and not is_time_stop_triggered:
 			is_time_stop_triggered = true 
-			if player.has_method("trigger_time_stop"):
-				player.trigger_time_stop(3.0, 0.001) 
+			if player.has_method("trigger_time_stop"): player.trigger_time_stop(3.0, 0.001) 
 			player.animation_player.speed_scale = 1.0 / 0.001 
 			player.invincible_time_left = 3.0
 			
@@ -462,8 +380,7 @@ func get_current_velocity(delta: float) -> Vector2:
 			
 		if anim_time >= 0.70 and _tsubame_zoom_phase == 1:
 			_tsubame_zoom_phase = 2
-			if CombatManager.has_method("apply_camera_shake"):
-				CombatManager.apply_camera_shake(100.0, 0.07) 
+			if CombatManager.has_method("apply_camera_shake"): CombatManager.apply_camera_shake(100.0, 0.07) 
 			_apply_charge_zoom(Vector2(0.85, 0.85), 0.1) 
 		
 		if anim_time >= 0.82 and _tsubame_zoom_phase == 2:
@@ -472,100 +389,64 @@ func get_current_velocity(delta: float) -> Vector2:
 			
 		if anim_time >= 2.80 and _tsubame_zoom_phase == 3:
 			_tsubame_zoom_phase = 4
-			if CombatManager.has_method("apply_camera_shake"):
-				CombatManager.apply_camera_shake(180.0, 0.15) 
+			if CombatManager.has_method("apply_camera_shake"): CombatManager.apply_camera_shake(180.0, 0.15) 
 			_apply_charge_zoom(ZOOM_LEVELS[0], 0.2)
 
-	# ----------------------------------------
-	# 🪽 空戰與常規普攻
-	# ----------------------------------------
 	elif combo_step in [61, 62]:
 		new_x = move_toward(new_x, 0.0, base_friction)
-
 	else:
-		# 🌟 就是這裡原本少了 M 平方！現在統一補上了！
 		new_x = move_toward(new_x, 0.0, base_friction)
 
 	return Vector2(new_x, new_y)
 	
-
-	
 func is_handling_gravity() -> bool:
-	# 🌟 攔截器：問武藝要不要接管重力
 	if is_instance_valid(active_martial_art) and active_martial_art.is_active:
-		if active_martial_art.has_method("is_handling_gravity"):
-			return active_martial_art.is_handling_gravity()
+		if active_martial_art.has_method("is_handling_gravity"): return active_martial_art.is_handling_gravity()
 			
-	# 🌟 精準修正：將 [20, 21, 22, 42] 修改為 [20, 42]，拿掉已外包的 21 和 22
-	if not player.is_on_floor() and combo_step in [20, 42]: return true
+	if not player.is_on_floor() and combo_step == 42: return true
 	if combo_step == 80: return true
 	return false
 
 # ==========================================
-# 🎬 招式結束判定 (Cut!)
+# 🎬 招式結束判定
 # ==========================================
 func is_attack_finished() -> bool:
-	# 如果根本不在攻擊狀態，直接回報完成，讓總監放人！
-	if not is_attacking: 
-		return true
+	if not is_attacking: return true
 	
 	if not player.animation_player.is_playing():
-		
-		# ==========================================
-		# 大招演出完後的「結尾接力」
-		# ==========================================
 		if combo_step == 80:
-			# 立即強制切換到 81 號「結尾動畫」
 			combo_step = 81
 			_play_skill_step(81) 
-			
-			# 🌟 新增：給予大招後搖專屬的無敵時間，確保帥氣收刀絕對不會被小怪偷襲打斷！
 			player.invincible_time_left = 0.5 
-		
 			return false
 			
-		# --- 蓄力無縫預輸入 (Hold-to-Chain Buffer) ---
 		if Input.is_action_pressed("attack"):
 			if combo_step in [1, 2, 3, 4, 12, 21, 32, 33, 34, 41, 61, 62]:
-				# 只有在居合 >= 10，而且「確實進入蓄力」時，才攔截狀態機！
 				if current_iai >= 10:
-					combo_step = 30 
-					current_charge_timer = 0.0
-					current_charge_tier = 0
+					combo_step = 30; current_charge_timer = 0.0; current_charge_tier = 0
 					_play_skill_step(30)
-					return false # 成功進入蓄力，回傳 false 告訴總監「我還沒打完」
+					return false
 
 		player.is_input_locked = false 
-		
-		# 🌟 升級防護網：本體才清理無敵時間
-		if combo_step == 20 and player is Player:
-			if player.invincible_timer.time_left == 0:
-				player.invincible_time_left = 0.0
-		
-		if combo_step in [61, 62]: 
-			air_attack_locked = true
+		if combo_step in [61, 62]: air_attack_locked = true
 			
 		last_attack_time = Time.get_ticks_msec() / 1000.0
-		is_attacking = false
-		step_cooldown = 0.0
+		is_attacking = false; step_cooldown = 0.0
 		
 		if combo_step in [42, 80] or _tsubame_zoom_phase > 0:
 			_tsubame_zoom_phase = 0
 			_apply_charge_zoom(ZOOM_LEVELS[0], 0.4)
 			if player.has_method("clear_time_stop"): player.clear_time_stop()
 				
-		# 終極防線：強制鎖死 Hitbox
 		_is_hitbox_locked = true 
 		disable_hitbox()
 		
-		# 🌟 通知武藝下班
 		if is_instance_valid(active_martial_art):
 			active_martial_art.is_active = false
 			active_martial_art = null
 		
 		var p_scabbard = player.get("scabbard")
-		if not requires_sheath() and p_scabbard:
-			p_scabbard.fade_in()
+		if not requires_sheath() and p_scabbard: p_scabbard.fade_in()
 			
 		return true
 	return false
@@ -574,22 +455,13 @@ func is_attack_finished() -> bool:
 # 💥 強制打斷處理 
 # ==========================================
 func cancel_attack() -> void:
-	if not player.is_on_floor() and combo_step in [30, 61, 62]:
-		air_attack_locked = true
+	if not player.is_on_floor() and combo_step in [30, 61, 62]: air_attack_locked = true
 		
 	player.is_input_locked = false 
 	_apply_charge_zoom(ZOOM_LEVELS[0])
-	is_attacking = false
-	combo_step = 0
-	step_cooldown = 0.0
-	is_launch_triggered = false
-	current_charge_tier = 0
-	current_charge_timer = 0.0
-	light_hold_timer = 0.0
-	is_wave_fired = false 
-	_tsubame_zoom_phase = 0
+	is_attacking = false; combo_step = 0; step_cooldown = 0.0; is_launch_triggered = false
+	current_charge_tier = 0; current_charge_timer = 0.0; light_hold_timer = 0.0; is_wave_fired = false; _tsubame_zoom_phase = 0
 	
-	# 🌟 遭遇強制打斷，沒收武藝控制權
 	if is_instance_valid(active_martial_art):
 		active_martial_art.cancel()
 		active_martial_art = null
@@ -597,34 +469,26 @@ func cancel_attack() -> void:
 	if is_time_stop_triggered:
 		is_time_stop_triggered = false
 		if player.has_method("clear_time_stop"): player.clear_time_stop() 
-	else:
-		is_time_stop_triggered = false 
+	else: is_time_stop_triggered = false 
 	
 	_is_hitbox_locked = true 
 	disable_hitbox()
-	
 	var p_scabbard = player.get("scabbard")
 	if p_scabbard: p_scabbard.fade_in()
 		
 func requires_sheath() -> bool:
-	# 如果根本不在攻擊狀態(0)，當然不用收刀
-	if combo_step == 0:
-		return false
-	# 🌟 修復：如果目前的招式「不在」黑名單裡面，就代表需要收刀！
+	if combo_step == 0: return false
 	return combo_step not in no_sheath_steps
 	
 # ==========================================
-# ⚙️ 內部實作與 Hitbox 綁定
+# ⚙️ 內部實作與接口
 # ==========================================
 func _play_light_step(step: int) -> void:
 	disable_hitbox()
 	var config: Dictionary = LIGHT_ATTACK_CONFIG[step]
 	_apply_hitbox_config(config)
 	
-	if config.has("sfx") and config["sfx"] != null:
-		# 參數：音檔, 音量 (-8.0), 音調隨機度 (交給 AudioManager 處理)
-		AudioManager.play_sfx(config["sfx"], -8.0)
-		
+	if config.has("sfx") and config["sfx"] != null: AudioManager.play_sfx(config["sfx"], -8.0)
 	if player.animation_player.current_animation == config["anim"]: player.animation_player.stop()
 	player.play_safe_anim(config["anim"])
 
@@ -633,23 +497,17 @@ func _play_skill_step(step: int) -> void:
 	var config: Dictionary = SKILL_CONFIG[step]
 	_apply_hitbox_config(config)
 	
-	# 🎵 🌟 戰技與大招的揮空音效
-	if config.has("sfx") and config["sfx"] != null:
-		AudioManager.play_sfx(config["sfx"], -5.0)
-		
-	# 特殊 Hitbox 屬性覆寫
+	if config.has("sfx") and config["sfx"] != null: AudioManager.play_sfx(config["sfx"], -5.0)
+	
 	if current_active_hitbox:
-		if step in [11, 12]: current_active_hitbox.spark_type = 1; current_active_hitbox.spark_scale = 0.8
-		elif step == 41: current_active_hitbox.max_hits = 5; current_active_hitbox.hit_interval = 0.1; current_active_hitbox.sticky_multi_hit = true
+		if step == 41: current_active_hitbox.max_hits = 5; current_active_hitbox.hit_interval = 0.1; current_active_hitbox.sticky_multi_hit = true
 		elif step == 34: current_active_hitbox.max_hits = 2; current_active_hitbox.hit_interval = 0.1; current_active_hitbox.sticky_multi_hit = true
 		elif step == 32: current_active_hitbox.max_hits = 4; current_active_hitbox.hit_interval = 0.1; current_active_hitbox.sticky_multi_hit = true
 		elif step == 33: current_active_hitbox.max_hits = 7; current_active_hitbox.hit_interval = 0.1; current_active_hitbox.sticky_multi_hit = true; current_active_hitbox.spark_scale = 0.6; current_active_hitbox.spark_color = Color(1.0, 0.0, 0.0, 1.0); current_active_hitbox.aura_color = Color(1.0, 0.0, 0.0, 1.0)  
 		elif step == 42: current_active_hitbox.spark_scale = 0.6
 		elif step == 80: current_active_hitbox.spark_scale = 1.0
 	
-	# 🌟 精準修正：將 step in [20, 21, 22, 42] 修改為 [20, 42]
-	if not player.is_on_floor() and step in [20, 42]:
-		player.velocity.y = air_thrust_force * 0.5
+	if not player.is_on_floor() and step == 42: player.velocity.y = air_thrust_force * 0.5
 		
 	combo_step = step
 	if player.animation_player.current_animation == config["anim"]: player.animation_player.stop()
@@ -663,25 +521,21 @@ func _play_air_step(step: int) -> void:
 	if player.animation_player.current_animation == config["anim"]: player.animation_player.stop()
 	player.play_safe_anim(config["anim"])
 
-## 🌟 新增：供外部武藝卡帶呼叫的純淨發招接口，直接接收卡帶自帶的 CONFIG
+## 🌟 外部武藝專屬發招接口
 func _play_martial_art_attack(config: Dictionary) -> void:
 	disable_hitbox()
 	_apply_hitbox_config(config)
 	
-	# 處理原本硬編碼在老爸身上的特效特殊覆寫
 	if current_active_hitbox:
 		if config.has("spark_type"): current_active_hitbox.spark_type = config["spark_type"]
 		if config.has("spark_scale"): current_active_hitbox.spark_scale = config["spark_scale"]
 	
-	if config.has("sfx") and config["sfx"] != null:
-		AudioManager.play_sfx(config["sfx"], -5.0)
-		
+	if config.has("sfx") and config["sfx"] != null: AudioManager.play_sfx(config["sfx"], -5.0)
 	if player.animation_player.current_animation == config["anim"]: player.animation_player.stop()
 	player.play_safe_anim(config["anim"])
 	
 func _apply_hitbox_config(config: Dictionary) -> void:
 	_is_hitbox_locked = false 
-	
 	current_action_type = config.get("action_type", Weapon.ActionType.NONE)
 	
 	var target_hitbox_name = config.get("hitbox_name", "Hitbox")
@@ -695,7 +549,6 @@ func _apply_hitbox_config(config: Dictionary) -> void:
 		hitbox.attack_type = config.get("type", Damage.Type.LIGHT)
 		hitbox.knockback_force = config.get("knockback", Vector2.ZERO)
 		
-		# 鎖死太刀所有連段(包含燕返、大招)的絕對方向！
 		var base_kb_x = abs(hitbox.knockback_force.x)
 		hitbox.absolute_knockback = Vector2(base_kb_x * player.direction, hitbox.knockback_force.y)
 		
@@ -709,47 +562,27 @@ func _apply_hitbox_config(config: Dictionary) -> void:
 		
 		hitbox.spark_type = 0; hitbox.spark_scale = 0.3; hitbox.spark_color = Color(0.7, 1.5, 0.5, 1.0); hitbox.aura_color = Color(0, 1, 1, 1)
 		hitbox.hit_targets.clear() 
-		# ==========================================
-		# 🌟 核心解耦 1：不再強塞給 Hitbox，由太刀自己記住這招能賺多少錢
-		# ==========================================
+		
 		_current_energy_reward = float(config.get("energy", 0))
 		_current_iai_reward = int(config.get("iai_reward", 0))
 		_multi_hit_energy = config.get("multi_hit_energy", false)
 		_has_granted_resources_this_step = false
 		
-		# ==========================================
-		# 🌟 核心解耦 2：切斷舊信號，接管新信號
-		# ==========================================
 		if current_active_hitbox and current_active_hitbox.hit.is_connected(_on_hitbox_hit):
 			current_active_hitbox.hit.disconnect(_on_hitbox_hit)
 			
 		current_active_hitbox = hitbox
-		
 		if not current_active_hitbox.hit.is_connected(_on_hitbox_hit):
 			current_active_hitbox.hit.connect(_on_hitbox_hit)
 
-# ==========================================
-# 🎯 命中回饋處理 (由 Hitbox 信號觸發)
-# ==========================================
 func _on_hitbox_hit(hurtbox: Node) -> void:
-	# 防呆：確保不是打到玩家自己
-	if is_instance_valid(player) and is_instance_valid(hurtbox.owner) and hurtbox.owner == player: 
-		return
-
-	# 判斷是否為多次給予，或者這招還沒給過資源
+	if is_instance_valid(player) and is_instance_valid(hurtbox.owner) and hurtbox.owner == player: return
 	if _multi_hit_energy or not _has_granted_resources_this_step:
-		if _current_iai_reward > 0:
-			gain_iai(_current_iai_reward)
-			
+		if _current_iai_reward > 0: gain_iai(_current_iai_reward)
 		if _current_energy_reward > 0:
-			if player.has_method("add_weapon_resource"):
-				player.add_weapon_resource(WEAPON_ID, _current_energy_reward)
-				
+			if player.has_method("add_weapon_resource"): player.add_weapon_resource(WEAPON_ID, _current_energy_reward)
 		_has_granted_resources_this_step = true
 		
-# ==========================================
-# 🛠️ 輔助工具區
-# ==========================================
 func _get_ground_distance() -> float:
 	var space_state = player.get_world_2d().direct_space_state
 	var query = PhysicsRayQueryParameters2D.create(player.global_position, player.global_position + Vector2(0, 1000))
@@ -760,106 +593,60 @@ func _get_ground_distance() -> float:
 
 func _apply_charge_zoom(target_zoom: Vector2, duration: float = 0.2) -> void:
 	if not (player is Player): return
-	# 殘影不准控制鏡頭！
 	if player.name.begins_with("Phantom"): return
 	
 	var camera = get_viewport().get_camera_2d()
 	if camera:
 		if _camera_tween and _camera_tween.is_valid(): _camera_tween.kill()
 		_camera_tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-		
 		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
 		_camera_tween.set_speed_scale(speed_mult)
 		
-		# ==========================================
-		# 🌟 核心修復：對接 CombatManager 仲裁系統
-		# ==========================================
 		if target_zoom == ZOOM_LEVELS[0]:
-			# 如果目標是 ZOOM_LEVELS[0] (代表要收招還原視野)
-			# 我們不盲目回到 1.0，而是取用 CombatManager 記住的地圖/BOSS 基準視野！
 			var final_zoom = CombatManager.base_zoom if CombatManager.get("base_zoom") != null else Vector2(1.0, 1.0)
-			
 			_camera_tween.tween_property(camera, "zoom", final_zoom, duration)
-			
-			# 收招還原完成後，把相機控制權還給世界
 			_camera_tween.tween_callback(func():
-				if CombatManager.get("is_close_up_active") != null:
-					CombatManager.is_close_up_active = false
+				if CombatManager.get("is_close_up_active") != null: CombatManager.is_close_up_active = false
 			)
 		else:
-			# 如果是放大特寫，告訴 CombatManager「我要暫時鎖死相機」
-			if CombatManager.get("is_close_up_active") != null:
-				CombatManager.is_close_up_active = true
-				
+			if CombatManager.get("is_close_up_active") != null: CombatManager.is_close_up_active = true
 			_camera_tween.tween_property(camera, "zoom", target_zoom, duration)
 
-
-# ==========================================
-# 🛡️ 狀態機防護名單 (The Bouncer's List)
-# ==========================================
 func can_air_light() -> bool:
 	if air_attack_locked or _get_ground_distance() < min_air_attack_height: return false
 	return true
 
-# 🌟 純淨版防護網：只管燕返與中立戰技
 func can_use_heavy() -> bool:
-	if combo_step == 11: return true 
-	
-	if not player.is_on_floor():
-		return is_tsubame_ready 
-			
-	if is_tsubame_ready:
-		return true
-		
-	if skill_1_timer > 0:
-		print("⏳ [防護網攔截] 中立戰技冷卻中！")
-		return false
-		
+	if not player.is_on_floor(): return is_tsubame_ready 
+	if is_tsubame_ready: return true
+	if skill_1_timer > 0: return false
 	return true
 
 func can_use_ultimate() -> bool:
 	if ult_timer > 0: return false 
 	if not player.is_on_floor(): return false 
-	
 	if player.has_method("get_weapon_energy"):
-		if player.get_weapon_energy(WEAPON_ID) < ult_energy_cost:
-			print("⚠️ [", WEAPON_ID, "] 大招能量不足！需要: ", ult_energy_cost, "，目前僅有: ", player.get_weapon_energy(WEAPON_ID))
-			return false 
-			
+		if player.get_weapon_energy(WEAPON_ID) < ult_energy_cost: return false 
 	return true
 
-# ==========================================
-# 🎬 實作與覆寫 Weapon.gd 的圖標接口
-# ==========================================
 func get_dynamic_skill_icon(slot: int) -> Texture2D:
 	match slot:
-		1:
-			if is_tsubame_ready and skill_1_tsubame_icon: return skill_1_tsubame_icon
-			
-	# 如果沒有任何特殊狀態，就呼叫老爸 (Weapon.gd) 的預設邏輯拿基本圖標！
+		1: if is_tsubame_ready and skill_1_tsubame_icon: return skill_1_tsubame_icon
 	return super.get_dynamic_skill_icon(slot)
 
-# ==========================================
-# 💾 武器狀態保存與繼承
-# ==========================================
 func export_weapon_data() -> Dictionary:
 	return {
-		"current_iai": current_iai,
-		"current_tsubame": current_tsubame,
-		"is_tsubame_ready": is_tsubame_ready,
-		"skill_1_timer": skill_1_timer if "skill_1_timer" in self else 0.0,
-		"ult_timer": ult_timer if "ult_timer" in self else 0.0
+		"current_iai": current_iai, "current_tsubame": current_tsubame, "is_tsubame_ready": is_tsubame_ready,
+		"skill_1_timer": skill_1_timer if "skill_1_timer" in self else 0.0, "ult_timer": ult_timer if "ult_timer" in self else 0.0
 	}
 
 func import_weapon_data(data: Dictionary) -> void:
 	current_iai = data.get("current_iai", 0)
 	current_tsubame = data.get("current_tsubame", 0)
 	is_tsubame_ready = data.get("is_tsubame_ready", false)
-	
 	if "skill_1_timer" in self: skill_1_timer = data.get("skill_1_timer", 0.0)
 	if "ult_timer" in self: ult_timer = data.get("ult_timer", 0.0)
 	
-# --- 鎖死機制防護下的 Hitbox 開關 ---
 func enable_hitbox(shape_name: String = "") -> void:
 	if _is_hitbox_locked: return
 	if current_active_hitbox:

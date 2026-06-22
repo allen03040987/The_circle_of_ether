@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://8lf6qf5bw1gn"]
+[gd_scene load_steps=3 format=3 uid="uid://8lf6qf5bw1gn"]
 
 [ext_resource type="Script" path="res://ui/settings_panel.gd" id="1_x2eau"]
+[ext_resource type="PackedScene" uid="uid://b2n8xjgkpo3s1" path="res://ui/KeybindMenu.tscn" id="2_oowmq"]
 
 [node name="SettingsPanel" type="Control"]
 layout_mode = 3
@@ -18,8 +19,15 @@ offset_bottom = 217.0
 
 [node name="VBoxContainer" type="VBoxContainer" parent="Panel"]
 layout_mode = 0
-offset_right = 384.0
-offset_bottom = 40.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 376.0
+offset_bottom = 144.0
+
+[node name="KeybindButton" type="Button" parent="Panel/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 0
+text = "自定義按鍵設定"
 
 [node name="WalkToggle" type="CheckButton" parent="Panel/VBoxContainer"]
 layout_mode = 2
@@ -35,3 +43,8 @@ text = "開啟螢幕震動效果"
 layout_mode = 2
 focus_mode = 0
 text = "開啟敵人受擊閃光"
+
+[node name="KeybindMenu" parent="." instance=ExtResource("2_oowmq")]
+visible = false
+
+[connection signal="pressed" from="Panel/VBoxContainer/KeybindButton" to="." method="_on_keybind_button_pressed"]

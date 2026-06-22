@@ -4,7 +4,8 @@ extends Control
 @onready var walk_toggle: CheckButton = $Panel/VBoxContainer/WalkToggle
 @onready var shake_toggle: CheckButton = $Panel/VBoxContainer/ShakeToggle
 @onready var flash_toggle: CheckButton = $Panel/VBoxContainer/FlashToggle # 🌟 1. 綁定新的白光開關節點
-
+@onready var keybind_button: Button = $Panel/VBoxContainer/KeybindButton
+@onready var keybind_menu: Control = $KeybindMenu
 # ==========================================
 # ⚙️ 初始化 (Initialization)
 # ==========================================
@@ -19,7 +20,14 @@ func _ready() -> void:
 	
 	# 3. 初始刷新一次
 	_refresh_ui_state()
-
+	
+	# 🌟 4. 綁定按鍵設定的點擊與關閉信號
+	if is_instance_valid(keybind_button) and not keybind_button.pressed.is_connected(_on_keybind_button_pressed):
+		keybind_button.pressed.connect(_on_keybind_button_pressed)
+		
+	if is_instance_valid(keybind_menu) and not keybind_menu.menu_closed.is_connected(_on_keybind_menu_closed):
+		keybind_menu.menu_closed.connect(_on_keybind_menu_closed)
+		
 # ==========================================
 # 🔄 狀態刷新 (State Refresh)
 # ==========================================
@@ -55,3 +63,16 @@ func _on_flash_toggled(toggled_on: bool) -> void:
 	
 	# 廣播訊號，Enemy 的腳本會去讀這個值！
 	Game.settings_changed.emit()
+	
+# ==========================================
+# ⌨️ 自定義按鍵選單切換邏輯
+# ==========================================
+func _on_keybind_button_pressed() -> void:
+	# 隱藏原本的設定按鈕面板，避免畫面重疊
+	$Panel.hide() 
+	if keybind_menu:
+		keybind_menu.show()
+
+func _on_keybind_menu_closed() -> void:
+	# 當按鍵選單關閉時，重新把設定按鈕面板叫出來
+	$Panel.show()
