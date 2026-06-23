@@ -1,6 +1,6 @@
 [gd_scene load_steps=9 format=3 uid="uid://cbinpiayt3qmf"]
 
-[ext_resource type="Script" path="res://Explod/blunt_spark.gd" id="1_5occ2"]
+[ext_resource type="Script" path="res://Explod/hit_spark.gd" id="1_6ja2o"]
 [ext_resource type="Texture2D" uid="uid://tn3sfgk6git8" path="res://Explod/Circular shock wave.png" id="2_xkfnn"]
 
 [sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_pbbef"]
@@ -57,7 +57,7 @@ tracks/2/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_p13pf"]
-resource_name = "impact"
+resource_name = "slash"
 length = 0.3
 step = 0.02
 tracks/0/type = "method"
@@ -111,12 +111,12 @@ tracks/3/keys = {
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_h3s45"]
 _data = {
 "RESET": SubResource("Animation_g0e3y"),
-"impact": SubResource("Animation_p13pf")
+"slash": SubResource("Animation_p13pf")
 }
 
 [node name="Circular shock wave" type="Node2D"]
 scale = Vector2(0.8, 0.8)
-script = ExtResource("1_5occ2")
+script = ExtResource("1_6ja2o")
 
 [node name="Aura" type="Sprite2D" parent="."]
 modulate = Color(1, 1, 1, 0.376471)

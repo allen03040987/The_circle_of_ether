@@ -1,20 +1,13 @@
 class_name Stats
 extends Node
 ## 戰鬥數值核心 (Stats Core)
-## 負責管理生命值、能量、韌性 (Poise)，並透過訊號與外部進行單向溝通。
 
-# ==========================================
-# 📡 訊號 (Signals)
-# ==========================================
 signal health_changed
 signal energy_changed
 signal poise_changed
 signal poise_broken(is_broken: bool)
 
-# ==========================================
-# 🎛️ 核心屬性 (Properties)
-# ==========================================
-@export var base_stats: BaseStats # 外部數值設定檔
+@export var base_stats: BaseStats 
 
 var max_health: int
 var max_energy: float
@@ -22,9 +15,8 @@ var energy_regen: float
 var max_poise: float = 100.0
 
 var is_broken: bool = false
-var poise_recharge_speed: float = 20.0 # 虛弱時的回充速度
+var poise_recharge_speed: float = 20.0 
 
-# --- 動態數值 (Setter 自動防呆並發送信號) ---
 @onready var health: int = 1 :
 	set(v):
 		v = clampi(v, 0, max_health)
@@ -46,7 +38,6 @@ var poise: float = 0.0 :
 		poise = v
 		poise_changed.emit()
 		
-		# 觸發虛弱狀態
 		if poise <= 0 and not is_broken:
 			_enter_broken_state()
 
@@ -82,13 +73,13 @@ func _process(delta: float) -> void:
 func _enter_broken_state() -> void:
 	is_broken = true
 	poise_broken.emit(true)
-	print("🛡️ BOSS 韌性崩潰！進入虛弱狀態")
+	print("🛡️ 韌性崩潰！進入虛弱狀態")
 
 func _exit_broken_state() -> void:
 	is_broken = false
 	poise = max_poise
 	poise_broken.emit(false)
-	print("🛡️ BOSS 韌性重置！恢復正常")
+	print("🛡️ 韌性重置！恢復正常")
 	
 # ==========================================
 # 💾 存檔與讀檔系統 (Save/Load)

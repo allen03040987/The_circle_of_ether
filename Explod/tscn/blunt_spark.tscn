@@ -1,6 +1,6 @@
 [gd_scene load_steps=9 format=3 uid="uid://naakd1ojnf0i"]
 
-[ext_resource type="Script" path="res://Explod/blunt_spark.gd" id="1_g7qbf"]
+[ext_resource type="Script" path="res://Explod/hit_spark.gd" id="1_u8kt2"]
 [ext_resource type="Texture2D" uid="uid://dmb7ejmq1m6vd" path="res://Explod/Sprite-0003.png" id="2_lelw0"]
 
 [sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_pbbef"]
@@ -57,7 +57,7 @@ tracks/2/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_p13pf"]
-resource_name = "impact"
+resource_name = "slash"
 length = 0.3
 step = 0.05
 tracks/0/type = "method"
@@ -111,12 +111,12 @@ tracks/3/keys = {
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_h3s45"]
 _data = {
 "RESET": SubResource("Animation_g0e3y"),
-"impact": SubResource("Animation_p13pf")
+"slash": SubResource("Animation_p13pf")
 }
 
 [node name="SlashSpark" type="Node2D"]
 scale = Vector2(0.8, 0.8)
-script = ExtResource("1_g7qbf")
+script = ExtResource("1_u8kt2")
 
 [node name="Aura" type="Sprite2D" parent="."]
 modulate = Color(1, 1, 1, 0.376471)

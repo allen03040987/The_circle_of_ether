@@ -37,7 +37,7 @@ path = "res://Worlds/cave.tscn"
 entry_point = "EntryPoint2"
 
 [node name="EntryPoint" type="Marker2D" parent="TileMap"]
-position = Vector2(1200, 224)
+position = Vector2(1296, 224)
 script = ExtResource("5_wb7c7")
 direction = -1
 
