@@ -27,6 +27,16 @@ offset_bottom = 144.0
 [node name="ActionList" type="VBoxContainer" parent="ScrollContainer"]
 layout_mode = 2
 
+[node name="ResetButton" type="Button" parent="."]
+layout_mode = 2
+anchor_left = -3.0
+anchor_right = 34.0
+anchor_bottom = 18.0
+offset_left = 192.0
+offset_top = 152.0
+offset_bottom = 39.0
+text = "回到初始設置"
+
 [node name="BackButton" type="Button" parent="."]
 layout_mode = 2
 anchor_left = -3.0
@@ -38,15 +48,5 @@ offset_right = 48.0
 offset_bottom = 39.0
 text = "返回"
 
-[node name="ResetButton" type="Button" parent="."]
-layout_mode = 2
-anchor_left = -3.0
-anchor_right = 34.0
-anchor_bottom = 18.0
-offset_left = 192.0
-offset_top = 152.0
-offset_bottom = 39.0
-text = "回到初始設置"
-
-[connection signal="pressed" from="BackButton" to="." method="_on_back_button_pressed"]
 [connection signal="pressed" from="ResetButton" to="." method="_on_back_button_pressed"]
+[connection signal="pressed" from="BackButton" to="." method="_on_back_button_pressed"]

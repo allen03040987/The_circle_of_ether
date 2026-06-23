@@ -1,9 +1,10 @@
-[gd_scene load_steps=8 format=3 uid="uid://ctaeuuglfxibb"]
+[gd_scene load_steps=9 format=3 uid="uid://ctaeuuglfxibb"]
 
 [ext_resource type="Theme" uid="uid://b77sq4tvcecec" path="res://ui/main theme.tres" id="1_8a61q"]
 [ext_resource type="Script" path="res://ui/title_screen.gd" id="2_px5yt"]
 [ext_resource type="AudioStream" uid="uid://dxcwlwife3i76" path="res://sound/BGM/jivrt-wks6g.wav" id="3_vtrw1"]
 [ext_resource type="Texture2D" uid="uid://ds7pkp1flwgik" path="res://ui/Title page background.png" id="4_5j4sj"]
+[ext_resource type="PackedScene" uid="uid://8lf6qf5bw1gn" path="res://ui/settings_panel.tscn" id="5_fsr76"]
 
 [sub_resource type="Animation" id="Animation_p3oj1"]
 length = 0.001
@@ -33,7 +34,7 @@ tracks/0/keys = {
 "times": PackedFloat32Array(0, 0.5),
 "transitions": PackedFloat32Array(0.4, 1),
 "update": 0,
-"values": [Vector2(400, 96), Vector2(262, 96)]
+"values": [Vector2(400, 64), Vector2(270.752, 64)]
 }
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_klrvd"]
@@ -47,8 +48,8 @@ layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -16.0
-offset_right = -16.0
+offset_top = -8.0
+offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("1_8a61q")
@@ -62,17 +63,20 @@ position = Vector2(32, -24)
 metadata/_edit_lock_ = true
 
 [node name="TitlePageBackground" type="Sprite2D" parent="Graphics"]
-position = Vector2(176, 132)
+position = Vector2(160, 140)
 texture = ExtResource("4_5j4sj")
 
 [node name="Label" type="Label" parent="."]
 layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = -40.0
-offset_top = 16.0
-offset_right = -40.0
-offset_bottom = 75.0
+anchors_preset = -1
+anchor_left = 0.708
+anchor_top = 0.185
+anchor_right = 0.979
+anchor_bottom = 1.037
+offset_left = -325.872
+offset_top = -19.96
+offset_right = -45.936
+offset_bottom = -144.992
 grow_horizontal = 2
 theme_override_colors/font_color = Color(5.77569e-06, 0.851924, 0.562495, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
@@ -84,15 +88,15 @@ horizontal_alignment = 1
 
 [node name="V" type="VBoxContainer" parent="."]
 layout_mode = 1
-anchors_preset = 6
-anchor_left = 1.0
-anchor_top = 0.5
-anchor_right = 1.0
-anchor_bottom = 0.5
-offset_left = 262.0
-offset_top = 96.0
-offset_right = 408.0
-offset_bottom = 240.0
+anchors_preset = -1
+anchor_left = 0.674
+anchor_top = 0.222
+anchor_right = 0.979
+anchor_bottom = 1.0
+offset_left = 3.18399
+offset_top = 48.048
+offset_right = 21.3119
+offset_bottom = 36.0
 grow_horizontal = 0
 grow_vertical = 2
 
@@ -106,11 +110,15 @@ text = "繼續遊戲"
 
 [node name="VsGame" type="Button" parent="V"]
 layout_mode = 2
-text = "雙人對戰模式"
+text = "雙人對戰"
+
+[node name="SettingsButton" type="Button" parent="V"]
+layout_mode = 2
+text = "設定"
 
 [node name="ExitGame" type="Button" parent="V"]
 layout_mode = 2
-text = "離開"
+text = "離開遊戲"
 
 [node name="Enter" type="AnimationPlayer" parent="."]
 libraries = {
@@ -118,7 +126,14 @@ libraries = {
 }
 autoplay = "enter"
 
+[node name="SettingsPanel" parent="." instance=ExtResource("5_fsr76")]
+visible = false
+layout_mode = 1
+offset_top = 8.0
+offset_bottom = 8.0
+
 [connection signal="pressed" from="V/NewGame" to="." method="_on_new_game_pressed"]
 [connection signal="pressed" from="V/LoadGame" to="." method="_on_load_game_pressed"]
 [connection signal="pressed" from="V/VsGame" to="." method="_on_vs_game_pressed"]
+[connection signal="pressed" from="V/SettingsButton" to="." method="_on_settings_button_pressed"]
 [connection signal="pressed" from="V/ExitGame" to="." method="_on_exit_game_pressed"]

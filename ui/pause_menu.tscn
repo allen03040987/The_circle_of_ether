@@ -14,7 +14,6 @@ offset_bottom = 221.0
 color = Color(0, 0, 0, 0.392157)
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
-visible = false
 offset_left = 104.0
 offset_top = 32.0
 offset_right = 273.0
@@ -37,6 +36,7 @@ layout_mode = 2
 text = "回到主選單"
 
 [node name="SettingsPanel" parent="." instance=ExtResource("1_wc3ca")]
+visible = false
 offset_left = 1.0
 offset_top = 1.0
 offset_right = 1.0

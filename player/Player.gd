@@ -188,6 +188,14 @@ func equip_loadout(weapon_ids: Array[String]) -> void:
 		
 func _process(delta: float) -> void:
 	
+	# ==========================================
+	# 🖱️ 滑鼠解鎖邏輯 (Hold Alt to free mouse)
+	# ==========================================
+	if Input.is_physical_key_pressed(KEY_ALT):
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	else:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		
 	# 🌟 武藝模式切換偵測與 UI 通知
 	var current_martial_mode = Input.is_action_pressed("martial_modifier") and not is_input_locked
 	if current_martial_mode != _last_martial_mode:

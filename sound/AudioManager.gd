@@ -78,6 +78,9 @@ func play_hit_sfx(sfx_key: String, volume_db: float = -2.0) -> void:
 	var stream = hit_sfx_bank[sfx_key]
 	play_sfx(stream, volume_db)
 	
+	
+# 🌟 智能音量防爆機制：記錄同一幀內，各個音效被呼叫的次數
+var _frame_sfx_pool: Dictionary = {}
 # ==========================================
 # 🎵 背景音樂 (BGM) 控制
 # ==========================================
@@ -89,6 +92,10 @@ func _ready() -> void:
 	_bgm_player = AudioStreamPlayer.new()
 	_bgm_player.bus = "BGM"
 	add_child(_bgm_player)
+
+# 🌟 新增：每一幀結束時，把「同幀去重池」洗乾淨，準備迎接下一幀的音效
+func _process(_delta: float) -> void:
+	_frame_sfx_pool.clear()
 
 # 🌟 新增 volume_db 參數：預設 0.0 (原音量)，負數變小聲 (例如 -10.0 是小聲，-20.0 是非常小聲)
 # 在 AudioManager.gd 裡：
@@ -128,24 +135,42 @@ func stop_bgm(fade_out_duration: float = 1.0) -> void:
 	else:
 		_bgm_player.stop()
 # ==========================================
-# 💥 全域音效 (Global SFX) 控制
+# 💥 全域音效 (Global SFX) 控制 (具備防爆音疊加機制)
 # ==========================================
-# 用於 UI 點擊、玩家死亡、或是極度重要的全域擊殺音效
 func play_sfx(stream: AudioStream, volume_db: float = 0.0, pitch_scale: float = 1.0) -> void:
 	if not stream: return
 	
-	# 🌟 核心技巧：動態生成免洗播放器！
+	# 🌟 智能防爆音系統：偵測同幀呼叫次數
+	var stream_id = stream.resource_path # 取得該音效的路徑作為唯一識別碼
+	var call_count = _frame_sfx_pool.get(stream_id, 0)
+	
+	# 如果這一幀已經播過 2 次相同的音效了，第 3 次直接丟棄，防止聲音過度飽和！
+	if call_count >= 2:
+		return 
+		
+	# 如果是第 2 次呼叫，把音量大幅降低 (-6 dB 大約是音量減半)
+	var final_volume = volume_db
+	if call_count == 1:
+		final_volume -= 6.0 
+		
+	# 記錄本次呼叫
+	_frame_sfx_pool[stream_id] = call_count + 1
+	
+	# ==========================================
+	
+	# 動態生成免洗播放器
 	var sfx_player = AudioStreamPlayer.new()
 	sfx_player.stream = stream
-	sfx_player.bus = "SFX" # 綁定到 SFX 總線
-	sfx_player.volume_db = volume_db
+	sfx_player.bus = "SFX" 
 	
-	# 🌟 動作遊戲打擊感秘訣：隨機微調音調 (Pitch)
-	# 讓每次播放的聲音都有一點點不同，聽起來才不會像機關槍一樣死板
+	# 🌟 套用經過智能降噪處理的最終音量
+	sfx_player.volume_db = final_volume
+	
+	# 動態音調微調
 	sfx_player.pitch_scale = pitch_scale + randf_range(-0.06, 0.06)
 	
 	add_child(sfx_player)
 	sfx_player.play()
 	
-	# 播完後自我銷毀，絕對不留記憶體垃圾
+	# 播完自我銷毀
 	sfx_player.finished.connect(func(): sfx_player.queue_free())

@@ -15,6 +15,9 @@ extends Control
 @onready var load_game: Button = $V/LoadGame
 @onready var vs_game: Button = $V/VsGame
 
+@onready var settings_button: Button = $V/SettingsButton
+@onready var settings_panel: Control = $SettingsPanel
+
 # ==========================================
 # ⚙️ 初始化 (Initialization)
 # ==========================================
@@ -46,15 +49,47 @@ func  _ready() -> void:
 			button.focus_entered.connect(func(): AudioManager.play_sfx(hover_sfx, -10.0))
 		if click_sfx:
 			button.pressed.connect(func(): AudioManager.play_sfx(click_sfx, -5.0))
-
+	
+	# 🌟 新增：綁定設定按鈕與面板的返回信號
+	if is_instance_valid(settings_button) and is_instance_valid(settings_panel):
+		settings_panel.hide() # 預設隱藏
+		if not settings_button.pressed.is_connected(_on_settings_button_pressed):
+			settings_button.pressed.connect(_on_settings_button_pressed)
+		if not settings_panel.back_requested.is_connected(_on_settings_back_requested):
+			settings_panel.back_requested.connect(_on_settings_back_requested)
+			
 # ==========================================
 # 🎮 主選單輸入 (Menu Input)
 # ==========================================
 func _unhandled_input(event: InputEvent) -> void:
-	# 快捷鍵：在主選單按下 ESC 直接關閉遊戲程式
+	# 快捷鍵：在主選單按下 ESC 的邏輯分流
 	if event.is_action_pressed("ui_cancel"):
-		get_tree().quit()
+		
+		# 🌟 核心防護：如果設定面板正開著，ESC 是關閉面板
+		if is_instance_valid(settings_panel) and settings_panel.visible:
+			get_viewport().set_input_as_handled() # 消耗事件
+			_on_settings_back_requested()
+			
+		# 如果在最外層主選單，ESC 才是關閉遊戲程式
+		else:
+			get_tree().quit()
 
+# ==========================================
+# ⚙️ 設定面板切換邏輯
+# ==========================================
+func _on_settings_button_pressed() -> void:
+	v.hide() # 隱藏主選單的按鈕群，避免畫面重疊
+	if settings_panel:
+		settings_panel.show()
+
+func _on_settings_back_requested() -> void:
+	if settings_panel:
+		settings_panel.hide()
+	v.show() # 重新顯示主選單按鈕
+	
+	# 貼心優化：返回時自動幫玩家聚焦回第一個按鈕，支援鍵盤無縫操作
+	if is_instance_valid(new_game):
+		new_game.grab_focus()
 # ==========================================
 # 📡 按鈕訊號接收 (Button Signals)
 # ==========================================

@@ -23,6 +23,8 @@ signal menu_closed # 🌟 宣告一個信號，用來告訴暫停選單「我關
 	$HBoxContainer/WeaponSlot2/ArtOpt3
 ]
 
+@onready var back_button: Button = $BackButton
+
 # ==========================================
 # 🥋 武器與武藝資料庫 (DB)
 # ==========================================
@@ -72,7 +74,10 @@ func _ready() -> void:
 			slot2_arts[i].item_selected.connect(_on_art_selected.bind(1, i))
 			
 		apply_button.pressed.connect(_on_apply_loadout_pressed)
-
+	
+	if is_instance_valid(back_button) and not back_button.pressed.is_connected(close_menu):
+		back_button.pressed.connect(close_menu)
+		
 # 🌟 提供給外部（如 PauseMenu）呼叫的開啓介面
 func open_menu(player_node: Node) -> void:
 	selected_weapons = player_node.get("equipped_weapon_ids").duplicate()

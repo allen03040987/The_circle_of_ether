@@ -20,6 +20,9 @@ var config_default_walking: bool = false
 var config_enable_screen_shake: bool = true
 ## 預設開啟受擊白光
 var config_enable_hit_flash: bool = true
+## 玩家的全螢幕偏好狀態
+var config_fullscreen: bool = false
+
 # ==========================================
 # 🌍 全域狀態與節點參考 (State & References)
 # ==========================================
@@ -41,12 +44,16 @@ var player_combat_state: Dictionary = {}
 # ==========================================
 func _ready() -> void:
 	color_rect.color.a = 0.0
-	
-	# 記錄剛出生時的乾淨數值
 	default_player_stats = player_stats.to_dict()
 	
-	# 遊戲一啟動，立刻讀取玩家的偏好設定！
 	load_settings()
+	
+	# 🌟 新增：遊戲開機時，立刻套用讀取出來的全螢幕偏好
+	if config_fullscreen:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+		
+	# 🌟 新增：遊戲開機時，立刻從 user:// 檔案中把自定義按鍵加載進系統
+	_load_custom_keybindings_at_launch()
 	
 # ==========================================
 # ⚙️ 設定檔獨立存讀系統 (Settings System)
@@ -60,6 +67,8 @@ func save_settings() -> void:
 	# 🌟 新增：將震動與白光設定存入 "Visuals" (視覺) 區塊
 	config.set_value("Visuals", "enable_screen_shake", config_enable_screen_shake)
 	config.set_value("Visuals", "enable_hit_flash", config_enable_hit_flash)
+	
+	config.set_value("Visuals", "fullscreen", config_fullscreen)
 	
 	config.save(SETTINGS_PATH)
 
@@ -75,10 +84,45 @@ func load_settings() -> void:
 		# 🌟 新增：讀取震動與白光設定 (找不到時預設給 true)
 		config_enable_screen_shake = config.get_value("Visuals", "enable_screen_shake", true)
 		config_enable_hit_flash = config.get_value("Visuals", "enable_hit_flash", true)
+		config_fullscreen = config.get_value("Visuals", "fullscreen", false)
 	else:
 		# 讀取失敗 (例如第一次玩)：自動建一個預設的並存起來
 		save_settings()
 
+# ==========================================
+# ⌨️ 獨立按鍵自動開機加載系統
+# ==========================================
+func _load_custom_keybindings_at_launch() -> void:
+	var config = ConfigFile.new()
+	# 如果玩家根本沒改過按鍵（沒有存檔），直接安全退出，沿用專案項目預設按鍵
+	if config.load("user://keybindings.cfg") != OK: return
+	
+	# 掃描並註冊我們自定義按鍵清單中的所有動作代號
+	var actions = ["move_left", "move_right", "jump", "attack", "heavy_attack", "martial_modifier", "art_1", "art_2", "art_3", "ultimate", "silde", "switch_weapon", "interact"]
+	
+	for action_name in actions:
+		var has_key = config.has_section_key("Controls", action_name + "_key")
+		var has_mouse = config.has_section_key("Controls", action_name + "_mouse")
+		if not (has_key or has_mouse): continue
+		
+		# 抹除項目預設，換上玩家自定義的配置
+		InputMap.action_erase_events(action_name)
+		
+		if has_key:
+			var k_data = config.get_value("Controls", action_name + "_key")
+			var k = InputEventKey.new()
+			k.keycode = k_data.get("keycode", 0)
+			k.physical_keycode = k_data.get("physical_keycode", 0)
+			InputMap.action_add_event(action_name, k)
+			
+		if has_mouse:
+			var m_data = config.get_value("Controls", action_name + "_mouse")
+			var m = InputEventMouseButton.new()
+			m.button_index = m_data.get("button_index", 0)
+			InputMap.action_add_event(action_name, m)
+			
+	print("🟢 [全域系統] 偵測到本地自定義按鍵存檔，已於開機自動完成全神經加載。")
+	
 # ==========================================
 # 🗺️ 場景切換邏輯 (Scene Transition)
 # ==========================================

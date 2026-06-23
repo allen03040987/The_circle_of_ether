@@ -19,6 +19,9 @@ func _ready() -> void:
 		# 🌟 連接新場景的關閉信號
 		loadout_panel.menu_closed.connect(_on_back_from_loadout)
 		
+	if settings_panel and not settings_panel.back_requested.is_connected(_on_back_from_settings):
+		settings_panel.back_requested.connect(_on_back_from_settings)
+		
 # ==========================================
 # 🎮 全域輸入與暫停控制
 # ==========================================
@@ -38,7 +41,13 @@ func _input(event: InputEvent) -> void:
 				if p_state in ["dying", "death"]: return
 			if p.has_node("CanvasLayer/GameOverScreen") and p.get_node("CanvasLayer/GameOverScreen").visible: return
 		
-		if settings_panel.visible: _on_back_from_settings()
+		if settings_panel.visible: 
+			# 🌟 核心修正：總機要先檢查設定面板裡面的「按鍵選單」是不是開著的
+			if settings_panel.get("keybind_menu") and settings_panel.keybind_menu.visible:
+				settings_panel._on_keybind_menu_closed() # 是開著的，就只准關按鍵選單
+			else:
+				_on_back_from_settings() # 沒開按鍵選單，才允許關閉整個設定面板
+				
 		elif loadout_panel and loadout_panel.visible: _on_back_from_loadout()
 		else: toggle_pause()
 
@@ -70,7 +79,8 @@ func _set_game_ui_visible(is_visible: bool) -> void:
 func hide_menu() -> void:
 	get_tree().paused = false
 	visible = false
-	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN 
+	# 🌟 核心升級：從 HIDDEN(僅隱藏) 改為 CAPTURED(隱藏並鎖定於螢幕正中心)
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED 
 	if CombatManager.has_method("set_ui_paused"): CombatManager.set_ui_paused(false)
 
 func _fade_game_volume(target_db: float, duration: float) -> void:
