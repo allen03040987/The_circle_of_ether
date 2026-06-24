@@ -1,9 +1,8 @@
-class_name Art_Katana_11
+class_name Art_Katana_1
 extends MartialArt
 
-# 🌟 招式 11 的所有數據完全收歸卡帶自己管，徹底與老爸解耦
 const CONFIG = {
-	"anim": "katana/attack_c1",
+	"anim": "katana/Art_Katana_1",
 	"hitbox_name": "C1",
 	"type": Damage.Type.HEAVY,
 	"knockback": Vector2(0.0, -400.0),
@@ -13,14 +12,17 @@ const CONFIG = {
 	"hit_sfx_type": "hit_2",
 	"energy": 10,
 	"switch": 15,
-	"iai_reward": 5,
-	"spark_type": 1,      # 🌟 歸還：原本硬編碼在老爸身上的特效類型
-	"spark_scale": 0.8,   # 🌟 歸還：原本硬編碼在老爸身上的特效縮放
+	"spark_type": 1,      
+	"spark_scale": 0.8,   
 	"action_type": Weapon.ActionType.SKILL
 }
 
 func enter() -> void:
 	super.enter()
+	
+	if not player.animation_player.animation_finished.is_connected(_on_animation_finished):
+		player.animation_player.animation_finished.connect(_on_animation_finished)
+		
 	weapon.step_cooldown = 0.15
 	weapon.air_attack_locked = false
 	weapon.is_attacking = true
@@ -30,8 +32,11 @@ func enter() -> void:
 		player.direction = 1 if input_dir > 0 else -1
 
 	weapon.combo_step = 11
-	# 🌟 核心修改：改為呼叫新接口，直接把卡帶自帶的 CONFIG 拍過去！
 	weapon._play_martial_art_attack(CONFIG)
+
+func _on_animation_finished(anim_name: String) -> void:
+	if anim_name == CONFIG["anim"]:
+		_finish_art()
 
 func get_current_velocity(delta: float) -> Vector2:
 	var new_x = player.velocity.x
@@ -41,3 +46,13 @@ func get_current_velocity(delta: float) -> Vector2:
 
 	new_x = move_toward(new_x, 0.0, base_friction)
 	return Vector2(new_x, new_y)
+
+func cancel() -> void:
+	_finish_art()
+	super.cancel()
+
+func _finish_art() -> void:
+	is_active = false
+	if player.animation_player.animation_finished.is_connected(_on_animation_finished):
+		player.animation_player.animation_finished.disconnect(_on_animation_finished)
+	player.animation_player.speed_scale = 1.0

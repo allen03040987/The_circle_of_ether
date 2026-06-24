@@ -37,11 +37,12 @@ const AVAILABLE_WEAPONS = [
 
 const AVAILABLE_ARTS = {
 	"katana": [
-		{"name": "挑飛斬 (11)", "path": "res://player/MartialArts/Katana/Art_Katana_11.gd"},
-		{"name": "升龍螺旋 (12)", "path": "res://player/MartialArts/Katana/Art_Katana_12.gd"},
-		{"name": "裂地連斬·壹 (20)", "path": "res://player/MartialArts/Katana/Art_Katana_20.gd"},
-		{"name": "裂地連斬·貳 (21)", "path": "res://player/MartialArts/Katana/Art_Katana_21.gd"},
-		{"name": "斷空劍氣 (22)", "path": "res://player/MartialArts/Katana/Art_Katana_22.gd"}
+		{"name": "挑飛斬", "path": "res://player/MartialArts/Katana/Art_Katana_1.gd"},
+		{"name": "升龍", "path": "res://player/MartialArts/Katana/Art_Katana_2.gd"},
+		{"name": "裂地連斬·壹", "path": "res://player/MartialArts/Katana/Art_Katana_3.gd"},
+		{"name": "裂地連斬·貳", "path": "res://player/MartialArts/Katana/Art_Katana_4.gd"},
+		{"name": "斷空劍氣", "path": "res://player/MartialArts/Katana/Art_Katana_5.gd"},
+		{"name": "極意斬", "path": "res://player/MartialArts/Katana/Art_Katana_6.gd"}
 	],
 	"spear": [
 		{"name": "向上挑飛 (22)", "path": "res://player/MartialArts/Spear/Art_Spear_22.gd"},

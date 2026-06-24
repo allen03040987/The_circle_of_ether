@@ -129,3 +129,6 @@ func trigger_perfect_dodge() -> void:
 	
 	if CombatManager.has_method("spawn_dodge_spark"):
 		CombatManager.spawn_dodge_spark(player.global_position)
+	
+	if is_instance_valid(player.current_weapon) and player.current_weapon.has_method("gain_iai"):
+		player.current_weapon.gain_iai(1)

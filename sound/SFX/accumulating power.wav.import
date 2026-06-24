@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://ct8pjnjes5tsi"
+path="res://.godot/imported/accumulating power.wav-eb07b9757ee71e865ee7efb67b9c9533.sample"
+
+[deps]
+
+source_file="res://sound/SFX/accumulating power.wav"
+dest_files=["res://.godot/imported/accumulating power.wav-eb07b9757ee71e865ee7efb67b9c9533.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=0

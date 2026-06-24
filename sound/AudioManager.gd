@@ -45,7 +45,8 @@ var action_sfx_bank: Dictionary = {
 	"lightsaber": preload("res://sound/SFX/attack/lightsaber.wav") ,
 	"Energy Beam": preload("res://sound/SFX/attack/Energy Beam.wav") ,
 	"Explosive bass": preload("res://sound/SFX/attack/Explosive bass.wav") ,
-
+	"Prompt_tone": preload("res://sound/SFX/Prompt tone.wav") ,
+	"accumulating_power": preload("res://sound/SFX/accumulating power.wav") ,
 	"Sheath": preload("res://sound/SFX/attack/Sheath.wav"), 
 
 	"ding": preload("res://sound/Scene sound/ding.wav"), 

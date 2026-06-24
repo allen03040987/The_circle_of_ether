@@ -7,6 +7,8 @@ extends Node
 @export var icon: Texture2D
 @export var energy_cost: float = 10.0 # 🔋 預留未來的能量限制
 
+@export var can_use_in_air: bool = false
+	
 var player: CharacterBody2D
 var weapon: Node 
 var is_active: bool = false

@@ -1,15 +1,15 @@
 class_name Katana
 extends Weapon
 ## 武器腳本：太刀 (Katana) 
-## 負責處理太刀專屬的連段派生、共鳴資源 (居合/燕返)，以及大招運鏡。
+## 負責處理太刀專屬的連段派生與大招運鏡 (已剝離共鳴與底層蓄力)。
 
 # ==========================================
-# 🎛️ 1. 武器核心參數與資源
+# 🎛️ 1. 武器核心參數
 # ==========================================
 @export_group("武器核心參數")
-@export var combo_timeout: float = 0.3      # 普攻連段超時重置時間
-@export var no_sheath_steps: Array[int] = [1, 11, 12, 30, 42, 80, 81] # 不需播收刀動畫的黑名單招式
-@export var ult_energy_cost: float = 100.0  # 大招能量成本
+@export var combo_timeout: float = 0.3      
+@export var no_sheath_steps: Array[int] = [1, 11, 12, 31, 32, 99] # 招式代號已更新
+@export var ult_energy_cost: float = 100.0  
 
 const WEAPON_ID: String = "katana"          
 const DIMENSIONAL_SLASH_SCENE = preload("res://Explod/tscn/Dimensional Slash.tscn")
@@ -19,14 +19,11 @@ const SWORD_WAVE_SCENE = preload("res://player/Katana/c_3_wave.tscn")
 # 🥋 專屬武藝系統 (Martial Arts Loadout)
 # ==========================================
 @export var equipped_martial_arts: Array[String] = [
-	"res://player/MartialArts/Katana/Art_Katana_11.gd", 
-	"res://player/MartialArts/Katana/Art_Katana_22.gd", 
-	""
+	"res://player/MartialArts/Katana/Art_Katana_1.gd", 
+	"res://player/MartialArts/Katana/Art_Katana_2.gd", 
+	"res://player/MartialArts/Katana/Art_Katana_3.gd"
 ]
 
-# ==========================================
-# ⚙️ 初始化與延遲載入
-# ==========================================
 func _ready() -> void:
 	super._ready() 
 	call_deferred("_delayed_load_arts")
@@ -37,59 +34,42 @@ func _delayed_load_arts() -> void:
 const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.01, 1.01), 2: Vector2(1.02, 1.02), 3: Vector2(1.03, 1.03) }
 
 # ==========================================
-# 🌀 2. 共鳴迴路 (Resonance Circuit) 變數
+# 📖 2. 招式數據庫 (Data-Driven Combat Config)
 # ==========================================
-var current_iai: int = 0                    
-var current_tsubame: int = 0                
-const MAX_IAI: int = 60                     
-const MAX_TSUBAME: int = 60                 
-var is_tsubame_ready: bool = false          
 
-# ==========================================
-# 📖 3. 招式數據庫 (Data-Driven Combat Config)
-# ==========================================
-# [普攻字典]
-const LIGHT_ATTACK_CONFIG = {
-	1: {"anim": "katana/attack_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(100.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit_3", "energy": 200, "switch": 500, "iai_reward": 2, "action_type": Weapon.ActionType.NORMAL},
-	2: {"anim": "katana/attack_2", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(150.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "iai_reward": 2, "action_type": Weapon.ActionType.NORMAL},
-	3: {"anim": "katana/attack_3", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5,"iai_reward": 2, "action_type": Weapon.ActionType.NORMAL},
-	4: {"anim": "katana/attack_4", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5,"iai_reward": 2, "action_type": Weapon.ActionType.NORMAL},
-	5: {"anim": "katana/attack_5", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(400.0, 0.0), "shake": 30.0, "hit_sfx_type": "hit_5", "base_dmg": 645, "energy": 2, "switch": 5, "iai_reward": 2, "action_type": Weapon.ActionType.NORMAL },
+# 🗡️ [地面普攻字典] (代號: 1 ~ 5)
+const DICT_LIGHT_GROUND = {
+	1: {"anim": "katana/light_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(100.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit_3", "energy": 200, "switch": 500, "action_type": Weapon.ActionType.NORMAL},
+	2: {"anim": "katana/light_2", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(150.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
+	3: {"anim": "katana/light_3", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
+	4: {"anim": "katana/light_4", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
+	5: {"anim": "katana/light_5", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(400.0, 0.0), "shake": 30.0, "hit_sfx_type": "hit_5", "base_dmg": 645, "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
+	# 🌟 新增：長按普攻派生 (代號 10) - 極高擊退力與傷害！
+	10: {"anim": "katana/light_enhanced", "hitbox_name": "C0", "max_hits": 1, "interval": 0.0, "knockback": Vector2(650.0, -300.0), "shake": 25.0, "hit_sfx_type": "hit_5", "base_dmg": 850, "energy": 10, "switch": 15, "action_type": Weapon.ActionType.NORMAL}
 }
 
-# [戰技與大招字典] 
-const SKILL_CONFIG = {
-	30: { "anim": "katana/attack_c0_charge_start", "hitbox_name": "None", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 0, "energy": 0, "switch": 0, "iai_reward": 0 },
-	34: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2(50.0, 0.0), "shake": 6.0, "shake_on_hit_only": true, "base_dmg": 200,"hit_sfx_type": "hit", "energy": 1, "switch": 2, "iai_reward": 0 },
-	32: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 325,"hit_sfx_type": "hit", "energy": 1, "switch": 2, "iai_reward": 0, },
-	33: { "anim": "katana/attack_c0_release", "hitbox_name": "C0", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 3.0, "shake_on_hit_only": true, "base_dmg": 325,"hit_sfx_type": "hit", "energy": 1, "switch": 2, "iai_reward": 0,  },
-	
-	41: { "anim": "katana/skill_down", "hitbox_name": "C2", "type": Damage.Type.LIGHT, "knockback": Vector2(100.0, 0.0), "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 200,"hit_sfx_type": "hit", "energy": 10, "switch": 15, "iai_reward": 10 },
-	
-	42: { "anim": "katana/attack_tsubame", "hitbox_name": "attack_tsubame", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -80.0), "shake": 0.0, "shake_on_hit_only": true, 
-		"base_dmg": 200,"hit_sfx_type": "hit", "energy": 25, "switch": 30, "iai_reward": 0, 
-		"max_hits": 12, "interval": 0.1, "sticky": true },
-	
-	80: { "anim": "katana/attack_ult", "hitbox_name": "UltHitbox", "type": Damage.Type.HEAVY, "knockback": Vector2(10.0, -100.0), "shake": 5.0, "shake_on_hit_only": true, "base_dmg": 150, "energy": 0, "switch": 0, "iai_reward": 0, 
-		"max_hits": 20,"hit_sfx_type": "hit", "interval": 0.1, "sticky": true },
-	81: { "anim": "katana/attack_ult_end", "hitbox_name": "None", "type": Damage.Type.LIGHT, "knockback": Vector2.ZERO, "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 0, "energy": 0, "switch": 0, "iai_reward": 0 },
+
+# 🦅 [空中連段字典] (代號: 11, 12)
+const DICT_LIGHT_AIR = {
+	11: { "anim": "katana/air_light_1", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(20.0, -200.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "action_type": Weapon.ActionType.NORMAL},
+	12: { "anim": "katana/air_light_2", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(200.0, -300.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "action_type": Weapon.ActionType.NORMAL},
 }
 
-# [空戰字典]
-const AIR_ATTACK_CONFIG = {
-	61: { "anim": "katana/air_attack_1", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(20.0, -200.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "iai_reward": 2, "action_type": Weapon.ActionType.NORMAL},
-	62: { "anim": "katana/air_attack_2", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(20.0, -300.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "iai_reward": 2, "action_type": Weapon.ActionType.NORMAL},
+# 💥 [戰技與大招字典] (代號: 21, 31, 32)
+const DICT_HEAVY_ULT = {
+	21: { "anim": "katana/heavy_1", "hitbox_name": "C2", "type": Damage.Type.LIGHT, "knockback": Vector2(100.0, 0.0), "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 200, "hit_sfx_type": "hit", "energy": 10, "switch": 15, "max_hits": 3, "interval": 0.1, "sticky": true },
+	# 🌟 三段式下墜戰技配置
+	25: { "anim": "katana/air_heavy_start", "hitbox_name": "None", "base_dmg": 0 }, # 階段 1：下墜前準備（無判定）
+	26: { "anim": "katana/air_heavy_loop", "hitbox_name": "Air_J", "type": Damage.Type.LIGHT, "knockback": Vector2(200.0, 0.0), "base_dmg": 120, "max_hits": 5, "interval": 0.1, "hit_sfx_type": "hit", "sticky": true }, # 階段 2：下墜循環（帶有多段向下拖拽判定）
+	27: { "anim": "katana/air_heavy_land", "hitbox_name": "None", "type": Damage.Type.HEAVY, "knockback": Vector2(500.0, -250.0), "shake": 45.0, "shake_on_hit_only": false, "base_dmg": 750, "hit_sfx_type": "hit", "action_type": Weapon.ActionType.SKILL },
+	30: { "anim": "katana/sheath_enhanced_loop", "hitbox_name": "None", "base_dmg": 0 },
+	31: { "anim": "katana/sheath_enhanced", "hitbox_name": "attack_tsubame", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -80.0), "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 200, "hit_sfx_type": "hit", "energy": 25, "switch": 30, "max_hits": 12, "interval": 0.1, "sticky": true, "action_type": Weapon.ActionType.SKILL },
 }
 
 # ==========================================
-# 🚀 4. 物理運算與手感參數
+# 🚀 3. 物理運算與手感參數
 # ==========================================
-@export_group("重擊(蓄力拔刀)設定")
-@export var charge_time_per_tier: float = 0.4   
-@export var max_charge_tiers: int = 3           
-@export var thrust_speed: float = 200.0         
-
-@export_group("戰技中立 (死亡切割) 設定")
+@export_group("戰技中立設定")
 @export var skill_neutral_friction_rate: float = 0.2 
 
 @export_group("空戰設定 (Air Combat)")
@@ -102,54 +82,31 @@ var current_active_hitbox: Hitbox = null
 
 var _current_energy_reward: float = 0.0
 var _current_switch_reward: float = 0.0
-var _current_iai_reward: int = 0
 var _multi_hit_energy: bool = false
 var _has_granted_resources_this_step: bool = false
 
 var combo_step: int = 0
 var last_attack_time: float = 0.0
 var is_attacking: bool = false
+var light_hold_timer: float = 0.0
 var step_cooldown: float = 0.0                  
 
-var is_launch_triggered: bool = false
-var launch_timer: float = 0.0
-var current_charge_timer: float = 0.0
-var current_charge_tier: int = 0
-var light_hold_timer: float = 0.0               
-var skill_timer: float = 0.0
-
-var is_wave_fired: bool = false                 
 var air_attack_locked: bool = false             
 
 var is_time_stop_triggered: bool = false 
-var _tsubame_zoom_phase: int = 0 
 var _camera_tween: Tween 
-
 var _is_hitbox_locked: bool = false
 
-# ==========================================
-# 🎨 太刀專屬動態圖標
-# ==========================================
-@export_group("太刀動態圖標")
-@export var skill_1_tsubame_icon: Texture2D
+# 🌟 閃避充能資源 (借用舊的居合變數讓 UI 無縫接軌)
+var current_iai: int = 0                    
+const MAX_IAI: int = 20 # 滿層條件設定為 20 次！
+var heavy_hold_timer: float = 0.0 # 專屬戰技蓄力計時器
+var _tsubame_zoom_phase: int = 0    # 🌟 歸還：燕返專屬運鏡階段控制
+var is_wave_fired: bool = false
 
-
-# ==========================================
-# 🌀 5. 共鳴迴路邏輯
-# ==========================================
 func gain_iai(amount: int) -> void:
-	if amount <= 0: return
-	if try_forward_resource("gain_iai", amount): return
 	current_iai = mini(current_iai + amount, MAX_IAI)
-	print("🟢 命中！獲得居合值: ", amount, " | 目前居合: ", current_iai, "/", MAX_IAI)
-
-func consume_iai_for_charge() -> void:
-	current_iai = maxi(current_iai - 10, 0)
-	current_tsubame = mini(current_tsubame + 10, MAX_TSUBAME)
-	if current_tsubame >= MAX_TSUBAME and not is_tsubame_ready:
-		is_tsubame_ready = true
-		skill_1_timer = 0.0 
-
+	print("✨ 極限閃避成功！目前強化戰技充能: ", current_iai, "/", MAX_IAI)
 # ==========================================
 # 🎬 實作 Weapon.gd 合約接口
 # ==========================================
@@ -157,35 +114,38 @@ func start_light_attack() -> void:
 	if step_cooldown > 0: return 
 	step_cooldown = 0.15
 
+	if is_instance_valid(active_martial_art):
+		active_martial_art.cancel()
+		active_martial_art = null
+
 	if not is_attacking:
 		var current_time = Time.get_ticks_msec() / 1000.0
 		if current_time - last_attack_time > combo_timeout:
 			combo_step = 0
 
+	# --- 🦅 空戰邏輯 (🌟 核心修復：還原空中普攻連段) ---
 	if not player.is_on_floor():
 		if air_attack_locked or _get_ground_distance() < min_air_attack_height:
 			return
-		if combo_step == 61:
-			combo_step = 62
+		if combo_step == 11:
+			combo_step = 12
 			air_attack_locked = true 
 		else:
-			combo_step = 61
+			combo_step = 11
 		is_attacking = true
 		_play_air_step(combo_step)
 		return
 
-	if combo_step == 30 or SKILL_CONFIG.has(combo_step):
+	# --- 🗡️ 陸戰邏輯 ---
+	if DICT_HEAVY_ULT.has(combo_step):
 		combo_step = 0
 
 	combo_step += 1
-	if not LIGHT_ATTACK_CONFIG.has(combo_step):
+	if not DICT_LIGHT_GROUND.has(combo_step):
 		combo_step = 1
 
 	is_attacking = true
 	_play_light_step(combo_step)
-	
-	if Input.is_action_pressed("attack"): light_hold_timer = 0.15
-	else: light_hold_timer = 0.0
 
 func start_heavy_attack() -> void:
 	if step_cooldown > 0:
@@ -195,48 +155,44 @@ func start_heavy_attack() -> void:
 	step_cooldown = 0.15
 	air_attack_locked = false
 	
+	if is_instance_valid(active_martial_art):
+		active_martial_art.cancel()
+		active_martial_art = null
+		
 	if not is_attacking:
 		var current_time = Time.get_ticks_msec() / 1000.0
 		if current_time - last_attack_time > combo_timeout:
 			combo_step = 0
 			
 	is_attacking = true
-	is_launch_triggered = false
-	is_wave_fired = false
 	is_time_stop_triggered = false 
-
+	
+	# 🌟 空戰邏輯：進入第 1 階段「下墜前準備」
 	if not player.is_on_floor():
-		if is_tsubame_ready:
-			_play_skill_step(42) 
-			is_tsubame_ready = false
-			current_tsubame = 0
-		else:
-			is_attacking = false 
+		combo_step = 25
+		heavy_hold_timer = 0.0
+		
+		var input_dir = Input.get_axis("move_left", "move_right")
+		if input_dir != 0 and player is Player:
+			player.direction = 1 if input_dir > 0 else -1
+			
+		# 🌟 核心修改：發動瞬間給予老爸一個強烈向上的物理速度！
+		player.velocity.y = air_thrust_force * 2.0
+			
+		_play_heavy_ult_step(25)
+		print("🦅 空中重擊：躍起並進入下墜前準備 (25)")
 		return
 
-	if is_tsubame_ready:
-		_play_skill_step(42) 
-		is_tsubame_ready = false
-		current_tsubame = 0 
-	else:
-		_play_skill_step(41)
-		skill_1_timer = skill_1_cd
-			
-func start_ultimate() -> void:
-	if player.has_method("consume_weapon_energy"):
-		player.consume_weapon_energy(WEAPON_ID, ult_energy_cost)
-		
-	step_cooldown = 0.15
-	is_attacking = true
-	is_time_stop_triggered = false 
-	_tsubame_zoom_phase = 0 
-	light_hold_timer = 0.0 
-	ult_timer = ult_cd 
-	combo_step = 80
-	player.invincible_time_left = 3.0
+	# 🌟 陸戰邏輯 (徹底拔除殘留的錯誤能量判斷，還原純淨手感)
+	combo_step = 21
+	heavy_hold_timer = 0.0
 	
-	_play_skill_step(combo_step)
-	player.is_input_locked = true
+	var input_dir = Input.get_axis("move_left", "move_right")
+	if input_dir != 0 and player is Player:
+		player.direction = 1 if input_dir > 0 else -1
+		
+	_play_heavy_ult_step(21)
+	skill_1_timer = skill_1_cd
 
 func update_timers_only(delta: float) -> void:
 	if step_cooldown > 0: step_cooldown -= delta 
@@ -245,12 +201,9 @@ func update_timers_only(delta: float) -> void:
 			
 	if player.is_on_floor():
 		air_attack_locked = false 
-		if not is_attacking and combo_step in [61, 62]:
+		if not is_attacking and combo_step in [11, 12]:
 			combo_step = 0
 
-# ==========================================
-# 🏃 物理與特效場控核心
-# ==========================================
 func get_current_velocity(delta: float) -> Vector2:
 	if is_instance_valid(active_martial_art) and active_martial_art.is_active:
 		return active_martial_art.get_current_velocity(delta)
@@ -260,96 +213,114 @@ func get_current_velocity(delta: float) -> Vector2:
 
 	if player.is_on_floor(): air_attack_locked = false
 
+	# ==========================================
+	# 🌟 戰技長按偵測與強化戰技蓄力 (無縫派生)
+	# ==========================================
+	if combo_step in [21, 30]:
+		if Input.is_action_pressed("heavy_attack"): 
+			heavy_hold_timer += delta
+			
+			# 1️⃣ 在戰技 (21) 起手前 0.1 秒內，如果按住不放且資源滿了，切換進入蓄力狀態 (30)
+			if combo_step == 21 and heavy_hold_timer >= 0.2 and current_iai >= MAX_IAI:
+				combo_step = 30
+				_play_heavy_ult_step(30)
+				print("⚡ 偵測到長按！取消一般戰技，轉入燕返蓄力...")
+				
+			# 2️⃣ 總蓄力時間滿 1.0 秒，釋放終極燕返 (31)
+			elif combo_step == 30 and heavy_hold_timer >= 1.0:
+				current_iai = 0             # 扣除資源
+				combo_step = 31             # 💥 轉為終極燕返狀態！
+				heavy_hold_timer = 0.0
+				_tsubame_zoom_phase = 0     
+				is_wave_fired = false       
+				
+				# 允許拔刀前極限轉向
+				var input_dir = Input.get_axis("move_left", "move_right")
+				if input_dir != 0 and player is Player:
+					player.direction = 1 if input_dir > 0 else -1
+					
+				_play_heavy_ult_step(31)
+				print("💥 蓄力 1 秒完成！終極燕返拔刀斬！！！")
+				
+		else:
+			# 如果玩家放開了戰技鍵
+			if combo_step == 30:
+				# 🌟 核心修改：已經進入蓄力，但沒滿 1 秒就放開 ➔ 打出一般戰技！(不扣資源)
+				combo_step = 21
+				heavy_hold_timer = 0.0
+				
+				# 貼心設計：讓玩家在放開的瞬間還可以做最後的轉向
+				var input_dir = Input.get_axis("move_left", "move_right")
+				if input_dir != 0 and player is Player:
+					player.direction = 1 if input_dir > 0 else -1
+					
+				_play_heavy_ult_step(21)
+				print("💨 蓄力提早釋放！轉為一般戰技 (21)！")
+			else:
+				# 還在起手 21 號狀態就放開 ➔ 判定為一般點按，正常打完 21 號戰技
+				heavy_hold_timer = 0.0
+
+	if player.is_on_floor(): air_attack_locked = false
+
 	var new_x = player.velocity.x
 	var new_y = player.velocity.y
 
 	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
 	var base_friction = player.FLOOR_ACCELERATION * (speed_mult * speed_mult) * delta
 
-	# --- 蓄力邏輯 ---
-	if combo_step in [1, 2, 3, 4, 61, 62]: 
-		if current_iai >= 10 and Input.is_action_pressed("attack"):
-			light_hold_timer += delta
-			if light_hold_timer >= 0.35:
-				var anim_len = player.animation_player.current_animation_length
-				var anim_pos = player.animation_player.current_animation_position
+	# ==========================================
+	# 🌟 長按計時與派生偵測
+	# ==========================================
+	if Input.is_action_pressed("attack"):
+		light_hold_timer += delta
+	else:
+		light_hold_timer = 0.0
+
+	# 如果目前正在揮舞普攻 1~5 段，且按住超過 0.3 秒，立刻派生橫斬！
+	if combo_step in [1, 2, 3, 4, 5]:
+		if light_hold_timer >= 0.3:
+			# 發動前允許極限轉向
+			var input_dir = Input.get_axis("move_left", "move_right")
+			if input_dir != 0 and player is Player:
+				player.direction = 1 if input_dir > 0 else -1
 				
-				if anim_len > 0.0 and (anim_pos / anim_len) >= 0.5:
-					if current_iai >= 10:
-						combo_step = 30 
-						current_charge_timer = 0.0
-						current_charge_tier = 0
-						_play_skill_step(30)
-					else: light_hold_timer = 0.0
-		else: light_hold_timer = 0.0
+			combo_step = 10 
+			light_hold_timer = 0.0 # 清空計時器
+			_play_light_step(combo_step)
+			print("🔥 普攻長按觸發：高擊退橫斬！")
 
-	if combo_step == 30:
-		var move_dir := Input.get_axis("move_left", "move_right")
-		if not is_zero_approx(move_dir) and player is Player:
-			player.direction = player.Direction.LEFT if move_dir < 0 else player.Direction.RIGHT
-			
-		new_x = move_toward(new_x, 0.0, base_friction * 2.0)
-		
-		var is_holding = Input.is_action_pressed("attack")
-		if not (player is Player): is_holding = false
-		
-		if is_holding:
-			current_charge_timer += delta
-			var new_tier = min(max_charge_tiers, floori(current_charge_timer / charge_time_per_tier))
-			
-			if new_tier > current_charge_tier:
-				if current_iai >= 10:
-					current_charge_tier = new_tier
-					consume_iai_for_charge()
-					
-					player.spawn_anim_vfx("Aggregation ring", 0, -20, Vector2(1.5, 1.5), 0, Color.WHITE, Color.WHITE, false, 2, 1.0)
-					if CombatManager.has_method("apply_camera_shake"):
-						CombatManager.apply_camera_shake(2.0 + current_charge_tier * 1.5)
-					_apply_charge_zoom(ZOOM_LEVELS[current_charge_tier])
-				else:
-					current_charge_timer = current_charge_tier * charge_time_per_tier
-					
-			if not player.animation_player.is_playing():
-				player.play_safe_anim("katana/attack_c0_charge_loop")
-		else:
-			_apply_charge_zoom(ZOOM_LEVELS[0])
-			if current_charge_tier == 0:
-				is_attacking = false; combo_step = 0; current_charge_timer = 0.0; light_hold_timer = 0.0
-				player.is_input_locked = false 
-				var p_scabbard = player.get("scabbard")
-				if p_scabbard: p_scabbard.fade_in()
-			else:
-				var release_step = 34 
-				if current_charge_tier == 2: release_step = 32
-				elif current_charge_tier == 3: release_step = 33
-				_play_skill_step(release_step)
-
-	elif combo_step in [32, 33, 34]:
-		var anim_time = player.animation_player.current_animation_position
-		if anim_time < 0.05:
-			var speed_multiplier = 4.5 if combo_step == 34 else (6.5 if combo_step == 32 else 8.0)
-			new_x = player.direction * (thrust_speed * speed_multiplier)
-		else: new_x = move_toward(new_x, 0.0, base_friction)
-	
-	elif combo_step == 41: 
+	# ==========================================
+	# 🏃 物理位移狀態機
+	# ==========================================
+	if combo_step == 21: 
 		new_x = move_toward(new_x, 0.0, base_friction * skill_neutral_friction_rate)
-		
-	elif combo_step == 42: 
+	
+	# ==========================================
+	# 🌪️ 31 號終極燕返：時停、無敵、運鏡與判定框突變
+	# ==========================================
+	elif combo_step == 31: 
+		# 遵循最高指導原則：只計算摩擦力與空中阻力，不干涉原生 custom_move_and_slide!
 		new_x = move_toward(new_x, 0.0, base_friction * 5.0)
 		new_y = 0.0 if player.is_on_floor() else player.default_gravity * air_skill_gravity_rate * delta 
 		
 		var anim_time = player.animation_player.current_animation_position
+		
+		# 1️⃣ 0.08 秒：觸發極限無敵幀
 		if anim_time >= 0.08 and not is_time_stop_triggered:
 			is_time_stop_triggered = true 
-			if player is Player: player.invincible_time_left = 2.0 
+			if player is Player: 
+				player.invincible_time_left = 2.0 
 			
+		# 2️⃣ 0.10 秒：拉近特寫鏡頭
 		if anim_time >= 0.10 and _tsubame_zoom_phase == 0:
 			_tsubame_zoom_phase = 1
 			_apply_charge_zoom(Vector2(0.75, 0.75), 1.6) 
 				
+		# 3️⃣ 1.76 秒：多段斬擊結束，瞬間突變為 1500 傷害的大斬擊，並更換網格形狀！
 		if anim_time >= 1.76 and not is_wave_fired:
 			is_wave_fired = true 
-			if CombatManager.has_method("apply_camera_shake"): CombatManager.apply_camera_shake(60.0) 
+			if CombatManager.has_method("apply_camera_shake"): 
+				CombatManager.apply_camera_shake(60.0) 
 				
 			if is_instance_valid(current_active_hitbox):
 				current_active_hitbox.hit_targets.clear() 
@@ -362,38 +333,41 @@ func get_current_velocity(delta: float) -> Vector2:
 				
 			_is_hitbox_locked = false 
 			disable_hitbox() 
-			enable_hitbox("CollisionShape2D2")
+			enable_hitbox("CollisionShape2D2") # 啟動大範圍終結形狀
 			
-	elif combo_step == 80: 
-		new_x = move_toward(new_x, 0.0, base_friction * 5.0)
-		new_y = 0.0 
+	elif combo_step == 10: # 🌟 10 號長按橫斬：發招瞬間給予一點向前突進！
 		var anim_time = player.animation_player.current_animation_position
-		if anim_time >= 0.05 and not is_time_stop_triggered:
-			is_time_stop_triggered = true 
-			if player.has_method("trigger_time_stop"): player.trigger_time_stop(3.0, 0.001) 
-			player.animation_player.speed_scale = 1.0 / 0.001 
-			player.invincible_time_left = 3.0
-			
-		if anim_time >= 0.05 and _tsubame_zoom_phase == 0:
-			_tsubame_zoom_phase = 1
-			_apply_charge_zoom(Vector2(1.2, 1.2), 0.3) 
-			
-		if anim_time >= 0.70 and _tsubame_zoom_phase == 1:
-			_tsubame_zoom_phase = 2
-			if CombatManager.has_method("apply_camera_shake"): CombatManager.apply_camera_shake(100.0, 0.07) 
-			_apply_charge_zoom(Vector2(0.85, 0.85), 0.1) 
-		
-		if anim_time >= 0.82 and _tsubame_zoom_phase == 2:
-			_tsubame_zoom_phase = 3
-			_apply_charge_zoom(Vector2(0.65, 0.65), 1.8) 
-			
-		if anim_time >= 2.80 and _tsubame_zoom_phase == 3:
-			_tsubame_zoom_phase = 4
-			if CombatManager.has_method("apply_camera_shake"): CombatManager.apply_camera_shake(180.0, 0.15) 
-			_apply_charge_zoom(ZOOM_LEVELS[0], 0.2)
-
-	elif combo_step in [61, 62]:
 		new_x = move_toward(new_x, 0.0, base_friction)
+
+	elif combo_step in [11, 12]:
+		new_x = move_toward(new_x, 0.0, base_friction)
+		
+	# ==========================================
+	# 🦅 三段式下墜戰技物理控速
+	# ==========================================
+	elif combo_step == 25:
+		# 【下墜前】：主動向上推力
+		new_x = move_toward(new_x, 0.0, base_friction * 0.2)
+		new_y = air_thrust_force * 1.5 * speed_mult 
+
+	elif combo_step == 26:
+		# 【下墜循環】：🌟 核心修改 ➔ 均速斜向下砸！
+		# 給予 X 軸固定向前的速度 (例如 500.0，可自由調整)，配合 Y 軸形成斜角衝鋒！
+		new_x = player.direction * 500.0 * speed_mult 
+		new_y = 800.0 * speed_mult 
+		
+		# 智慧落地偵測
+		if player.is_on_floor():
+			combo_step = 27
+			_play_heavy_ult_step(27)
+			if CombatManager.has_method("apply_camera_shake"): 
+				CombatManager.apply_camera_shake(45.0, 0.18)
+			print("💥 觸地！轉換為落地擊碎衝擊 (27)")
+
+	elif combo_step == 27:
+		# 【落地】：縱向速度完全歸零，橫向套用基準摩擦力進行收招煞車
+		new_x = move_toward(new_x, 0.0, base_friction)
+		new_y = 0.0
 	else:
 		new_x = move_toward(new_x, 0.0, base_friction)
 
@@ -403,78 +377,95 @@ func is_handling_gravity() -> bool:
 	if is_instance_valid(active_martial_art) and active_martial_art.is_active:
 		if active_martial_art.has_method("is_handling_gravity"): return active_martial_art.is_handling_gravity()
 			
-	if not player.is_on_floor() and combo_step == 42: return true
-	if combo_step == 80: return true
+	# 🌟 允許 25(下墜前) 與 26(下墜循環) 全權接管重力更新
+	if not player.is_on_floor() and combo_step in [25, 26, 31]: return true
 	return false
 
 # ==========================================
-# 🎬 招式結束判定
+# 🎬 招式結束判定 (高階訊號驅動卡帶專用防護版)
 # ==========================================
 func is_attack_finished() -> bool:
+	# 🌟 1. 優先處理「武藝卡帶」的生命週期！(絕對免疫動畫首幀延遲)
+	if is_instance_valid(active_martial_art):
+		if active_martial_art.is_active:
+			return false # 卡帶還在跑，總監絕對不准卡歌！
+		else:
+			# 卡帶剛剛宣告自己跑完了 (觸發了 _finish_art)
+			active_martial_art = null
+			_is_hitbox_locked = true 
+			disable_hitbox()
+			
+			# 🌟 讓系統標記為正常收招，防止被總監當作打斷而取消收刀！
+			is_attacking = false
+			last_attack_time = Time.get_ticks_msec() / 1000.0
+			
+			
+			# 判斷是否需要收刀
+			if not requires_sheath() and player.get("scabbard"): 
+				player.scabbard.fade_in()
+			return true 
+
+	# 🌟 2. 一般普攻/空戰/多段普通戰技的生命週期
 	if not is_attacking: return true
 	
 	if not player.animation_player.is_playing():
-		if combo_step == 80:
-			combo_step = 81
-			_play_skill_step(81) 
-			player.invincible_time_left = 0.5 
-			return false
+		# 🌟 核心鏈接：當「下墜前準備 (25)」動畫播完，自動轉入「下墜循環 (26)」
+		if combo_step == 25:
+			combo_step = 26
+			_play_heavy_ult_step(26)
+			return false # 告訴總監招式還在跑，繼續留在原狀態
 			
-		if Input.is_action_pressed("attack"):
-			if combo_step in [1, 2, 3, 4, 12, 21, 32, 33, 34, 41, 61, 62]:
-				if current_iai >= 10:
-					combo_step = 30; current_charge_timer = 0.0; current_charge_tier = 0
-					_play_skill_step(30)
-					return false
-
 		player.is_input_locked = false 
-		if combo_step in [61, 62]: air_attack_locked = true
+		
+		# 空戰普攻打完鎖死
+		if combo_step in [11, 12]: 
+			air_attack_locked = true
 			
 		last_attack_time = Time.get_ticks_msec() / 1000.0
-		is_attacking = false; step_cooldown = 0.0
-		
-		if combo_step in [42, 80] or _tsubame_zoom_phase > 0:
-			_tsubame_zoom_phase = 0
-			_apply_charge_zoom(ZOOM_LEVELS[0], 0.4)
-			if player.has_method("clear_time_stop"): player.clear_time_stop()
-				
+		step_cooldown = 0.0
+		light_hold_timer = 0.0
 		_is_hitbox_locked = true 
 		disable_hitbox()
 		
-		if is_instance_valid(active_martial_art):
-			active_martial_art.is_active = false
-			active_martial_art = null
+		if combo_step == 31 or _tsubame_zoom_phase > 0:
+			_tsubame_zoom_phase = 0
+			_apply_charge_zoom(ZOOM_LEVELS[0], 0.4)
 		
-		var p_scabbard = player.get("scabbard")
-		if not requires_sheath() and p_scabbard: p_scabbard.fade_in()
+		if not requires_sheath() and player.get("scabbard"): 
+			player.scabbard.fade_in()
 			
 		return true
+		
 	return false
 
 # ==========================================
 # 💥 強制打斷處理 
 # ==========================================
 func cancel_attack() -> void:
-	if not player.is_on_floor() and combo_step in [30, 61, 62]: air_attack_locked = true
-		
-	player.is_input_locked = false 
-	_apply_charge_zoom(ZOOM_LEVELS[0])
-	is_attacking = false; combo_step = 0; step_cooldown = 0.0; is_launch_triggered = false
-	current_charge_tier = 0; current_charge_timer = 0.0; light_hold_timer = 0.0; is_wave_fired = false; _tsubame_zoom_phase = 0
-	
 	if is_instance_valid(active_martial_art):
 		active_martial_art.cancel()
 		active_martial_art = null
+
+	if not player.is_on_floor() and combo_step in [11, 12]: 
+		air_attack_locked = true
+		
+	player.is_input_locked = false 
+	_apply_charge_zoom(ZOOM_LEVELS[0])
 	
+	is_attacking = false
+	combo_step = 0
+	step_cooldown = 0.0
+	_tsubame_zoom_phase = 0
+	light_hold_timer = 0.0
 	if is_time_stop_triggered:
 		is_time_stop_triggered = false
 		if player.has_method("clear_time_stop"): player.clear_time_stop() 
-	else: is_time_stop_triggered = false 
 	
 	_is_hitbox_locked = true 
 	disable_hitbox()
-	var p_scabbard = player.get("scabbard")
-	if p_scabbard: p_scabbard.fade_in()
+	
+	if player.get("scabbard"): 
+		player.scabbard.fade_in()
 		
 func requires_sheath() -> bool:
 	if combo_step == 0: return false
@@ -485,44 +476,34 @@ func requires_sheath() -> bool:
 # ==========================================
 func _play_light_step(step: int) -> void:
 	disable_hitbox()
-	var config: Dictionary = LIGHT_ATTACK_CONFIG[step]
+	var config: Dictionary = DICT_LIGHT_GROUND[step]
 	_apply_hitbox_config(config)
 	
 	if config.has("sfx") and config["sfx"] != null: AudioManager.play_sfx(config["sfx"], -8.0)
 	if player.animation_player.current_animation == config["anim"]: player.animation_player.stop()
 	player.play_safe_anim(config["anim"])
 
-func _play_skill_step(step: int) -> void:
+func _play_heavy_ult_step(step: int) -> void:
 	disable_hitbox()
-	var config: Dictionary = SKILL_CONFIG[step]
+	var config: Dictionary = DICT_HEAVY_ULT[step]
 	_apply_hitbox_config(config)
-	
+
 	if config.has("sfx") and config["sfx"] != null: AudioManager.play_sfx(config["sfx"], -5.0)
-	
-	if current_active_hitbox:
-		if step == 41: current_active_hitbox.max_hits = 5; current_active_hitbox.hit_interval = 0.1; current_active_hitbox.sticky_multi_hit = true
-		elif step == 34: current_active_hitbox.max_hits = 2; current_active_hitbox.hit_interval = 0.1; current_active_hitbox.sticky_multi_hit = true
-		elif step == 32: current_active_hitbox.max_hits = 4; current_active_hitbox.hit_interval = 0.1; current_active_hitbox.sticky_multi_hit = true
-		elif step == 33: current_active_hitbox.max_hits = 7; current_active_hitbox.hit_interval = 0.1; current_active_hitbox.sticky_multi_hit = true; current_active_hitbox.spark_scale = 0.6; current_active_hitbox.spark_color = Color(1.0, 0.0, 0.0, 1.0); current_active_hitbox.aura_color = Color(1.0, 0.0, 0.0, 1.0)  
-		elif step == 42: current_active_hitbox.spark_scale = 0.6
-		elif step == 80: current_active_hitbox.spark_scale = 1.0
-	
-	if not player.is_on_floor() and step == 42: player.velocity.y = air_thrust_force * 0.5
-		
+
 	combo_step = step
 	if player.animation_player.current_animation == config["anim"]: player.animation_player.stop()
 	player.play_safe_anim(config["anim"])
 
 func _play_air_step(step: int) -> void:
 	disable_hitbox() 
-	var config: Dictionary = AIR_ATTACK_CONFIG[step]
+	var config: Dictionary = DICT_LIGHT_AIR[step]
 	_apply_hitbox_config(config)
 	player.velocity.y = air_thrust_force 
 	if player.animation_player.current_animation == config["anim"]: player.animation_player.stop()
 	player.play_safe_anim(config["anim"])
 
-## 🌟 外部武藝專屬發招接口
 func _play_martial_art_attack(config: Dictionary) -> void:
+
 	disable_hitbox()
 	_apply_hitbox_config(config)
 	
@@ -558,13 +539,11 @@ func _apply_hitbox_config(config: Dictionary) -> void:
 		
 		if "energy_reward" in hitbox: hitbox.energy_reward = float(config.get("energy", 0))
 		if "switch_reward" in hitbox: hitbox.switch_reward = float(config.get("switch", 0))
-		if "iai_reward" in hitbox: hitbox.iai_reward = int(config.get("iai_reward", 0))
 		
 		hitbox.spark_type = 0; hitbox.spark_scale = 0.3; hitbox.spark_color = Color(0.7, 1.5, 0.5, 1.0); hitbox.aura_color = Color(0, 1, 1, 1)
 		hitbox.hit_targets.clear() 
 		
 		_current_energy_reward = float(config.get("energy", 0))
-		_current_iai_reward = int(config.get("iai_reward", 0))
 		_multi_hit_energy = config.get("multi_hit_energy", false)
 		_has_granted_resources_this_step = false
 		
@@ -578,7 +557,6 @@ func _apply_hitbox_config(config: Dictionary) -> void:
 func _on_hitbox_hit(hurtbox: Node) -> void:
 	if is_instance_valid(player) and is_instance_valid(hurtbox.owner) and hurtbox.owner == player: return
 	if _multi_hit_energy or not _has_granted_resources_this_step:
-		if _current_iai_reward > 0: gain_iai(_current_iai_reward)
 		if _current_energy_reward > 0:
 			if player.has_method("add_weapon_resource"): player.add_weapon_resource(WEAPON_ID, _current_energy_reward)
 		_has_granted_resources_this_step = true
@@ -617,8 +595,13 @@ func can_air_light() -> bool:
 	return true
 
 func can_use_heavy() -> bool:
-	if not player.is_on_floor(): return is_tsubame_ready 
-	if is_tsubame_ready: return true
+	# 🌟 解除空中鎖死的限制，只要高度夠，普攻打到一半也能無縫接下墜斬！
+	if not player.is_on_floor(): 
+		if _get_ground_distance() < min_air_attack_height: 
+			return false
+		return true 
+		
+	# 陸戰防護維持原樣
 	if skill_1_timer > 0: return false
 	return true
 
@@ -629,21 +612,16 @@ func can_use_ultimate() -> bool:
 		if player.get_weapon_energy(WEAPON_ID) < ult_energy_cost: return false 
 	return true
 
-func get_dynamic_skill_icon(slot: int) -> Texture2D:
-	match slot:
-		1: if is_tsubame_ready and skill_1_tsubame_icon: return skill_1_tsubame_icon
-	return super.get_dynamic_skill_icon(slot)
-
 func export_weapon_data() -> Dictionary:
 	return {
-		"current_iai": current_iai, "current_tsubame": current_tsubame, "is_tsubame_ready": is_tsubame_ready,
-		"skill_1_timer": skill_1_timer if "skill_1_timer" in self else 0.0, "ult_timer": ult_timer if "ult_timer" in self else 0.0
+		"current_iai": current_iai, # 🌟 核心修復：把辛苦存來的閃避能量打包存檔！
+		"skill_1_timer": skill_1_timer if "skill_1_timer" in self else 0.0, 
+		"ult_timer": ult_timer if "ult_timer" in self else 0.0
 	}
 
 func import_weapon_data(data: Dictionary) -> void:
-	current_iai = data.get("current_iai", 0)
-	current_tsubame = data.get("current_tsubame", 0)
-	is_tsubame_ready = data.get("is_tsubame_ready", false)
+	current_iai = data.get("current_iai", 0) # 🌟 核心修復：切換回來時，精準讀取閃避能量！
+	
 	if "skill_1_timer" in self: skill_1_timer = data.get("skill_1_timer", 0.0)
 	if "ult_timer" in self: ult_timer = data.get("ult_timer", 0.0)
 	

@@ -137,7 +137,7 @@ initial_velocity_max = 600.0
 linear_accel_min = -100.0
 
 [node name="Sprite-0003" type="Sprite2D" parent="CPUParticles2D"]
-position = Vector2(0, -1.25)
+position = Vector2(0, -1.19209e-07)
 scale = Vector2(0.8, 0.8)
 texture = ExtResource("2_q0kk1")
 hframes = 3
