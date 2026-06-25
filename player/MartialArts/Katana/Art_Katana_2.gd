@@ -3,13 +3,13 @@ extends MartialArt
 
 const CONFIG = {
 	"anim": "katana/Art_Katana_2",
-	"hitbox_name": "C1",
+	"hitbox_name": "Art_Katana_1",
 	"type": Damage.Type.HEAVY,
 	"max_hits": 4,                     
 	"interval": 0.1,                   
 	"sticky": true,                    
 	"knockback": Vector2(50.0, -400.0),
-	"shake": 15.0,                     
+	"shake": 10.0,                     
 	"shake_on_hit_only": true,
 	"base_dmg": 180,                   
 	"hit_sfx_type": "hit",

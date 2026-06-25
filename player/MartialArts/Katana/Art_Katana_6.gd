@@ -25,7 +25,7 @@ func enter() -> void:
 		player.animation_player.animation_finished.connect(_on_animation_finished)
 
 	var config = {
-		"anim": "katana/Art_Katana_6_start", "hitbox_name": "UltHitbox", "type": Damage.Type.HEAVY, 
+		"anim": "katana/Art_Katana_6_start", "hitbox_name": "ArtKatana_6", "type": Damage.Type.HEAVY, 
 		"knockback": Vector2(10.0, -100.0), "shake": 5.0, "shake_on_hit_only": true, 
 		"base_dmg": 150, "spark_scale": 1.0, "hit_sfx_type": "hit", 
 		"max_hits": 20, "interval": 0.1, "sticky": true, "action_type": Weapon.ActionType.ULTIMATE

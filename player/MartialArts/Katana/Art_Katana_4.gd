@@ -3,7 +3,7 @@ extends MartialArt
 
 const CONFIG = {
 	"anim": "katana/Art_Katana_4",
-	"hitbox_name": "C3",
+	"hitbox_name": "Art_Katana_3",
 	"type": Damage.Type.LIGHT,
 	"max_hits": 4,
 	"interval": 0.12,

@@ -39,31 +39,32 @@ const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.01, 1.01), 2: Vector2(1
 
 # 🗡️ [地面普攻字典] (代號: 1 ~ 5)
 const DICT_LIGHT_GROUND = {
-	1: {"anim": "katana/light_1", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(100.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit_3", "energy": 200, "switch": 500, "action_type": Weapon.ActionType.NORMAL},
-	2: {"anim": "katana/light_2", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(150.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
-	3: {"anim": "katana/light_3", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
-	4: {"anim": "katana/light_4", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
-	5: {"anim": "katana/light_5", "hitbox_name": "Hitbox", "max_hits": 1, "interval": 0.0, "knockback": Vector2(400.0, 0.0), "shake": 30.0, "hit_sfx_type": "hit_5", "base_dmg": 645, "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
+	1: {"anim": "katana/light_1", "hitbox_name": "light", "max_hits": 1, "interval": 0.0, "knockback": Vector2(100.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit_3", "energy": 200, "switch": 500, "action_type": Weapon.ActionType.NORMAL},
+	2: {"anim": "katana/light_2", "hitbox_name": "light", "max_hits": 1, "interval": 0.0, "knockback": Vector2(150.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
+	3: {"anim": "katana/light_3", "hitbox_name": "light", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
+	4: {"anim": "katana/light_4", "hitbox_name": "light", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
+	5: {"anim": "katana/light_5", "hitbox_name": "light", "max_hits": 1, "interval": 0.0, "knockback": Vector2(400.0, 0.0), "shake": 30.0, "hit_sfx_type": "hit_5", "base_dmg": 645, "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
 	# 🌟 新增：長按普攻派生 (代號 10) - 極高擊退力與傷害！
-	10: {"anim": "katana/light_enhanced", "hitbox_name": "C0", "max_hits": 1, "interval": 0.0, "knockback": Vector2(650.0, -300.0), "shake": 25.0, "hit_sfx_type": "hit_5", "base_dmg": 850, "energy": 10, "switch": 15, "action_type": Weapon.ActionType.NORMAL}
+	10: {"anim": "katana/light_enhanced", "hitbox_name": "light_1", "max_hits": 1, "interval": 0.0, "knockback": Vector2(650.0, -300.0), "shake": 25.0, "hit_sfx_type": "hit_5", "base_dmg": 850, "energy": 10, "switch": 15, "action_type": Weapon.ActionType.NORMAL}
 }
 
 
 # 🦅 [空中連段字典] (代號: 11, 12)
 const DICT_LIGHT_AIR = {
-	11: { "anim": "katana/air_light_1", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(20.0, -200.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "action_type": Weapon.ActionType.NORMAL},
-	12: { "anim": "katana/air_light_2", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(200.0, -300.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "action_type": Weapon.ActionType.NORMAL},
+	11: { "anim": "katana/air_light_1", "hitbox_name": "air_light", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(20.0, -200.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "action_type": Weapon.ActionType.NORMAL},
+	12: { "anim": "katana/air_light_2", "hitbox_name": "air_light", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(200.0, -200.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "action_type": Weapon.ActionType.NORMAL},
 }
 
 # 💥 [戰技與大招字典] (代號: 21, 31, 32)
 const DICT_HEAVY_ULT = {
-	21: { "anim": "katana/heavy_1", "hitbox_name": "C2", "type": Damage.Type.LIGHT, "knockback": Vector2(100.0, 0.0), "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 200, "hit_sfx_type": "hit", "energy": 10, "switch": 15, "max_hits": 3, "interval": 0.1, "sticky": true },
-	# 🌟 三段式下墜戰技配置
+	21: { "anim": "katana/heavy_1", "hitbox_name": "heavy", "type": Damage.Type.LIGHT, "knockback": Vector2(100.0, 0.0), "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 200, "hit_sfx_type": "hit", "energy": 10, "switch": 15, "max_hits": 3, "interval": 0.1, "sticky": true },
+	22: { "anim": "katana/heavy_2", "hitbox_name": "heavy_1", "type": Damage.Type.HEAVY, "knockback": Vector2(50.0, -100.0), "shake": 5.0, "shake_on_hit_only": true, "base_dmg": 200, "max_hits": 8, "interval": 0.05, "sticky": true, "hit_sfx_type": "hit", "energy": 15, "switch": 20 },
+	23: { "anim": "katana/heavy_3", "hitbox_name": "heavy_2", "type": Damage.Type.HEAVY, "knockback": Vector2(50.0, -400.0), "shake": 5.0, "shake_on_hit_only": true, "base_dmg": 300, "max_hits": 3, "interval": 0.1, "sticky": true, "hit_sfx_type": "hit", "energy": 10, "switch": 15 }, 
 	25: { "anim": "katana/air_heavy_start", "hitbox_name": "None", "base_dmg": 0 }, # 階段 1：下墜前準備（無判定）
-	26: { "anim": "katana/air_heavy_loop", "hitbox_name": "Air_J", "type": Damage.Type.LIGHT, "knockback": Vector2(200.0, 0.0), "base_dmg": 120, "max_hits": 5, "interval": 0.1, "hit_sfx_type": "hit", "sticky": true }, # 階段 2：下墜循環（帶有多段向下拖拽判定）
-	27: { "anim": "katana/air_heavy_land", "hitbox_name": "None", "type": Damage.Type.HEAVY, "knockback": Vector2(500.0, -250.0), "shake": 45.0, "shake_on_hit_only": false, "base_dmg": 750, "hit_sfx_type": "hit", "action_type": Weapon.ActionType.SKILL },
+	26: { "anim": "katana/air_heavy_loop", "hitbox_name": "air_light", "type": Damage.Type.LIGHT, "knockback": Vector2(200.0, 0.0), "base_dmg": 120, "max_hits": 5, "interval": 0.1, "hit_sfx_type": "hit", "sticky": true }, # 階段 2：下墜循環（帶有多段向下拖拽判定）
+	27: { "anim": "katana/air_heavy_land", "hitbox_name": "None", "shake": 45.0, "shake_on_hit_only": false, "base_dmg": 0 },
 	30: { "anim": "katana/sheath_enhanced_loop", "hitbox_name": "None", "base_dmg": 0 },
-	31: { "anim": "katana/sheath_enhanced", "hitbox_name": "attack_tsubame", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -80.0), "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 200, "hit_sfx_type": "hit", "energy": 25, "switch": 30, "max_hits": 12, "interval": 0.1, "sticky": true, "action_type": Weapon.ActionType.SKILL },
+	31: { "anim": "katana/sheath_enhanced", "hitbox_name": "sheath_enhanced", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -80.0), "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 200, "hit_sfx_type": "hit", "energy": 25, "switch": 30, "max_hits": 12, "interval": 0.1, "sticky": true, "action_type": Weapon.ActionType.SKILL },
 }
 
 # ==========================================
@@ -103,6 +104,7 @@ const MAX_IAI: int = 20 # 滿層條件設定為 20 次！
 var heavy_hold_timer: float = 0.0 # 專屬戰技蓄力計時器
 var _tsubame_zoom_phase: int = 0    # 🌟 歸還：燕返專屬運鏡階段控制
 var is_wave_fired: bool = false
+var _is_uppercut_launched: bool = false
 
 func gain_iai(amount: int) -> void:
 	current_iai = mini(current_iai + amount, MAX_IAI)
@@ -137,8 +139,24 @@ func start_light_attack() -> void:
 		return
 
 	# --- 🗡️ 陸戰邏輯 ---
+	# 🌟 核心攔截：如果剛打完 21(拔刀) 或 27(落地)，切換為升龍斬 (23)！
+	if combo_step in [21, 27]:
+		combo_step = 23
+		is_attacking = true
+		_is_uppercut_launched = false # 🌟 重置起飛開關
+		
+		# 允許起跳前極限轉向
+		var input_dir = Input.get_axis("move_left", "move_right")
+		if input_dir != 0 and player is Player:
+			player.direction = 1 if input_dir > 0 else -1
+			
+		_play_heavy_ult_step(23)
+		print("🌪️ 戰技派生：升龍斬蓄力中... (23)")
+		return
+
 	if DICT_HEAVY_ULT.has(combo_step):
 		combo_step = 0
+	
 
 	combo_step += 1
 	if not DICT_LIGHT_GROUND.has(combo_step):
@@ -183,7 +201,20 @@ func start_heavy_attack() -> void:
 		print("🦅 空中重擊：躍起並進入下墜前準備 (25)")
 		return
 
-	# 🌟 陸戰邏輯 (徹底拔除殘留的錯誤能量判斷，還原純淨手感)
+	# 🌟 陸戰戰技二段派生 (21 或 27 -> 22)
+	if combo_step in [21, 27]:
+		combo_step = 22
+		heavy_hold_timer = 0.0
+		
+		var input_dir = Input.get_axis("move_left", "move_right")
+		if input_dir != 0 and player is Player:
+			player.direction = 1 if input_dir > 0 else -1
+			
+		_play_heavy_ult_step(22)
+		print("💥 戰技派生：二段高傷重斬 (22)！")
+		return
+
+	# 🌟 預設陸戰邏輯起手 (21)
 	combo_step = 21
 	heavy_hold_timer = 0.0
 	
@@ -290,18 +321,31 @@ func get_current_velocity(delta: float) -> Vector2:
 			print("🔥 普攻長按觸發：高擊退橫斬！")
 
 	# ==========================================
-	# 🏃 物理位移狀態機
+	# 🏃 物理位移狀態機 (純淨解耦版，絕不越權干涉 X 軸)
 	# ==========================================
 	if combo_step == 21: 
 		new_x = move_toward(new_x, 0.0, base_friction * skill_neutral_friction_rate)
-	
+		
+	elif combo_step == 22:
+		# 💥 二段重斬：只負責常規煞車！前衝爆發力完全交給動畫裡的 strike_impulse
+		new_x = move_toward(new_x, 0.0, base_friction)
+			
+	elif combo_step == 23:
+		# 🌪️ 升龍斬：X 軸交給動畫的 strike_impulse，這裡只保留微弱的水平慣性煞車
+		new_x = move_toward(new_x, 0.0, base_friction * 0.3)
+		
+		# 🌟 0.2 秒延遲起飛核心邏輯
+		var anim_time = player.animation_player.current_animation_position
+		if anim_time >= 0.2 and not _is_uppercut_launched:
+			_is_uppercut_launched = true
+			new_y = air_thrust_force * 3.5 # 賦予垂直方向的升龍爆發力！
+			print("🚀 0.2秒到達！升龍斬正式起飛！")
 	# ==========================================
 	# 🌪️ 31 號終極燕返：時停、無敵、運鏡與判定框突變
 	# ==========================================
 	elif combo_step == 31: 
-		# 遵循最高指導原則：只計算摩擦力與空中阻力，不干涉原生 custom_move_and_slide!
 		new_x = move_toward(new_x, 0.0, base_friction * 5.0)
-		new_y = 0.0 if player.is_on_floor() else player.default_gravity * air_skill_gravity_rate * delta 
+		new_y = 0.0 if player.is_on_floor() else player.default_gravity * air_skill_gravity_rate * delta
 		
 		var anim_time = player.animation_player.current_animation_position
 		
@@ -335,25 +379,24 @@ func get_current_velocity(delta: float) -> Vector2:
 			disable_hitbox() 
 			enable_hitbox("CollisionShape2D2") # 啟動大範圍終結形狀
 			
-	elif combo_step == 10: # 🌟 10 號長按橫斬：發招瞬間給予一點向前突進！
-		var anim_time = player.animation_player.current_animation_position
+	elif combo_step == 10: 
 		new_x = move_toward(new_x, 0.0, base_friction)
 
 	elif combo_step in [11, 12]:
-		new_x = move_toward(new_x, 0.0, base_friction)
-		
+		new_x = move_toward(new_x, 0.0, base_friction)	
 	# ==========================================
-	# 🦅 三段式下墜戰技物理控速
+	# 🦅 三段式下墜戰技物理控速 (純淨解耦版)
 	# ==========================================
 	elif combo_step == 25:
-		# 【下墜前】：主動向上推力
+		# 【下墜前】：X 軸微弱煞車。
+		# Y 軸套用 0.5 倍重力，讓你在 start_heavy_attack 給的起跳初速度能畫出漂亮的拋物線！
 		new_x = move_toward(new_x, 0.0, base_friction * 0.2)
-		new_y = air_thrust_force * 1.5 * speed_mult 
+		new_y += player.default_gravity * 0.5 * delta
 
 	elif combo_step == 26:
-		# 【下墜循環】：🌟 核心修改 ➔ 均速斜向下砸！
-		# 給予 X 軸固定向前的速度 (例如 500.0，可自由調整)，配合 Y 軸形成斜角衝鋒！
-		new_x = player.direction * 500.0 * speed_mult 
+		# 【下墜循環】：X 軸常規煞車，前衝突進交給動畫裡的 strike_impulse！
+		# Y 軸維持你要求的均速下墜 (800)
+		new_x = move_toward(new_x, 0.0, base_friction * 0.5)
 		new_y = 800.0 * speed_mult 
 		
 		# 智慧落地偵測
@@ -361,8 +404,8 @@ func get_current_velocity(delta: float) -> Vector2:
 			combo_step = 27
 			_play_heavy_ult_step(27)
 			if CombatManager.has_method("apply_camera_shake"): 
-				CombatManager.apply_camera_shake(45.0, 0.18)
-			print("💥 觸地！轉換為落地擊碎衝擊 (27)")
+				CombatManager.apply_camera_shake(25.0)
+			print("💥 觸地！轉換為落地純演出 (27)")
 
 	elif combo_step == 27:
 		# 【落地】：縱向速度完全歸零，橫向套用基準摩擦力進行收招煞車
@@ -453,6 +496,7 @@ func cancel_attack() -> void:
 	_apply_charge_zoom(ZOOM_LEVELS[0])
 	
 	is_attacking = false
+	_is_uppercut_launched = false
 	combo_step = 0
 	step_cooldown = 0.0
 	_tsubame_zoom_phase = 0
@@ -595,11 +639,13 @@ func can_air_light() -> bool:
 	return true
 
 func can_use_heavy() -> bool:
-	# 🌟 解除空中鎖死的限制，只要高度夠，普攻打到一半也能無縫接下墜斬！
 	if not player.is_on_floor(): 
 		if _get_ground_distance() < min_air_attack_height: 
 			return false
 		return true 
+		
+	# 🌟 核心修改：允許 21 (拔刀) 與 27 (落地) 無視 CD 派生二段重斬！
+	if combo_step in [21, 27]: return true 
 		
 	# 陸戰防護維持原樣
 	if skill_1_timer > 0: return false
