@@ -45,7 +45,9 @@ const DICT_LIGHT_GROUND = {
 	4: {"anim": "katana/light_4", "hitbox_name": "light", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
 	5: {"anim": "katana/light_5", "hitbox_name": "light", "max_hits": 1, "interval": 0.0, "knockback": Vector2(400.0, 0.0), "shake": 30.0, "hit_sfx_type": "hit_5", "base_dmg": 645, "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
 	# 🌟 新增：長按普攻派生 (代號 10) - 極高擊退力與傷害！
-	10: {"anim": "katana/light_enhanced", "hitbox_name": "light_1", "max_hits": 1, "interval": 0.0, "knockback": Vector2(650.0, -300.0), "shake": 25.0, "hit_sfx_type": "hit_5", "base_dmg": 850, "energy": 10, "switch": 15, "action_type": Weapon.ActionType.NORMAL}
+	10: {"anim": "katana/light_enhanced", "hitbox_name": "light_1", "max_hits": 1, "interval": 0.0, "knockback": Vector2(650.0, -300.0), "shake": 25.0, "hit_sfx_type": "hit_5", "base_dmg": 850, "energy": 10, "switch": 15, "action_type": Weapon.ActionType.NORMAL},
+# 🌟 新增：11 號陸戰大招（原武藝卡帶 1 號搬回） - 根本沒普攻(0) 或 普攻第 1 段時長按觸發
+	11: {"anim": "katana/light_enhanced_2", "hitbox_name": "light_2","type": Damage.Type.HEAVY,"knockback": Vector2(50.0, -600.0),"shake": 30.0,"shake_on_hit_only": false,"base_dmg": 560,"hit_sfx_type": "hit_2","energy": 10,"switch": 15,"spark_type": 1, "spark_scale": 0.8, "action_type": Weapon.ActionType.SKILL}
 }
 
 
@@ -64,7 +66,7 @@ const DICT_HEAVY_ULT = {
 	26: { "anim": "katana/air_heavy_loop", "hitbox_name": "air_light", "type": Damage.Type.LIGHT, "knockback": Vector2(200.0, 0.0), "base_dmg": 120, "max_hits": 5, "interval": 0.1, "hit_sfx_type": "hit", "sticky": true }, # 階段 2：下墜循環（帶有多段向下拖拽判定）
 	27: { "anim": "katana/air_heavy_land", "hitbox_name": "None", "shake": 45.0, "shake_on_hit_only": false, "base_dmg": 0 },
 	30: { "anim": "katana/sheath_enhanced_loop", "hitbox_name": "None", "base_dmg": 0 },
-	31: { "anim": "katana/sheath_enhanced", "hitbox_name": "sheath_enhanced", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -80.0), "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 200, "hit_sfx_type": "hit", "energy": 25, "switch": 30, "max_hits": 12, "interval": 0.1, "sticky": true, "action_type": Weapon.ActionType.SKILL },
+	31: { "anim": "katana/sheath_enhanced", "hitbox_name": "sheath_enhanced", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -80.0), "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 600, "hit_sfx_type": "hit", "energy": 25, "switch": 30, "max_hits": 12, "interval": 0.1, "sticky": true, "action_type": Weapon.ActionType.SKILL },
 }
 
 # ==========================================
@@ -98,17 +100,17 @@ var is_time_stop_triggered: bool = false
 var _camera_tween: Tween 
 var _is_hitbox_locked: bool = false
 
-# 🌟 閃避充能資源 (借用舊的居合變數讓 UI 無縫接軌)
-var current_iai: int = 0                    
-const MAX_IAI: int = 20 # 滿層條件設定為 20 次！
-var heavy_hold_timer: float = 0.0 # 專屬戰技蓄力計時器
-var _tsubame_zoom_phase: int = 0    # 🌟 歸還：燕返專屬運鏡階段控制
+# 🌟 劍意值資源 (原閃避充能)
+var current_iai: float = 0.0                    
+const MAX_IAI: float = 20.0 # 劍意值上限設定為 20.0！
+var heavy_hold_timer: float = 0.0 
+var _tsubame_zoom_phase: int = 0    
 var is_wave_fired: bool = false
 var _is_uppercut_launched: bool = false
 
-func gain_iai(amount: int) -> void:
-	current_iai = mini(current_iai + amount, MAX_IAI)
-	print("✨ 極限閃避成功！目前強化戰技充能: ", current_iai, "/", MAX_IAI)
+func gain_iai(amount: float) -> void:
+	current_iai = clampf(current_iai + amount, 0.0, MAX_IAI)
+	print("✨ 獲得劍意！目前劍意值: ", current_iai, "/", MAX_IAI)
 # ==========================================
 # 🎬 實作 Weapon.gd 合約接口
 # ==========================================
@@ -138,26 +140,14 @@ func start_light_attack() -> void:
 		_play_air_step(combo_step)
 		return
 
-	# --- 🗡️ 陸戰邏輯 ---
-	# 🌟 核心攔截：如果剛打完 21(拔刀) 或 27(落地)，切換為升龍斬 (23)！
+# --- 🗡️ 陸戰邏輯 ---
 	if combo_step in [21, 27]:
-		combo_step = 23
-		is_attacking = true
-		_is_uppercut_launched = false # 🌟 重置起飛開關
-		
-		# 允許起跳前極限轉向
-		var input_dir = Input.get_axis("move_left", "move_right")
-		if input_dir != 0 and player is Player:
-			player.direction = 1 if input_dir > 0 else -1
-			
-		_play_heavy_ult_step(23)
-		print("🌪️ 戰技派生：升龍斬蓄力中... (23)")
 		return
 
-	if DICT_HEAVY_ULT.has(combo_step):
+	# 🌟 核心修復：打完 5段、10號橫斬、11號大招，或戰技時，一律重置回起手式
+	if DICT_HEAVY_ULT.has(combo_step) or combo_step in [5, 10, 11]:
 		combo_step = 0
 	
-
 	combo_step += 1
 	if not DICT_LIGHT_GROUND.has(combo_step):
 		combo_step = 1
@@ -201,17 +191,9 @@ func start_heavy_attack() -> void:
 		print("🦅 空中重擊：躍起並進入下墜前準備 (25)")
 		return
 
-	# 🌟 陸戰戰技二段派生 (21 或 27 -> 22)
+	# 🌟 核心修改：拔除點按即時攔截！
+	# 當角色處於 21 或 27 時，點按戰技不直接發招，把空間留給長按偵測
 	if combo_step in [21, 27]:
-		combo_step = 22
-		heavy_hold_timer = 0.0
-		
-		var input_dir = Input.get_axis("move_left", "move_right")
-		if input_dir != 0 and player is Player:
-			player.direction = 1 if input_dir > 0 else -1
-			
-		_play_heavy_ult_step(22)
-		print("💥 戰技派生：二段高傷重斬 (22)！")
 		return
 
 	# 🌟 預設陸戰邏輯起手 (21)
@@ -245,27 +227,119 @@ func get_current_velocity(delta: float) -> Vector2:
 	if player.is_on_floor(): air_attack_locked = false
 
 	# ==========================================
-	# 🌟 戰技長按偵測與強化戰技蓄力 (無縫派生)
+	# 🌟 普攻長按與多路派生 (徹底修復版)
 	# ==========================================
-	if combo_step in [21, 30]:
+	if Input.is_action_pressed("attack"):
+		light_hold_timer += delta
+		
+		# ⚔️ 滿 0.3 秒觸發長按變招
+		if light_hold_timer >= 0.3:
+			if combo_step in [0, 1]:
+				# 🌟 路線 A：沒出刀 或 剛出第一刀 ➔ 派生 11 號陸戰大招！
+				combo_step = 11
+				light_hold_timer = 0.0
+				
+				var input_dir = Input.get_axis("move_left", "move_right")
+				if input_dir != 0 and player is Player:
+					player.direction = 1 if input_dir > 0 else -1
+					
+				_play_light_step(11)
+				print("🔥 普攻長按：陸戰武藝大招 (11)！")
+				
+			elif combo_step in [2, 3, 4, 5]:
+				# 🌟 路線 B：已經連砍到第 2~5 刀 ➔ 派生 10 號高擊退橫斬！
+				combo_step = 10 
+				light_hold_timer = 0.0 
+				
+				var input_dir = Input.get_axis("move_left", "move_right")
+				if input_dir != 0 and player is Player:
+					player.direction = 1 if input_dir > 0 else -1
+					
+				_play_light_step(10)
+				print("🔥 普攻長按：高擊退橫斬 (10)！")
+				
+			elif combo_step in [21, 27]:
+				# 🌟 路線 C：戰技(21)或落地(27)後長按 ➔ 升龍斬(23)
+				if current_iai >= 2.5:
+					current_iai -= 2.5           
+					combo_step = 23
+					light_hold_timer = 0.0
+					_is_uppercut_launched = false 
+					
+					var input_dir = Input.get_axis("move_left", "move_right")
+					if input_dir != 0 and player is Player:
+						player.direction = 1 if input_dir > 0 else -1
+						
+					_play_heavy_ult_step(23)
+					print("🌪️ 長按普攻：升龍斬起飛！(剩餘劍意:", current_iai, ")")
+				else:
+					light_hold_timer = 0.0       
+	else:
+		# 🌟 短按放行機制：提早放開普攻鍵 (不到 0.3 秒)
+		if light_hold_timer > 0.0 and light_hold_timer < 0.3 and combo_step in [21, 27]:
+			combo_step = 1
+			is_attacking = true
+			
+			var input_dir = Input.get_axis("move_left", "move_right")
+			if input_dir != 0 and player is Player:
+				player.direction = 1 if input_dir > 0 else -1
+				
+			_play_light_step(1)
+			print("💨 短按普攻：一般普攻 (1)！")
+			
+		light_hold_timer = 0.0
+
+	# ==========================================
+	# 🌟 戰技長按偵測與強化大招/二段重斬多路分流核心
+	# ==========================================
+	if combo_step in [21, 27, 30]:
 		if Input.is_action_pressed("heavy_attack"): 
 			heavy_hold_timer += delta
 			
-			# 1️⃣ 在戰技 (21) 起手前 0.1 秒內，如果按住不放且資源滿了，切換進入蓄力狀態 (30)
-			if combo_step == 21 and heavy_hold_timer >= 0.2 and current_iai >= MAX_IAI:
-				combo_step = 30
-				_play_heavy_ult_step(30)
-				print("⚡ 偵測到長按！取消一般戰技，轉入燕返蓄力...")
-				
-			# 2️⃣ 總蓄力時間滿 1.0 秒，釋放終極燕返 (31)
+			# 1️⃣ 處於 21 號拔刀斬狀態下的長按分流
+			if combo_step == 21 and heavy_hold_timer >= 0.25:
+				if current_iai >= 15.0:
+					combo_step = 30
+					_play_heavy_ult_step(30)
+					print("⚡ 資源滿載！偵測到長按，轉入燕返蓄力狀態 (30)...")
+				elif current_iai >= 2.5:
+					current_iai -= 2.5       
+					combo_step = 22
+					heavy_hold_timer = 0.0
+					
+					var input_dir = Input.get_axis("move_left", "move_right")
+					if input_dir != 0 and player is Player:
+						player.direction = 1 if input_dir > 0 else -1
+						
+					_play_heavy_ult_step(22)
+					print("💥 長按戰技觸發：消耗 2.5 點劍意，二段高傷重斬！")
+				else:
+					heavy_hold_timer = 0.0
+			
+			# 2️⃣ 處於 27 號落地純演出狀態下的長按 (此時無法接燕返，直接導向 22 號重斬)
+			elif combo_step == 27 and heavy_hold_timer >= 0.25:
+				if current_iai >= 2.0:
+					current_iai -= 2.0       
+					combo_step = 22
+					heavy_hold_timer = 0.0
+					
+					var input_dir = Input.get_axis("move_left", "move_right")
+					if input_dir != 0 and player is Player:
+						player.direction = 1 if input_dir > 0 else -1
+						
+					_play_heavy_ult_step(22)
+					print("💥 落地長按戰技觸發：消耗 2 點劍意，二段高傷重斬！")
+				else:
+					heavy_hold_timer = 0.0
+					
+			# 3️⃣ 已經處於 30 號燕返蓄力中，持續按住滿 1.0 秒則徹底爆發燕返 (31)
 			elif combo_step == 30 and heavy_hold_timer >= 1.0:
-				current_iai = 0             # 扣除資源
-				combo_step = 31             # 💥 轉為終極燕返狀態！
+				current_iai -= 15.0         
+				combo_step = 31             
 				heavy_hold_timer = 0.0
 				_tsubame_zoom_phase = 0     
 				is_wave_fired = false       
 				
-				# 允許拔刀前極限轉向
 				var input_dir = Input.get_axis("move_left", "move_right")
 				if input_dir != 0 and player is Player:
 					player.direction = 1 if input_dir > 0 else -1
@@ -274,21 +348,38 @@ func get_current_velocity(delta: float) -> Vector2:
 				print("💥 蓄力 1 秒完成！終極燕返拔刀斬！！！")
 				
 		else:
-			# 如果玩家放開了戰技鍵
+			# 當玩家中途放開戰技鍵時的容錯分流
 			if combo_step == 30:
-				# 🌟 核心修改：已經進入蓄力，但沒滿 1 秒就放開 ➔ 打出一般戰技！(不扣資源)
-				combo_step = 21
-				heavy_hold_timer = 0.0
-				
-				# 貼心設計：讓玩家在放開的瞬間還可以做最後的轉向
-				var input_dir = Input.get_axis("move_left", "move_right")
-				if input_dir != 0 and player is Player:
-					player.direction = 1 if input_dir > 0 else -1
+				# 🌟 核心修改：大招蓄力(30)未滿 1 秒提早放開 ➔ 順勢斬出二段重斬(22)！
+				if current_iai >= 2.5:
+					current_iai -= 2.5       # 扣除二段重斬的 2.5 點劍意
+					combo_step = 22
+					heavy_hold_timer = 0.0
 					
-				_play_heavy_ult_step(21)
-				print("💨 蓄力提早釋放！轉為一般戰技 (21)！")
+					# 允許釋放瞬間做最後的極限轉向
+					var input_dir = Input.get_axis("move_left", "move_right")
+					if input_dir != 0 and player is Player:
+						player.direction = 1 if input_dir > 0 else -1
+						
+					_play_heavy_ult_step(22)
+					print("💨 蓄力半途釋放！消耗 2.5 劍意，化為二段重斬 (22)！(剩餘:", current_iai, ")")
+				else:
+					# 🛡️ 極端狀況防呆（正常情況進入30一定夠資源）
+					cancel_attack()
 			else:
-				# 還在起手 21 號狀態就放開 ➔ 判定為一般點按，正常打完 21 號戰技
+				# 🌟 落地 (27) 的短按容錯！
+				# 玩家在 27 落地時提早放開戰技鍵，就能無縫打出一般戰技 (21)
+				if heavy_hold_timer > 0.0 and heavy_hold_timer < 0.25 and combo_step == 27:
+					combo_step = 21
+					
+					var input_dir = Input.get_axis("move_left", "move_right")
+					if input_dir != 0 and player is Player:
+						player.direction = 1 if input_dir > 0 else -1
+						
+					_play_heavy_ult_step(21)
+					skill_1_timer = skill_1_cd
+					print("💨 落地短按戰技：打出一般戰技 (21)！")
+					
 				heavy_hold_timer = 0.0
 
 	if player.is_on_floor(): air_attack_locked = false
@@ -299,26 +390,7 @@ func get_current_velocity(delta: float) -> Vector2:
 	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
 	var base_friction = player.FLOOR_ACCELERATION * (speed_mult * speed_mult) * delta
 
-	# ==========================================
-	# 🌟 長按計時與派生偵測
-	# ==========================================
-	if Input.is_action_pressed("attack"):
-		light_hold_timer += delta
-	else:
-		light_hold_timer = 0.0
-
-	# 如果目前正在揮舞普攻 1~5 段，且按住超過 0.3 秒，立刻派生橫斬！
-	if combo_step in [1, 2, 3, 4, 5]:
-		if light_hold_timer >= 0.3:
-			# 發動前允許極限轉向
-			var input_dir = Input.get_axis("move_left", "move_right")
-			if input_dir != 0 and player is Player:
-				player.direction = 1 if input_dir > 0 else -1
-				
-			combo_step = 10 
-			light_hold_timer = 0.0 # 清空計時器
-			_play_light_step(combo_step)
-			print("🔥 普攻長按觸發：高擊退橫斬！")
+	
 
 	# ==========================================
 	# 🏃 物理位移狀態機 (純淨解耦版，絕不越權干涉 X 軸)
@@ -370,7 +442,7 @@ func get_current_velocity(delta: float) -> Vector2:
 				current_active_hitbox.hit_targets.clear() 
 				current_active_hitbox.max_hits = 1        
 				current_active_hitbox.sticky_multi_hit = false 
-				current_active_hitbox.damage_amount = 1500 
+				current_active_hitbox.damage_amount = 4500 
 				current_active_hitbox.knockback_force = Vector2(200.0, -500.0) 
 				current_active_hitbox.shake_intensity = 400.0
 				_has_granted_resources_this_step = false
@@ -383,7 +455,13 @@ func get_current_velocity(delta: float) -> Vector2:
 		new_x = move_toward(new_x, 0.0, base_friction)
 
 	elif combo_step in [11, 12]:
-		new_x = move_toward(new_x, 0.0, base_friction)	
+		if player.is_on_floor():
+			# 🌟 11 號地面大招：橫向完全遵循你在動畫裡加的 strike_impulse！
+			# 這裡武器層退場，只負責每幀常規的摩擦力煞車煞停，絕不越權硬寫速度！
+			new_x = move_toward(new_x, 0.0, base_friction)
+		else:
+			# 11, 12 號空中普攻：維持原有的空戰水平常規阻力
+			new_x = move_toward(new_x, 0.0, base_friction)
 	# ==========================================
 	# 🦅 三段式下墜戰技物理控速 (純淨解耦版)
 	# ==========================================
@@ -395,17 +473,22 @@ func get_current_velocity(delta: float) -> Vector2:
 
 	elif combo_step == 26:
 		# 【下墜循環】：X 軸常規煞車，前衝突進交給動畫裡的 strike_impulse！
-		# Y 軸維持你要求的均速下墜 (800)
+		# Y 軸維持要求的均速下墜 (800)
 		new_x = move_toward(new_x, 0.0, base_friction * 0.5)
 		new_y = 800.0 * speed_mult 
 		
-		# 智慧落地偵測
+		# 🌟 智慧落地偵測
 		if player.is_on_floor():
 			combo_step = 27
+			
+			# 🌟 核心修正：落地瞬間精準清洗雙計時器，給予長按指令純淨的起跑線
+			heavy_hold_timer = 0.0  
+			light_hold_timer = 0.0  
+			
 			_play_heavy_ult_step(27)
 			if CombatManager.has_method("apply_camera_shake"): 
 				CombatManager.apply_camera_shake(25.0)
-			print("💥 觸地！轉換為落地純演出 (27)")
+			print("💥 觸地！轉換為落地純演出 (27)，長按窗口開啟")
 
 	elif combo_step == 27:
 		# 【落地】：縱向速度完全歸零，橫向套用基準摩擦力進行收招煞車
@@ -452,11 +535,19 @@ func is_attack_finished() -> bool:
 	if not is_attacking: return true
 	
 	if not player.animation_player.is_playing():
-		# 🌟 核心鏈接：當「下墜前準備 (25)」動畫播完，自動轉入「下墜循環 (26)」
+		# 當「下墜前準備 (25)」動畫播完，自動轉入「下墜循環 (26)」
 		if combo_step == 25:
 			combo_step = 26
 			_play_heavy_ult_step(26)
-			return false # 告訴總監招式還在跑，繼續留在原狀態
+			return false 
+			
+		# 🌟 核心修正：防止落地 (27) 或 拔刀 (21) 因為動畫太短而腰斬長按指令
+		# 如果動畫已播完，但玩家正在按著對應鍵且劍意充足，強制留存狀態，等待 0.2 秒長按判定完成
+		if combo_step in [21, 27]:
+			if Input.is_action_pressed("heavy_attack") and current_iai >= 2.0:
+				return false # 扣留狀態，不准卡歌切回 Idle
+			if Input.is_action_pressed("attack") and current_iai >= 2.5:
+				return false # 扣留狀態，不准卡歌切回 Idle
 			
 		player.is_input_locked = false 
 		
@@ -603,6 +694,10 @@ func _on_hitbox_hit(hurtbox: Node) -> void:
 	if _multi_hit_energy or not _has_granted_resources_this_step:
 		if _current_energy_reward > 0:
 			if player.has_method("add_weapon_resource"): player.add_weapon_resource(WEAPON_ID, _current_energy_reward)
+			
+		# 🌟 核心新增：招式命中，獲得 0.5 點劍意值
+		gain_iai(0.5)
+		
 		_has_granted_resources_this_step = true
 		
 func _get_ground_distance() -> float:

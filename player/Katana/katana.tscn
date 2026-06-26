@@ -22,7 +22,7 @@ size = Vector2(124, 44)
 size = Vector2(243, 38.75)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_4nokb"]
-size = Vector2(180, 59.5)
+size = Vector2(206, 61.5)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_5b071"]
 size = Vector2(255, 97)
@@ -52,10 +52,10 @@ size = Vector2(140, 77)
 size = Vector2(119, 101)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_c2yqj"]
-size = Vector2(262.142, 188.236)
+size = Vector2(486.833, 237.771)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_rxe4g"]
-size = Vector2(404.136, 188.237)
+size = Vector2(619.464, 242.724)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_r8mev"]
 size = Vector2(867.564, 359.133)
@@ -103,7 +103,6 @@ shape = SubResource("RectangleShape2D_p41qw")
 disabled = true
 
 [node name="light_1" type="Area2D" parent="."]
-visible = false
 collision_layer = 0
 collision_mask = 16
 script = ExtResource("2_ieebl")
@@ -113,8 +112,22 @@ spark_random_angle = 360.0
 spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="light_1"]
-position = Vector2(34, -32.25)
+position = Vector2(47, -33.25)
 shape = SubResource("RectangleShape2D_4nokb")
+disabled = true
+
+[node name="light_2" type="Area2D" parent="."]
+visible = false
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("2_ieebl")
+spark_base_offset = Vector2(-5, 0)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(0, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="light_2"]
+position = Vector2(-1.5, -34.5)
+shape = SubResource("RectangleShape2D_5b071")
 disabled = true
 
 [node name="Art_Katana_1" type="Area2D" parent="."]
@@ -125,11 +138,6 @@ script = ExtResource("2_ieebl")
 spark_base_offset = Vector2(-5, 0)
 spark_random_angle = 360.0
 spark_random_offset = Vector2(0, 0)
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Art_Katana_1"]
-position = Vector2(-1.5, -34.5)
-shape = SubResource("RectangleShape2D_5b071")
-disabled = true
 
 [node name="CollisionShape2D2" type="CollisionShape2D" parent="Art_Katana_1"]
 position = Vector2(0, -44.5)
@@ -214,7 +222,6 @@ shape = SubResource("RectangleShape2D_fdjgo")
 disabled = true
 
 [node name="sheath_enhanced" type="Area2D" parent="."]
-visible = false
 scale = Vector2(1.00393, 1)
 collision_layer = 0
 collision_mask = 16

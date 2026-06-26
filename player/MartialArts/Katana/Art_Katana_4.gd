@@ -30,7 +30,7 @@ func enter() -> void:
 	var input_dir = Input.get_axis("move_left", "move_right")
 	if input_dir != 0 and player is Player:
 		player.direction = 1 if input_dir > 0 else -1
-
+	weapon.combo_step = 21 
 	weapon._play_martial_art_attack(CONFIG)
 	print("⚔️ [武藝卡帶] 發動：裂地連斬·貳 (21)")
 
