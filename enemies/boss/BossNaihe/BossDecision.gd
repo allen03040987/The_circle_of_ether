@@ -1,6 +1,9 @@
 class_name BossDecisionState
 extends BossState
 
+# 🌟 補回：超過這個距離就先追擊拉近，不再無腦嘗試遠程攻擊
+@export var chase_trigger_distance: float = 300.0
+
 var decision_timer: float = 0.0
 var last_attack: String = "" # 🌟 新增：讓 Boss 有記憶，記住上一招放了什麼
 
@@ -25,13 +28,19 @@ func _make_decision() -> void:
 	if not is_instance_valid(boss.player_target): return
 	
 	var dist = boss.global_position.distance_to(boss.player_target.global_position)
-	var next_state = "Chase"
+
+	# 🔧 真正會被選中的追擊分支：距離太遠時，先追近再回來決策，不再嘗試遠程攻擊
+	if dist > chase_trigger_distance:
+		state_machine.transition_to("Chase")
+		return
+
+	var next_state = "MeleeAttack"
 	var next_melee = ""
-	
+
 	# 🌟 防連發機制：如果抽到同一招，最多重新擲骰子 3 次
 	for i in range(3):
 		var roll = randf()
-		next_state = "Chase"
+		next_state = "MeleeAttack"
 		next_melee = ""
 		
 		if dist > 150:
@@ -49,11 +58,11 @@ func _make_decision() -> void:
 			elif roll < 0.70: next_state = "MeleeAttack"; next_melee = "A3"
 			else: next_state = "MeleeAttack"; next_melee = "A7"
 		
-		# 💡 如果這招跟上一招不一樣，或者決定要走位(Chase)，就滿意地跳出迴圈！
-		if next_melee != last_attack or next_state == "Chase":
+		# 💡 如果這招跟上一招不一樣，就滿意地跳出迴圈！
+		if next_melee != last_attack:
 			break
-			
-	# 記錄這次出的招式（如果是 Chase 就不記，這樣下次才可以正常出招）
+
+	# 記錄這次出的招式
 	if next_melee != "":
 		last_attack = next_melee
 		boss.set_meta("next_melee", next_melee)

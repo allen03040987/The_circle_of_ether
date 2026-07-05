@@ -17,11 +17,8 @@ func _input(event: InputEvent) -> void:
 			event is InputEventMouseButton or
 			event is InputEventJoypadButton
 		):
-			# 🌟 修復循環：如果是測試階段，直接重開場景最乾淨
-			# 這樣會重新跑一次 Player 的 _ready，狀態會全部重置
-			get_tree().reload_current_scene()
-			
-			# 如果你想用你的存檔系統，請確保 load_game() 裡面有 reload_current_scene()
+			# 🔧 移除了重複觸發的 reload_current_scene()，只留下正規的存讀檔路徑，
+			# 避免跟 Game.load_game()/back_to_title() 的場景切換互搶。
 			if Game.has_save():
 				Game.load_game()
 			else:

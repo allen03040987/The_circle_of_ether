@@ -3,22 +3,28 @@ extends State
 ## 角色從牆壁上借力跳出的過程。包含短暫的「操作剝奪期」。
 
 const JUMP_SFX = preload("res://sound/SFX/jump.wav")
-	
-	
+
+# ⏱️ 動作蜜糖 (Game Feel)：牆跳瞬間的時間慢動作特效參數
+const WALL_JUMP_TIME_STOP_SCALE := 0.88
+const WALL_JUMP_TIME_STOP_DURATION := 0.3
+
 # ==========================================
 # 🎬 狀態生命週期：進入狀態
 # ==========================================
 func enter() -> void:
-	
+
 	if JUMP_SFX:
 		AudioManager.play_sfx(JUMP_SFX, -10.0, 1.0)
 	player.play_safe_anim("wall_jump")
 	player.jump_request_timer.stop()
-	
+
 	# ⏱️ 動作蜜糖 (Game Feel)：牆跳瞬間的時間慢動作特效
-	# 這會讓跳躍的發力感變得極其厚重與扎實！
-	Engine.time_scale = 0.88
-	
+	# 🔧 改走 Player 的時停仲裁介面（trigger_time_stop → CombatManager.set_domain_time），
+	# 不再直接寫 Engine.time_scale，避免跟太刀/符咒/鐮刀大招的時停互踩。
+	# trigger_time_stop 內建保護：如果當下已有更強或更久的時停在跑，這次請求會被忽略。
+	if player.has_method("trigger_time_stop"):
+		player.trigger_time_stop(WALL_JUMP_TIME_STOP_DURATION, WALL_JUMP_TIME_STOP_SCALE)
+
 	# 🚀 給予牆跳的基礎反彈力 (WALL_JUMP_VELOCITY 是一個 Vector2，例如 (300, -500))
 	player.velocity = player.WALL_JUMP_VELOCITY
 	
@@ -31,9 +37,8 @@ func enter() -> void:
 	# 把基礎反彈力的 X 軸，乘上法線方向 (彈離牆壁)
 	player.velocity.x *= wall_normal_x
 
-# 🚪 離開狀態時，務必將時間還原！
-func exit() -> void:
-	Engine.time_scale = 1.0
+# 🚪 離開狀態：時停交給 Player 的倒數機制（trigger_time_stop 的 duration）自動解除，
+# 這裡不再手動還原 Engine.time_scale，避免搶先結束其他系統正在進行的時停。
 
 # ==========================================
 # 🏃 物理更新 (每秒 60 次)

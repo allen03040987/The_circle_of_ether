@@ -90,7 +90,8 @@ var _has_granted_resources_this_step: bool = false
 var combo_step: int = 0
 var last_attack_time: float = 0.0
 var is_attacking: bool = false
-var step_cooldown: float = 0.0                  
+var step_cooldown: float = 0.0
+var _last_action_was_martial_art: bool = false  # 🔧 標記上一招是否為武藝卡帶，避免 combo_step 殘留誤觸連段
 
 var air_attack_locked: bool = false             
 
@@ -129,8 +130,9 @@ func start_light_attack() -> void:
 
 	if not is_attacking:
 		var current_time = Time.get_ticks_msec() / 1000.0
-		if current_time - last_attack_time > combo_timeout:
+		if current_time - last_attack_time > combo_timeout or _last_action_was_martial_art:
 			combo_step = 0
+		_last_action_was_martial_art = false
 
 	# --- 🦅 空戰邏輯 ---
 	if not player.is_on_floor():
@@ -188,11 +190,12 @@ func start_heavy_attack() -> void:
 		
 	if not is_attacking:
 		var current_time = Time.get_ticks_msec() / 1000.0
-		if current_time - last_attack_time > combo_timeout:
+		if current_time - last_attack_time > combo_timeout or _last_action_was_martial_art:
 			combo_step = 0
-			
+		_last_action_was_martial_art = false
+
 	is_attacking = true
-	is_time_stop_triggered = false 
+	is_time_stop_triggered = false
 	
 	# 🌟 空戰邏輯：進入第 1 階段「下墜前準備」
 	if not player.is_on_floor():
@@ -485,9 +488,10 @@ func is_attack_finished() -> bool:
 			disable_hitbox()
 			is_attacking = false
 			last_attack_time = Time.get_ticks_msec() / 1000.0
-			if not requires_sheath() and player.get("scabbard"): 
+			if not requires_sheath() and player.get("scabbard"):
 				player.scabbard.fade_in()
-			return true 
+			_last_action_was_martial_art = true # 🔧 武藝卡帶自然收招，標記讓下一次攻擊強制重置 combo_step
+			return true
 
 	if not is_attacking: return true
 	
@@ -536,6 +540,7 @@ func cancel_attack() -> void:
 	is_attacking = false
 	_is_uppercut_launched = false
 	combo_step = 0
+	_last_action_was_martial_art = false
 	step_cooldown = 0.0
 	_tsubame_zoom_phase = 0
 	heavy_hold_timer = 0.0
