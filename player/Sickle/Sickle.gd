@@ -9,7 +9,6 @@ extends Weapon
 @export_group("武器核心參數")
 @export var combo_timeout: float = 0.3      
 @export var no_sheath_steps: Array[int] = [4, 11, 12, 20, 21, 22, 41, 80, 81] 
-@export var ult_energy_cost: float = 100.0  
 
 const WEAPON_ID: String = "sickle"          
 # 🌟 鎖鏈鐮刀專屬獨立特效場景 (當作備用工具保留)
@@ -281,17 +280,13 @@ func start_heavy_attack() -> void:
 			is_attacking = false
 
 func start_ultimate() -> void:
-	if player.has_method("consume_weapon_energy"):
-		player.consume_weapon_energy(WEAPON_ID, ult_energy_cost)
-		
 	step_cooldown = 0.15
 	is_attacking = true
 	is_vfx_fired = false
 	_phantom_flags_synced = false
 	is_time_stop_triggered = false 
 	_tsubame_zoom_phase = 0 
-	
-	ult_timer = ult_cd 
+
 	combo_step = 80
 	player.invincible_time_left = 3.0
 	
@@ -318,7 +313,6 @@ func start_intro_skill() -> void:
 
 func update_timers_only(delta: float) -> void:
 	if step_cooldown > 0: step_cooldown -= delta 
-	if ult_timer > 0: ult_timer -= delta
 
 	if player.is_on_floor() or player.is_on_wall():
 		air_attack_locked = false 
@@ -941,16 +935,6 @@ func can_use_heavy() -> bool:
 		return is_enhanced_ready
 	return true
 
-func can_use_ultimate() -> bool:
-	if ult_timer > 0: return false 
-	if not player.is_on_floor(): return false 
-	
-	if player.has_method("get_weapon_energy"):
-		if player.get_weapon_energy(WEAPON_ID) < ult_energy_cost:
-			return false 
-			
-	return true
-
 func get_dynamic_skill_icon(slot: int) -> Texture2D:
 	match slot:
 		1:
@@ -961,13 +945,11 @@ func export_weapon_data() -> Dictionary:
 	return {
 		"current_chain_link": current_chain_link,
 		"is_enhanced_ready": is_enhanced_ready,
-		"ult_timer": ult_timer if "ult_timer" in self else 0.0
 	}
 
 func import_weapon_data(data: Dictionary) -> void:
 	current_chain_link = data.get("current_chain_link", 0)
 	is_enhanced_ready = data.get("is_enhanced_ready", false)
-	if "ult_timer" in self: ult_timer = data.get("ult_timer", 0.0)
 
 # ==========================================
 # ⛓️ 實體投射物：發射鏈鐮飛索

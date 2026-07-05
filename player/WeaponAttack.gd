@@ -1,9 +1,11 @@
 class_name WeaponAttackState
 extends State
 ## 戰鬥總監狀態 (Weapon Attack State)
+## 全權接管攻擊時的輸入緩衝分配、物理速度套用、動畫派生，以及魔女時間(極限閃避)的簽證偏移補償。
 
 var _frames_in_state: int = 0
 
+## 處理玩家攻擊時的方向修正
 func _update_facing() -> void:
 	if player.is_input_locked: return 
 	
@@ -70,6 +72,7 @@ func enter() -> void:
 
 	_update_facing()
 	
+	# 發派最高優先級指令
 	if player.is_ult_requested:
 		player.is_ult_requested = false
 		if player.current_weapon.has_method("start_ultimate"):
@@ -99,7 +102,7 @@ func physics_update(delta: float) -> void:
 
 	if not player.is_input_locked:
 		
-		# 1. 大招強制打斷
+		# 1. 偵測大招強制打斷
 		if player.is_ult_requested:
 			if player.current_weapon.has_method("can_use_ultimate") and player.current_weapon.can_use_ultimate():
 				player.is_ult_requested = false
@@ -117,7 +120,7 @@ func physics_update(delta: float) -> void:
 			else:
 				player.is_ult_requested = false 
 
-		# 2. 連段派生 (Combo Chaining)
+		# 2. 偵測連段派生 (Combo Chaining)
 		if player.can_combo and _frames_in_state > 3:
 			if player.is_martial_requested:
 				var m_slot = player.requested_martial_slot
@@ -130,7 +133,6 @@ func physics_update(delta: float) -> void:
 				if player.current_weapon.has_method("execute_martial_art"):
 					player.current_weapon.execute_martial_art(m_slot)
 			
-				
 			elif player.is_heavy_requested:
 				_frames_in_state = 0 
 				player.can_combo = false 
@@ -139,7 +141,6 @@ func physics_update(delta: float) -> void:
 				
 				_update_facing()
 				player.current_weapon.start_heavy_attack()
-				
 				
 			elif player.is_combo_requested:
 				_frames_in_state = 0 
@@ -150,8 +151,7 @@ func physics_update(delta: float) -> void:
 				_update_facing()
 				player.current_weapon.start_light_attack()
 				
-				
-		# 3. 閃避取消 (Dodge Cancel)
+		# 3. 偵測閃避取消 (Dodge Cancel)
 		if player.slide_request_timer.time_left > 0 and player.stats.energy >= 3:
 			if player.current_weapon.can_be_canceled_by_dodge():
 				if player.current_weapon.get("current_action_type") == Weapon.ActionType.NORMAL:
@@ -192,6 +192,7 @@ func physics_update(delta: float) -> void:
 			state_machine.transition_to("Fall")
 		return
 
+## 被外力或狀態機強制切換時的清掃邏輯
 func exit() -> void:
 	if is_instance_valid(player.current_weapon):
 		if player.current_weapon.get("is_attacking"):

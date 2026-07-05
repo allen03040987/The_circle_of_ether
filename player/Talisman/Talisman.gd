@@ -30,8 +30,7 @@ func _delayed_load_arts() -> void:
 # ==========================================
 @export_group("武器核心參數")
 @export var combo_timeout: float = 0.3      
-@export var no_sheath_steps: Array[int] = [30,31,40,50,80,81] 
-@export var ult_energy_cost: float = 100.0  
+@export var no_sheath_steps: Array[int] = [30,31,40,50,80,81]  
 
 const TALISMAN_VFX_SCENE = preload("res://player/Talisman/TalismanVFX.tscn")
 const HEALING_TOWER_SCENE = preload("res://player/Talisman/HealingTower.tscn") 
@@ -55,8 +54,8 @@ const SKILL_CONFIG = {
 	31: {"anim": "talisman/c2_2", "hitbox_name": "C2_2", "type": Damage.Type.HEAVY, "base_dmg": 990, "energy": 5, "charge_reward": 0, "max_hits": 1, "interval": 0.1, "sticky": true, "shake": 15.0, "vfx_anim": "c2_2", "vfx_fly_dist": 0.0,"knockback": Vector2(0.0, 1000.0), "action_type": Weapon.ActionType.SKILL,"hit_sfx_type": "hit_6"},
 	40: {"anim": "talisman/c3_2", "hitbox_name": "None", "base_dmg": 0, "energy": 0, "charge_reward": 0},
 	50: {"anim": "talisman/c3", "hitbox_name": "None", "base_dmg": 120, "energy": 5, "charge_reward": 0, "vfx_anim": "a5"},
-	80: {"anim": "talisman/attack_ult", "hitbox_name": "UltHitbox", "type": Damage.Type.HEAVY, "base_dmg": 150, "energy": 0, "charge_reward": 0, "max_hits": 10, "interval": 0.1, "sticky": true, "shake": 5.0, "knockback": Vector2(100.0, -100.0), "action_type": Weapon.ActionType.ULTIMATE, "laser_scale": 4.0, "laser_tracking": false, "laser_dmg": 1550, "laser_type": Damage.Type.HEAVY, "laser_knockback": Vector2(600.0, -500.0), "laser_shake": 70.0 , "hit_sfx_type": "hit"},
-	81: {"anim": "talisman/attack_ult_end", "hitbox_name": "None", "base_dmg": 0, "energy": 0, "action_type": Weapon.ActionType.ULTIMATE}
+	80: {"anim": "talisman/attack_ult", "hitbox_name": "UltHitbox", "type": Damage.Type.HEAVY, "base_dmg": 150, "energy": 0, "charge_reward": 0, "max_hits": 10, "interval": 0.1, "sticky": true, "shake": 5.0, "knockback": Vector2(100.0, -100.0), "laser_scale": 4.0, "laser_tracking": false, "laser_dmg": 1550, "laser_type": Damage.Type.HEAVY, "laser_knockback": Vector2(600.0, -500.0), "laser_shake": 70.0 , "hit_sfx_type": "hit"},
+	81: {"anim": "talisman/attack_ult_end", "hitbox_name": "None", "base_dmg": 0, "energy": 0}
 }
 
 # ==========================================
@@ -183,14 +182,12 @@ func start_heavy_attack() -> void:
 	if is_enhanced_mode:
 		combo_step = 40
 		_play_attack(SKILL_CONFIG[combo_step])
-		skill_1_timer = skill_1_cd
 		is_enhanced_mode = false
 		print("🔮 [戰技中立] 退出強化型態 (40)")
 	else:
 		if current_talisman_charge >= 10:
 			combo_step = 50
 			_play_attack(SKILL_CONFIG[combo_step])
-			skill_1_timer = skill_1_cd
 			is_enhanced_mode = true
 			print("🔮 [戰技中立] 進入強化型態 (50)")
 		else:
@@ -200,9 +197,6 @@ func start_ultimate() -> void:
 	if is_instance_valid(active_ult_buff_vfx):
 		active_ult_buff_vfx.queue_free()
 		active_ult_buff_vfx = null
-	
-	if player.has_method("consume_weapon_energy"):
-		player.consume_weapon_energy(WEAPON_ID, ult_energy_cost)
 		
 	step_cooldown = 0.15
 	is_attacking = true
@@ -210,8 +204,7 @@ func start_ultimate() -> void:
 	is_tower_spawned = false 
 	is_time_stop_triggered = false 
 	_tsubame_zoom_phase = 0
-	
-	ult_timer = ult_cd 
+
 	air_attack_locked = false 
 	combo_step = 80 
 	player.invincible_time_left = 3.0 
@@ -221,8 +214,6 @@ func start_ultimate() -> void:
 
 func update_timers_only(delta: float) -> void:
 	if step_cooldown > 0: step_cooldown -= delta
-	if skill_1_timer > 0: skill_1_timer -= delta 
-	if ult_timer > 0: ult_timer -= delta
 	
 	if player.is_on_floor(): air_attack_locked = false 
 	
@@ -577,16 +568,6 @@ func _on_hitbox_hit(hurtbox: Node) -> void:
 # ==========================================
 func can_use_heavy() -> bool:
 	if not player.is_on_floor(): return false
-	if skill_1_timer > 0:
-		print("⏳ [防護網攔截] 符咒中立戰技冷卻中！")
-		return false
-	return true
-
-func can_use_ultimate() -> bool:
-	if ult_timer > 0: return false 
-	if not player.is_on_floor(): return false 
-	if player.has_method("get_weapon_energy"):
-		if player.get_weapon_energy(WEAPON_ID) < ult_energy_cost: return false 
 	return true
 
 func _apply_charge_zoom(target_zoom: Vector2, duration: float = 0.2) -> void:

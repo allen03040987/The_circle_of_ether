@@ -1,6 +1,7 @@
 class_name Stats
 extends Node
 ## 戰鬥數值核心 (Stats Core)
+## 獨立運作的數值組件，負責管理血量、能量與韌性(Poise)，並透過訊號與 UI/狀態機溝通。
 
 signal health_changed
 signal energy_changed
@@ -44,6 +45,7 @@ var poise: float = 0.0 :
 # ==========================================
 # ⚙️ 初始化與時間流逝
 # ==========================================
+## 從 BaseStats 資源檔載入初始最大值，若無則套用預設值
 func _ready() -> void:
 	if base_stats == null:
 		printerr("⚠️ [Stats] 未配置 BaseStats，使用預設體質！")
@@ -58,6 +60,7 @@ func _ready() -> void:
 	energy = max_energy
 	poise = max_poise
 	
+## 處理能量的自然回復，以及崩潰狀態下韌性的緩慢重置
 func _process(delta: float) -> void:
 	if energy < max_energy:
 		energy += energy_regen * delta
@@ -70,11 +73,13 @@ func _process(delta: float) -> void:
 # ==========================================
 # 🛡️ 狀態控制
 # ==========================================
+## 韌性歸零，發送崩潰訊號供狀態機切換至癱瘓狀態
 func _enter_broken_state() -> void:
 	is_broken = true
 	poise_broken.emit(true)
 	print("🛡️ 韌性崩潰！進入虛弱狀態")
 
+## 韌性回復滿額，解除崩潰狀態
 func _exit_broken_state() -> void:
 	is_broken = false
 	poise = max_poise
@@ -84,6 +89,7 @@ func _exit_broken_state() -> void:
 # ==========================================
 # 💾 存檔與讀檔系統 (Save/Load)
 # ==========================================
+## 將當前數值打包為字典，供全局存檔系統寫入
 func to_dict() -> Dictionary:
 	return {
 		max_energy = max_energy, 
@@ -92,6 +98,7 @@ func to_dict() -> Dictionary:
 		energy = energy,
 	}
 	
+## 讀取存檔字典，覆寫當前數值狀態
 func from_dict(dict: Dictionary) -> void:
 	max_energy = dict.max_energy
 	max_health = dict.max_health

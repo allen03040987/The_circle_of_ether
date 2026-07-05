@@ -1,6 +1,8 @@
 extends Panel
+## 玩家武裝配置介面 (Loadout Menu UI)
+## 負責管理主/副武器的選擇，以及為不同武器配置專屬的武藝卡帶。
 
-signal menu_closed # 🌟 宣告一個信號，用來告訴暫停選單「我關閉了」
+signal menu_closed # 通知暫停選單「配置介面已關閉」
 
 # ==========================================
 # 🎒 裝備介面專用變數
@@ -37,12 +39,12 @@ const AVAILABLE_WEAPONS = [
 
 const AVAILABLE_ARTS = {
 	"katana": [
-		{"name": "挑飛斬", "path": "res://player/MartialArts/Katana/Art_Katana_1.gd"},
-		{"name": "升龍", "path": "res://player/MartialArts/Katana/Art_Katana_2.gd"},
-		{"name": "裂地連斬·壹", "path": "res://player/MartialArts/Katana/Art_Katana_3.gd"},
-		{"name": "裂地連斬·貳", "path": "res://player/MartialArts/Katana/Art_Katana_4.gd"},
-		{"name": "斷空劍氣", "path": "res://player/MartialArts/Katana/Art_Katana_5.gd"},
-		{"name": "極意斬", "path": "res://player/MartialArts/Katana/Art_Katana_6.gd"}
+		{"name": "逆鱗返（別選）", "path": "res://player/MartialArts/Katana/Art_Katana_1.gd"},
+		{"name": "升龍斬", "path": "res://player/MartialArts/Katana/Art_Katana_2.gd"},
+		{"name": "寸位斷", "path": "res://player/MartialArts/Katana/Art_Katana_3.gd"},
+		{"name": "居合貫", "path": "res://player/MartialArts/Katana/Art_Katana_4.gd"},
+		{"name": "零式突氣", "path": "res://player/MartialArts/Katana/Art_Katana_5.gd"},
+		{"name": "次元極意", "path": "res://player/MartialArts/Katana/Art_Katana_6.gd"}
 	],
 	"spear": [
 		{"name": "向上挑飛 (22)", "path": "res://player/MartialArts/Spear/Art_Spear_22.gd"},
@@ -62,6 +64,7 @@ var selected_arts: Dictionary = {
 	"talisman": ["", "", ""], "sickle": ["", "", ""]
 }
 
+## 初始化 UI 綁定與下拉選單事件
 func _ready() -> void:
 	if is_instance_valid(weapon_opt_1):
 		_setup_ui_styles()
@@ -79,7 +82,7 @@ func _ready() -> void:
 	if is_instance_valid(back_button) and not back_button.pressed.is_connected(close_menu):
 		back_button.pressed.connect(close_menu)
 		
-# 🌟 提供給外部（如 PauseMenu）呼叫的開啓介面
+## 提供給外部（如 PauseMenu）呼叫的開啓介面
 func open_menu(player_node: Node) -> void:
 	selected_weapons = player_node.get("equipped_weapon_ids").duplicate()
 	if player_node.has_method("get_all_weapons_martial_arts"):
@@ -88,22 +91,25 @@ func open_menu(player_node: Node) -> void:
 	_sync_ui_to_data()
 	show()
 
+## 關閉介面並發送訊號
 func close_menu() -> void:
 	hide()
-	menu_closed.emit() # 通知外部介面已關閉
+	menu_closed.emit() 
 
-# 攔截返回鍵
+## 攔截硬體返回鍵
 func _input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):
-		accept_event() # 阻止事件繼續傳遞給暫停選單
+		accept_event()
 		close_menu()
 
+## 覆寫基礎字型設定
 func _setup_ui_styles() -> void:
 	var all_opts = [weapon_opt_1, weapon_opt_2] + slot1_arts + slot2_arts
 	for opt in all_opts:
 		if is_instance_valid(opt):
 			opt.add_theme_font_size_override("font_size", 16) 
 
+## 根據資料庫載入可選武器清單
 func _populate_weapon_dropdowns() -> void:
 	weapon_opt_1.clear()
 	weapon_opt_2.clear()
@@ -114,6 +120,7 @@ func _populate_weapon_dropdowns() -> void:
 		weapon_opt_2.add_item(w_data["name"])
 		weapon_opt_2.set_item_metadata(i, w_data["id"])
 
+## 將內部選擇資料同步至 UI 顯示
 func _sync_ui_to_data() -> void:
 	if selected_weapons.size() < 2: selected_weapons = ["katana", "spear"]
 	_set_opt_by_metadata(weapon_opt_1, selected_weapons[0])
@@ -122,6 +129,7 @@ func _sync_ui_to_data() -> void:
 	_refresh_art_dropdowns(1)
 	if status_label: status_label.text = "配置你的主副武器與武藝："
 
+## 處理武器選單變更，確保主副武器不重複
 func _on_weapon_selected(item_index: int, slot_index: int) -> void:
 	var new_weapon_id = AVAILABLE_WEAPONS[item_index]["id"]
 	var other_slot = 1 if slot_index == 0 else 0
@@ -130,6 +138,7 @@ func _on_weapon_selected(item_index: int, slot_index: int) -> void:
 	selected_weapons[slot_index] = new_weapon_id
 	_sync_ui_to_data()
 
+## 處理武藝槽位變更，並防止同武器裝備重複的武藝
 func _on_art_selected(item_index: int, main_slot_index: int, art_slot_index: int) -> void:
 	var w_id = selected_weapons[main_slot_index]
 	var ui_slots = slot1_arts if main_slot_index == 0 else slot2_arts
@@ -145,6 +154,7 @@ func _on_art_selected(item_index: int, main_slot_index: int, art_slot_index: int
 	selected_arts[w_id][art_slot_index] = selected_path
 	_refresh_art_dropdowns(main_slot_index)
 
+## 根據當前選擇的武器，刷新對應槽位的可用武藝下拉清單
 func _refresh_art_dropdowns(main_slot_index: int) -> void:
 	var w_id = selected_weapons[main_slot_index]
 	var target_arts_ui = slot1_arts if main_slot_index == 0 else slot2_arts
@@ -173,12 +183,14 @@ func _refresh_art_dropdowns(main_slot_index: int) -> void:
 			if art_data["path"] == saved_path: select_target_id = item_id
 		opt_btn.selected = select_target_id
 
+## 輔助函數：透過 metadata 尋找並設定 OptionButton 的選取項目
 func _set_opt_by_metadata(opt: OptionButton, meta_value: String) -> void:
 	for i in range(opt.item_count):
 		if opt.get_item_metadata(i) == meta_value:
 			opt.selected = i
 			return
 
+## 儲存並將裝備變更應用至玩家實體
 func _on_apply_loadout_pressed() -> void:
 	var players = get_tree().get_nodes_in_group("Player")
 	if players.size() > 0:

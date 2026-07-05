@@ -166,7 +166,6 @@ func start_heavy_attack() -> void:
 	is_spear_thrown = false 
 	
 	combo_step = 20 
-	skill_1_timer = skill_1_cd 
 	_play_attack(SKILL_CONFIG[combo_step])
 	print("🪃 丟出迴旋鏢 (Skill 1)！")
 		
@@ -177,7 +176,6 @@ func start_ultimate() -> void:
 	step_cooldown = 0.15
 	is_attacking = true
 	combo_step = 80
-	ult_timer = ult_cd 
 	air_attack_locked = false 
 	
 	player.invincible_time_left = 3.0 
@@ -210,8 +208,6 @@ func export_weapon_data() -> Dictionary:
 		"is_ult_active": is_ult_active,
 		"ult_buff_timer": ult_buff_timer,
 		"ult_attack_count": ult_attack_count,
-		"skill_1_timer": skill_1_timer,
-		"ult_timer": ult_timer if "ult_timer" in self else 0.0
 	}
 
 func import_weapon_data(data: Dictionary) -> void:
@@ -219,18 +215,13 @@ func import_weapon_data(data: Dictionary) -> void:
 	is_ult_active = data.get("is_ult_active", false)
 	ult_buff_timer = data.get("ult_buff_timer", 0.0)
 	ult_attack_count = data.get("ult_attack_count", 0)
-	if "skill_1_timer" in self: skill_1_timer = data.get("skill_1_timer", 0.0)
-	if "ult_timer" in self: ult_timer = data.get("ult_timer", 0.0)
-
+	
 # ==========================================
 # ⏱️ 物理與系統計時器 
 # ==========================================
 func update_timers_only(delta: float) -> void:
 	if step_cooldown > 0: 
 		step_cooldown -= delta
-	
-	if skill_1_timer > 0: skill_1_timer -= delta
-	if ult_timer > 0: ult_timer -= delta
 		
 	if ult_buff_timer > 0:
 		ult_buff_timer -= delta
@@ -647,7 +638,4 @@ func can_air_skill() -> bool: return false
 
 func can_use_heavy() -> bool:
 	if not player.is_on_floor(): return false
-	if skill_1_timer > 0:
-		print("⏳ [防護網攔截] 中立戰技 (Skill 1) 冷卻中！")
-		return false
 	return true

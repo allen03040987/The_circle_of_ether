@@ -1,10 +1,8 @@
-[gd_scene load_steps=24 format=3 uid="uid://c18ugfjxauur6"]
+[gd_scene load_steps=22 format=3 uid="uid://c18ugfjxauur6"]
 
 [ext_resource type="Script" path="res://player/Katana/Katana.gd" id="1_8dhj7"]
-[ext_resource type="Texture2D" uid="uid://cffvkmas3ihmr" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (2).png" id="2_awpfg"]
 [ext_resource type="Texture2D" uid="uid://bqpsoqqtxlauo" path="res://player/Katana/Katana.png" id="2_cocv7"]
 [ext_resource type="Script" path="res://classes/Hitbox.gd" id="2_ieebl"]
-[ext_resource type="Texture2D" uid="uid://3ui0qpcn8v1" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (4).png" id="6_pdw6q"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_kqkt2"]
 size = Vector2(71, 45)
@@ -62,10 +60,8 @@ size = Vector2(867.564, 359.133)
 
 [node name="Katana" type="Node2D"]
 script = ExtResource("1_8dhj7")
+equipped_martial_arts = Array[String](["res://player/MartialArts/Katana/Art_Katana_4.gd", "res://player/MartialArts/Katana/Art_Katana_2.gd", "res://player/MartialArts/Katana/Art_Katana_3.gd"])
 scabbard_texture = ExtResource("2_cocv7")
-skill_1_icon = ExtResource("2_awpfg")
-ult_icon = ExtResource("6_pdw6q")
-skill_1_cd = 1.0
 
 [node name="light" type="Area2D" parent="."]
 visible = false

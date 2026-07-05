@@ -43,7 +43,7 @@ func enter() -> void:
 	if input_dir != 0 and player is Player:
 		player.direction = 1 if input_dir > 0 else -1
 
-	weapon.combo_step = 12
+	weapon.combo_step = 99
 	weapon._play_martial_art_attack(CONFIG)
 
 func _on_animation_finished(anim_name: String) -> void:

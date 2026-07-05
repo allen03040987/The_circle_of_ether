@@ -1,6 +1,7 @@
 class_name Player
 extends CharacterBody2D
 ## 玩家總控制樞紐 (Player Controller Hub)
+## 負責協調狀態機、輸入緩衝、武器切換、受擊判定與特效調度。
 
 enum Direction { LEFT = -1, RIGHT = 1 }
 
@@ -93,6 +94,7 @@ const WEAPON_BLUEPRINTS: Dictionary = {
 
 @export var equipped_weapon_ids: Array[String] = ["katana", "spear"]
 
+## 初始化玩家，載入裝備並根據場景更新移動模式
 func _ready() -> void:
 	equip_loadout(equipped_weapon_ids)
 	var is_base = false
@@ -104,6 +106,7 @@ func _ready() -> void:
 	if not Game.settings_changed.is_connected(_on_global_settings_changed):
 		Game.settings_changed.connect(_on_global_settings_changed)
 
+## 根據提供的 ID 陣列實例化並裝備武器
 func equip_loadout(weapon_ids: Array[String]) -> void:
 	var saved_weapons_data = {}
 	for i in range(weapon_slot.get_child_count()):
@@ -150,6 +153,7 @@ func equip_loadout(weapon_ids: Array[String]) -> void:
 # ==========================================
 # ⏳ 核心物理與計時更新
 # ==========================================
+## 處理系統輸入鎖定、武器內部計時器與玩家狀態緩衝倒數
 func _process(delta: float) -> void:
 	if Input.is_physical_key_pressed(KEY_ALT):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -210,6 +214,7 @@ func _process(delta: float) -> void:
 # ==========================================
 # 🎮 輸入攔截與緩衝
 # ==========================================
+## 攔截被鎖定時的無效操作
 func _input(event: InputEvent) -> void:
 	if is_input_locked:
 		if event.is_action("ui_cancel") or event.is_action("ui_accept"): return 
@@ -217,6 +222,7 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled() 
 		return
 
+## 處理玩家主動操作的輸入緩衝 (跳躍、攻擊、閃避)
 func _unhandled_input(event: InputEvent) -> void:
 	if is_input_locked: return 
 		
@@ -267,11 +273,13 @@ func _unhandled_input(event: InputEvent) -> void:
 # ==========================================
 # 🛡️ 行為介面與受擊判定
 # ==========================================
+## 安全播放動畫，避免重複呼叫打斷當前幀
 func play_safe_anim(anim_name: String) -> void:
 	if animation_player.has_animation(anim_name):
 		if animation_player.current_animation != anim_name: animation_player.play(anim_name)
 	else: printerr("❌ 找不到動畫: ", anim_name)
 
+## 套用外部擊退力與武器自訂速度的滑行函數
 func custom_move_and_slide() -> void:
 	if pending_damage != null: return
 	var original_x = velocity.x
@@ -280,6 +288,7 @@ func custom_move_and_slide() -> void:
 	velocity.x = original_x 
 	external_force.x = move_toward(external_force.x, 0.0, 1500.0 * get_physics_process_delta_time())
 
+## 實際計算傷害、擊退力並分發受擊狀態
 func take_damage(temp_damage: Damage) -> void:
 	if is_dead or state_machine.current_state.name.to_lower() == "dying": return
 	if invincible_time_left > 0 or invincible_timer.time_left > 0: return
@@ -302,10 +311,12 @@ func take_damage(temp_damage: Damage) -> void:
 			
 	if stats.health <= 0: state_machine.call_deferred("transition_to", "Dying")
 
+## 給予玩家絕對無敵時間
 func grant_invincibility(duration: float) -> void:
 	invincible_time_left = duration
 	invincible_timer.start(duration)
 
+## Hurtbox 偵測到碰撞時的預處理邏輯
 func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
 	if is_dead or state_machine.current_state.name.to_lower() == "dying": return
 
@@ -353,6 +364,7 @@ func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
 	
 	take_damage(temp_damage)
 
+## 觸發死亡序列
 func die() -> void:
 	if is_dead: return
 	is_dead = true
@@ -362,6 +374,7 @@ func die() -> void:
 	clear_time_stop()
 	if has_node("CanvasLayer/GameOverScreen"): $CanvasLayer/GameOverScreen.show_game_over()
 
+## 動畫幀調用的強制位移推力
 func strike_impulse(strength: float) -> void:
 	var current_state = state_machine.current_state.name.to_lower()
 	if current_state in ["hurt", "launched", "dying"]: return
@@ -371,6 +384,7 @@ func strike_impulse(strength: float) -> void:
 # ==========================================
 # 🎨 特效與環境互動 
 # ==========================================
+## 生成殘影特效 (閃避或 BUFF 期間)
 func add_ghost() -> void:
 	var ghost := Sprite2D.new()
 	var original_sprite := $Graphics/Sprite2D
@@ -420,6 +434,7 @@ func _on_global_settings_changed() -> void:
 @export_group("VFX: 系統反饋 (蓄力/受擊)")
 @export var vfx_system: Dictionary = {}
 
+## 生成通用或武器綁定的視覺特效
 func spawn_anim_vfx(
 	vfx_name: String, offset_x: float = 0.0, offset_y: float = 0.0, custom_scale: Vector2 = Vector2(1.0, 1.0), 
 	rotation_deg: float = 0.0, custom_color: Color = Color.WHITE, aura_color: Color = Color.WHITE, 
@@ -459,11 +474,13 @@ func _apply_vfx_colors(node: Node, main_color: Color, aura_color: Color) -> void
 var time_stop_left: float = 0.0
 var current_time_scale: float = 1.0
 
+## 觸發遊戲時停機制
 func trigger_time_stop(real_duration: float, target_time_scale: float) -> void:
 	if target_time_scale < current_time_scale or real_duration > time_stop_left:
 		current_time_scale = target_time_scale; time_stop_left = real_duration 
 		if CombatManager.has_method("set_domain_time"): CombatManager.set_domain_time(target_time_scale)
 
+## 清除遊戲時停機制
 func clear_time_stop() -> void:
 	if current_time_scale != 1.0 or time_stop_left > 0:
 		current_time_scale = 1.0; time_stop_left = 0.0; animation_player.speed_scale = 1.0
@@ -475,6 +492,7 @@ var switch_regen_mult: float = 1.0
 var weapon_resources: Dictionary = {}
 var current_outro_buff: String = "" 
 
+## 添加特定武器的資源能量
 func add_weapon_resource(weapon_id: String, base_energy: float, _base_switch: float = 0.0) -> void:
 	if not weapon_resources.has(weapon_id): weapon_resources[weapon_id] = {"energy": 0.0}
 	var data = weapon_resources[weapon_id]
@@ -522,6 +540,7 @@ func route_weapon_method(target_weapon_id: String, method_name: String, amount: 
 	for w in weapon_slot.get_children():
 		if w.get("WEAPON_ID") == target_weapon_id and w.has_method(method_name): w.call(method_name, amount); return
 
+## 觸發換把武器的切換邏輯
 func _execute_weapon_switch() -> void:
 	var total_weapons = weapon_slot.get_child_count()
 	if total_weapons <= 1: return
@@ -529,6 +548,7 @@ func _execute_weapon_switch() -> void:
 	var next_idx = (current_idx + 1) % total_weapons
 	_perform_swap(weapon_slot.get_child(next_idx))
 
+## 實際執行武器交換並觸發合軸幻象
 func _perform_swap(next_weapon: Node) -> void:
 	is_input_locked = false
 	var is_attacking = state_machine.current_state.name.to_lower() == "weaponattack"
@@ -567,6 +587,7 @@ func _flash_character() -> void:
 		var tween = create_tween()
 		tween.tween_property(graphics, "modulate", Color.WHITE, 0.2).set_trans(Tween.TRANS_SINE)
 
+## 匯出玩家目前戰鬥狀態 (用於跨場景或存檔)
 func export_combat_state() -> Dictionary:
 	var state = {
 		"equipped_weapon_ids": equipped_weapon_ids, "weapon_resources": weapon_resources,
@@ -578,6 +599,7 @@ func export_combat_state() -> Dictionary:
 		if weapon.has_method("export_weapon_data"): state["weapons_data"][weapon.name] = weapon.export_weapon_data()
 	return state
 
+## 匯入玩家存檔的戰鬥狀態
 func import_combat_state(state: Dictionary) -> void:
 	if state.has("equipped_weapon_ids"):
 		var raw_array = state["equipped_weapon_ids"]; var safe_array: Array[String] = []

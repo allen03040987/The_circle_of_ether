@@ -1,6 +1,7 @@
 class_name Hitbox
 extends Area2D
 ## 萬用攻擊判定框 (Hitbox)
+## 負責處理命中判定、多段打擊、黏著傷害、擊退計算以及視覺與聽覺特效的分發。
 
 enum SparkType { SLASH, BLUNT, OTHER }
 
@@ -57,6 +58,7 @@ signal hit(hurtbox: Node)
 func _ready() -> void:
 	area_entered.connect(_on_area_entered)
 
+## 處理持續性的碰撞偵測、黏著多段打擊計時，以及空揮時的相機震動
 func _process(_delta: float) -> void:
 	var current_time = Time.get_ticks_msec() / 1000.0
 	var has_active_shape: bool = false
@@ -112,6 +114,7 @@ func _process(_delta: float) -> void:
 func _on_area_entered(area: Area2D) -> void:
 	_try_hit(area)
 
+## 過濾無效目標，並驗證多段打擊的時間間隔與次數限制
 func _try_hit(area: Area2D) -> void:
 	if not (area is CollisionObject2D and "hurt" in area): return
 	if not is_instance_valid(area.owner) or area.owner == self.owner: return 
@@ -128,6 +131,7 @@ func _try_hit(area: Area2D) -> void:
 		data["hits_done"] += 1
 		data["last_hit_time"] = current_time
 
+## 實際執行命中：計算擊退方向、觸發受擊方法，並呼叫特效與音效管理器
 func _execute_hit(hurtbox: Node) -> void:
 	var attacker_dir: int = 1
 	if is_instance_valid(self.owner):
@@ -169,6 +173,7 @@ func _execute_hit(hurtbox: Node) -> void:
 			spark_scale, spark_color, custom_spark_scene, aura_color, spark_raw_intensity
 		)
 
+## 當敵人成功閃避此攻擊時，將其登記以防止後續的重複判定
 func register_dodge(hurtbox: Area2D) -> void:
 	if not hit_targets.has(hurtbox): hit_targets[hurtbox] = {"hits_done": 0, "last_hit_time": 0.0}
 	if hit_targets[hurtbox]["hits_done"] < max_hits:

@@ -5,10 +5,7 @@ extends Control
 
 # --- 通用技能槽群組 ---
 @onready var skill_slots = $HBoxContainer
-@onready var ult_ui = $HBoxContainer/Ult
 @onready var switch_ui = $HBoxContainer/SwitchWeapon
-@onready var ult_ring_ui = $HBoxContainer/Ult/EnergyRing
-
 # 🌟 新增：使用陣列統一管理 3 個獨立的武藝卡帶 UI 節點
 @onready var art_uis: Array[TextureProgressBar] = [
 	$HBoxContainer/Art1,
@@ -76,16 +73,6 @@ func _process(_delta: float) -> void:
 				_update_radial_cooldown(art_ui, 0.0, 1.0)
 			else:
 				art_ui.hide()
-
-	# 4. 大招與通用能量環更新
-	_update_radial_cooldown(ult_ui, current_weapon.get("ult_timer"), current_weapon.get("ult_cd"))
-	
-	var current_energy = 0.0
-	if current_weapon_id != "" and player.weapon_resources.has(current_weapon_id):
-		current_energy = player.weapon_resources[current_weapon_id].get("energy", 0.0)
-		
-	if is_instance_valid(ult_ring_ui): 
-		ult_ring_ui.value = current_energy
 		
 	# 5. 各武器專屬量表更新
 	match current_weapon_id:
@@ -196,7 +183,7 @@ func _update_talisman_values(weapon: Node) -> void:
 # 🛠️ UI 輔助底層控制
 # ==========================================
 func _refresh_weapon_icons(weapon: Node) -> void:
-	_apply_icon(ult_ui, weapon.get("ult_icon"))
+	pass
 
 func _apply_icon(ui_element: TextureProgressBar, icon_texture: Texture2D) -> void:
 	if not is_instance_valid(ui_element): return
