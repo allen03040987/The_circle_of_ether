@@ -1,4 +1,4 @@
-[gd_scene load_steps=64 format=3 uid="uid://ckdh77mixmkpo"]
+[gd_scene load_steps=69 format=3 uid="uid://ckdh77mixmkpo"]
 
 [ext_resource type="Script" path="res://enemies/boss/BossNaihe/BossNaihe.gd" id="1_yd66y"]
 [ext_resource type="PackedScene" uid="uid://c1s06onyotqf3" path="res://Explod/tscn/cut.tscn" id="2_hpj24"]
@@ -32,7 +32,10 @@
 [ext_resource type="Texture2D" uid="uid://chybxydsc5y5u" path="res://enemies/boss/BossNaihe/A8.png" id="19_j3b85"]
 [ext_resource type="Script" path="res://enemies/boss/BossNaihe/RetreatAttack.gd" id="19_vko6e"]
 [ext_resource type="Script" path="res://enemies/boss/BossNaihe/Paralyzed.gd" id="20_aq8jv"]
+[ext_resource type="Texture2D" uid="uid://naxxx0j2cxdp" path="res://enemies/boss/BossNaihe/hurt.png" id="20_idtdk"]
 [ext_resource type="Script" path="res://enemies/boss/BossNaihe/DashAttack.gd" id="20_t01ef"]
+[ext_resource type="Texture2D" uid="uid://fel12vu7oft1" path="res://enemies/boss/BossNaihe/hurt2.png" id="21_dthtv"]
+[ext_resource type="Script" path="res://enemies/boss/BossNaihe/Hurt.gd" id="22_hurt1"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_2yxwy"]
 size = Vector2(29, 61.5)
@@ -455,6 +458,17 @@ tracks/7/keys = {
 "method": &"strike_impulse"
 }]
 }
+tracks/8/type = "method"
+tracks/8/imported = false
+tracks/8/enabled = true
+tracks/8/path = NodePath(".")
+tracks/8/interp = 1
+tracks/8/loop_wrap = true
+tracks/8/keys = {
+"times": PackedFloat32Array(),
+"transitions": PackedFloat32Array(),
+"values": []
+}
 
 [sub_resource type="Animation" id="Animation_u3uo0"]
 resource_name = "attack_4"
@@ -664,7 +678,7 @@ tracks/6/keys = {
 
 [sub_resource type="Animation" id="Animation_fsyn4"]
 resource_name = "attack_6"
-length = 2.0
+length = 1.6
 step = 0.05
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -853,16 +867,10 @@ tracks/7/path = NodePath(".")
 tracks/7/interp = 1
 tracks/7/loop_wrap = true
 tracks/7/keys = {
-"times": PackedFloat32Array(1.44, 1.54, 1.62),
-"transitions": PackedFloat32Array(1, 1, 1),
+"times": PackedFloat32Array(1.44),
+"transitions": PackedFloat32Array(1),
 "values": [{
-"args": ["Circular cut", 0.0, 0.0, Vector2(4, 1), 0.0, Color(0.772549, 0.156863, 1, 1), Color(1, 1, 1, 1), false, 2, 2.0],
-"method": &"spawn_anim_vfx"
-}, {
-"args": ["Circular cut", 0.0, -40.0, Vector2(4, 1), 0.0, Color(0.772549, 0.156863, 1, 1), Color(1, 1, 1, 1), false, 2, 2.0],
-"method": &"spawn_anim_vfx"
-}, {
-"args": ["Circular cut", 0.0, -80.0, Vector2(4, 1), 0.0, Color(0.772549, 0.156863, 1, 1), Color(1, 1, 1, 1), false, 2, 2.0],
+"args": ["whirlwind", 0.0, -50.0, Vector2(3, 2), 0.0, Color(0.180392, 0, 0.145098, 1), Color(0.945098, 1, 1, 1), false, 10, 2.0],
 "method": &"spawn_anim_vfx"
 }]
 }
@@ -969,7 +977,7 @@ tracks/7/keys = {
 "times": PackedFloat32Array(0.28),
 "transitions": PackedFloat32Array(1),
 "values": [{
-"args": ["whirlwind", 80.0, -50.0, Vector2(1.5, 1.5), 90.0, Color(0.814144, 0.0932538, 0.812965, 1), Color(1, 1, 1, 1), false, 5, 2.0],
+"args": ["whirlwind", 80.0, -50.0, Vector2(1.5, 1.5), 90.0, Color(0.0625431, 5.84367e-05, 0.203119, 1), Color(1, 1, 1, 1), false, 10, 2.0],
 "method": &"spawn_anim_vfx"
 }]
 }
@@ -1135,6 +1143,182 @@ tracks/4/keys = {
 "transitions": PackedFloat32Array(1),
 "update": 0,
 "values": [Rect2(0, 0, 400, 200)]
+}
+
+[sub_resource type="Animation" id="Animation_1re1i"]
+resource_name = "hurt_1"
+length = 0.55
+step = 0.07
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Graphics/Sprite2D:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(6, -34)]
+}
+tracks/1/type = "method"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(),
+"transitions": PackedFloat32Array(),
+"values": []
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Graphics/Sprite2D:texture")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [ExtResource("20_idtdk")]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Graphics/Sprite2D:hframes")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [3]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Graphics/Sprite2D:region_rect")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Rect2(0, 0, 210, 210)]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Graphics/Sprite2D:frame")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.07, 0.14, 0.21, 0.28, 0.35, 0.42, 0.49),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7]
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("Graphics/Sprite2D:vframes")
+tracks/6/interp = 1
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [3]
+}
+
+[sub_resource type="Animation" id="Animation_ih7aj"]
+resource_name = "hurt_2"
+length = 0.4
+step = 0.05
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Graphics/Sprite2D:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(6, -34)]
+}
+tracks/1/type = "method"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(),
+"transitions": PackedFloat32Array(),
+"values": []
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Graphics/Sprite2D:texture")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [ExtResource("21_dthtv")]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Graphics/Sprite2D:hframes")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [3]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Graphics/Sprite2D:region_rect")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.01),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Rect2(0, 0, 210, 140), Rect2(0, 0, 210, 140)]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Graphics/Sprite2D:vframes")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [2]
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("Graphics/Sprite2D:frame")
+tracks/6/interp = 1
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.07, 0.14, 0.2, 0.25),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4]
 }
 
 [sub_resource type="Animation" id="Animation_p21mp"]
@@ -1536,6 +1720,8 @@ _data = {
 "attack_8": SubResource("Animation_f2tb3"),
 "dash_back": SubResource("Animation_rktnu"),
 "die": SubResource("Animation_1d63r"),
+"hurt_1": SubResource("Animation_1re1i"),
+"hurt_2": SubResource("Animation_ih7aj"),
 "idle": SubResource("Animation_p21mp"),
 "paralyze_end": SubResource("Animation_bag28"),
 "paralyze_loop": SubResource("Animation_i2gmy"),
@@ -1615,8 +1801,8 @@ spark_base_offset = Vector2(0, -30)
 spark_random_angle = 360.0
 spark_random_offset = Vector2(0, 0)
 spark_scale = 0.4
-spark_color = Color(1, 0.0705882, 1, 1)
-aura_color = Color(0.286275, 0.207843, 1, 0.501961)
+spark_color = Color(2.2549, 1, 5, 1)
+aura_color = Color(1, 0, 1, 0.501961)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/WeaponHitbox"]
 position = Vector2(66.5, -46.5)
@@ -1683,6 +1869,9 @@ script = ExtResource("20_aq8jv")
 
 [node name="Death" type="Node2D" parent="StateMachine"]
 script = ExtResource("15_2814w")
+
+[node name="Hurt" type="Node2D" parent="StateMachine"]
+script = ExtResource("22_hurt1")
 
 [node name="BossUI" type="CanvasLayer" parent="."]
 layer = 0

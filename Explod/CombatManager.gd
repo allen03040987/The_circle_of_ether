@@ -11,6 +11,12 @@ var _domain_scale: float = 1.0
 var _is_ui_paused: bool = false
 
 # ==========================================
+# 🧊 打擊頓幀系統 (Hitstop)
+# ==========================================
+var _hitstop_scale: float = 1.0
+var _hitstop_end_time: float = 0.0
+
+# ==========================================
 # 📳 螢幕震動控制變數
 # ==========================================
 var _shake_tween: Tween
@@ -47,15 +53,35 @@ func set_ui_paused(is_paused: bool) -> void:
 	_is_ui_paused = is_paused
 	_update_time_scale()
 
+## 觸發短暫的打擊頓幀 (命中瞬間的凍結手感)，時間到會自動解除
+## 不會覆蓋掉更強或剩餘時間更久的頓幀/領域時停效果；scale 可以是 0.0 (完全凍結)
+func apply_hitstop(duration: float, scale: float) -> void:
+	var current_time = Time.get_ticks_msec() / 1000.0
+	if scale < _hitstop_scale or current_time + duration > _hitstop_end_time:
+		_hitstop_scale = scale
+		_hitstop_end_time = current_time + duration
+		_update_time_scale()
+		get_skill_timer(duration).timeout.connect(_on_hitstop_timeout.bind(_hitstop_end_time))
+
+## 頓幀計時器到期後的解除處理：用結束時間戳比對，避免舊計時器誤刪掉後來更新的頓幀
+func _on_hitstop_timeout(expected_end_time: float) -> void:
+	if not is_equal_approx(expected_end_time, _hitstop_end_time): return
+	_hitstop_scale = 1.0
+	_hitstop_end_time = 0.0
+	_update_time_scale()
+
 ## 內部核心：仲裁並更新目前的 Engine.time_scale，並同步更新抗時停特效
 func _update_time_scale() -> void:
 	if _is_ui_paused:
-		Engine.time_scale = 1.0            
-	elif _is_domain_active:
-		Engine.time_scale = _domain_scale  
+		Engine.time_scale = 1.0
 	else:
-		Engine.time_scale = 1.0            
-	
+		var scale = 1.0
+		if _is_domain_active:
+			scale = min(scale, _domain_scale)
+		if _hitstop_scale < 1.0:
+			scale = min(scale, _hitstop_scale)
+		Engine.time_scale = scale
+
 	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
 	for vfx_node in get_tree().get_nodes_in_group("anti_timestop_vfx"):
 		if is_instance_valid(vfx_node):
@@ -165,7 +191,26 @@ func spawn_dodge_spark(pos: Vector2) -> void:
 		spark.global_position = pos + Vector2(0, -20)
 		spark.scale = Vector2(.2, .2)
 		_apply_anti_timestop(spark)
-		
+
+## 生成通用殘影特效：複製來源 Sprite2D 的外觀，在指定位置/縮放/顏色淡出消失（玩家與敵人共用）
+func spawn_ghost(source_sprite: Sprite2D, spawn_position: Vector2, ghost_scale: Vector2, color: Color) -> void:
+	if not is_instance_valid(source_sprite) or not source_sprite.texture: return
+
+	var ghost := Sprite2D.new()
+	ghost.texture = source_sprite.texture
+	ghost.hframes = source_sprite.hframes; ghost.vframes = source_sprite.vframes; ghost.frame = source_sprite.frame
+	ghost.region_enabled = source_sprite.region_enabled; ghost.region_rect = source_sprite.region_rect
+	ghost.offset = source_sprite.offset; ghost.flip_h = source_sprite.flip_h; ghost.flip_v = source_sprite.flip_v
+
+	ghost.global_position = spawn_position
+	ghost.scale = ghost_scale
+	ghost.modulate = color
+
+	get_tree().current_scene.add_child(ghost)
+	var tween := create_tween()
+	tween.tween_property(ghost, "modulate:a", 0.0, 0.3).set_trans(Tween.TRANS_SINE)
+	tween.tween_callback(ghost.queue_free)
+
 # ==========================================
 # 🛡️ 抗時停特效加速器 (Anti-Timestop)
 # ==========================================

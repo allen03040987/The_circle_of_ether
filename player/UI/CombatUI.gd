@@ -154,17 +154,17 @@ func _update_spear_values(weapon: Node) -> void:
 			ult_buff_bar.hide() 
 			
 func _update_katana_values(weapon: Node) -> void:
-	# 抓取我們剛剛在太刀本體寫的閃避次數變數
-	var current_dodges = weapon.get("current_iai")
-	var max_dodges = weapon.get("MAX_IAI")
-	
+	# 抓取太刀本體的劍意值 (Iai)
+	var current_iai = weapon.get("current_iai")
+	var max_iai = weapon.get("MAX_IAI")
+
 	# 🛡️ 防呆機制：如果萬一抓不到最大值，預設給 20
-	if max_dodges == null or max_dodges <= 0:
-		max_dodges = 20
-		
+	if max_iai == null or max_iai <= 0:
+		max_iai = 20
+
 	# 計算百分比並更新進度條
-	if current_dodges != null and is_instance_valid(dodge_bar): 
-		dodge_bar.value = (float(current_dodges) / float(max_dodges)) * 100.0
+	if current_iai != null and is_instance_valid(dodge_bar):
+		dodge_bar.value = (float(current_iai) / float(max_iai)) * 100.0
 func _update_talisman_values(weapon: Node) -> void:
 	var charge = weapon.get("current_talisman_charge")
 	var is_enhanced = weapon.get("is_enhanced_mode")

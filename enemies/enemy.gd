@@ -31,9 +31,8 @@ var default_gravity := ProjectSettings.get("physics/2d/default_gravity") as floa
 # ==========================================
 # 📡 內部記憶體與節點參考
 # ==========================================
-var pending_damage = null 
-var broken_ghost_timer: float = 0.0 
-var action_speed_mult: float = 1.0 
+var pending_damage = null
+var action_speed_mult: float = 1.0
 
 @onready var graphics: Node2D = $Graphics
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
@@ -69,6 +68,14 @@ func custom_move_and_slide() -> void:
 	# 🌟 核心修復：徹底拔除敵人的抗時停特權！
 	# 敵人的位移、重力與摩擦力，就應該完美服從 Engine.time_scale 被凍結！
 	move_and_slide()
+
+## 動畫安全播放：同名動畫已在播就不重播（避免每幀呼叫時卡頓重置），並套用緩速乘數（支援韌性破防系統）
+func play_safe_anim(anim_name: String) -> void:
+	if animation_player.has_animation(anim_name):
+		if animation_player.current_animation != anim_name:
+			animation_player.play(anim_name, -1, action_speed_mult)
+	else:
+		printerr("❌ ", name, " 找不到動畫: ", anim_name)
 
 func die() -> void:
 	queue_free()
@@ -187,11 +194,12 @@ func spawn_anim_vfx(vfx_name: String, offset_x: float = 0.0, offset_y: float = 0
 	if not anim_vfx_library.has(vfx_name) or anim_vfx_library[vfx_name] == null: return
 
 	var vfx = anim_vfx_library[vfx_name].instantiate()
-		
+	if CombatManager.has_method("_apply_anti_timestop"): CombatManager._apply_anti_timestop(vfx)
+
 	if detach:
 		get_parent().add_child(vfx)
 		vfx.global_position = global_position + Vector2(offset_x * direction, offset_y)
-		vfx.z_index = self.z_index + custom_z_index 
+		vfx.z_index = self.z_index + custom_z_index
 	else:
 		self.add_child(vfx)
 		vfx.position = Vector2(offset_x * direction, offset_y)
@@ -199,11 +207,5 @@ func spawn_anim_vfx(vfx_name: String, offset_x: float = 0.0, offset_y: float = 0
 
 	vfx.scale = Vector2(direction * custom_scale.x, custom_scale.y)
 	vfx.rotation_degrees = rotation_deg * direction
-	
-	_apply_vfx_colors(vfx, Color(custom_color.r * raw_intensity, custom_color.g * raw_intensity, custom_color.b * raw_intensity, custom_color.a), aura_color)
-	
-func _apply_vfx_colors(node: Node, main_color: Color, aura_color: Color) -> void:
-	if node is CanvasItem and node.name != "AnimationPlayer":
-		if node.name == "Aura": node.self_modulate = aura_color
-		else: node.self_modulate = main_color
-	for child in node.get_children(): _apply_vfx_colors(child, main_color, aura_color)
+
+	CombatManager._apply_vfx_colors(vfx, Color(custom_color.r * raw_intensity, custom_color.g * raw_intensity, custom_color.b * raw_intensity, custom_color.a), aura_color)

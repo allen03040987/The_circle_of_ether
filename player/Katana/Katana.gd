@@ -83,7 +83,6 @@ const DICT_HEAVY_ULT = {
 var current_active_hitbox: Hitbox = null
 
 var _current_energy_reward: float = 0.0
-var _current_switch_reward: float = 0.0
 var _multi_hit_energy: bool = false
 var _has_granted_resources_this_step: bool = false
 
@@ -259,7 +258,7 @@ func update_timers_only(delta: float) -> void:
 		ghost_timer += delta
 		if ghost_timer >= 0.05:
 			if player.has_method("add_ghost"):
-				player.add_ghost()
+				player.add_ghost(Color(0.2, 2.2, 2.0, 0.4))
 			ghost_timer = 0.0
 			
 		# 劍意見底，關閉 BUFF
@@ -618,7 +617,6 @@ func _apply_hitbox_config(config: Dictionary) -> void:
 		if "shake_on_hit_only" in hitbox: hitbox.shake_on_hit_only = config.get("shake_on_hit_only", true)
 		hitbox.sticky_multi_hit = config.get("sticky", false)
 		if "energy_reward" in hitbox: hitbox.energy_reward = float(config.get("energy", 0))
-		if "switch_reward" in hitbox: hitbox.switch_reward = float(config.get("switch", 0))
 		hitbox.spark_type = 0; hitbox.spark_scale = 0.3; hitbox.spark_color = Color(0.7, 1.5, 0.5, 1.0); hitbox.aura_color = Color(0, 1, 1, 1)
 		hitbox.hit_targets.clear() 
 		_current_energy_reward = float(config.get("energy", 0))
@@ -648,7 +646,6 @@ func _get_ground_distance() -> float:
 
 func _apply_charge_zoom(target_zoom: Vector2, duration: float = 0.2) -> void:
 	if not (player is Player): return
-	if player.name.begins_with("Phantom"): return
 	var camera = get_viewport().get_camera_2d()
 	if camera:
 		if _camera_tween and _camera_tween.is_valid(): _camera_tween.kill()

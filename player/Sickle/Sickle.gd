@@ -86,7 +86,6 @@ const AIR_ATTACK_CONFIG = {
 var current_active_hitbox: Hitbox = null
 
 var _current_energy_reward: float = 0.0
-var _current_switch_reward: float = 0.0
 var _current_link_reward: int = 0
 var _multi_hit_energy: bool = false
 var _has_granted_resources_this_step: bool = false
@@ -110,8 +109,7 @@ var _camera_tween: Tween
 
 var _is_hitbox_locked: bool = false
 
-var is_vfx_fired: bool = false 
-var _phantom_flags_synced: bool = false
+var is_vfx_fired: bool = false
 
 var is_hooking: bool = false
 var hook_target_node: Node2D = null
@@ -151,7 +149,6 @@ func start_light_attack() -> void:
 	step_cooldown = 0.15
 	
 	is_vfx_fired = false
-	_phantom_flags_synced = false
 	is_wave_fired = false # 🌟 核心修復：每次按普攻都要重置震動與波浪特效開關！
 
 	if not is_attacking:
@@ -239,8 +236,7 @@ func start_heavy_attack() -> void:
 	air_attack_locked = false
 	
 	is_vfx_fired = false
-	_phantom_flags_synced = false
-	
+
 	if not is_attacking:
 		var current_time = Time.get_ticks_msec() / 1000.0
 		if current_time - last_attack_time > combo_timeout: combo_step = 0
@@ -283,9 +279,8 @@ func start_ultimate() -> void:
 	step_cooldown = 0.15
 	is_attacking = true
 	is_vfx_fired = false
-	_phantom_flags_synced = false
-	is_time_stop_triggered = false 
-	_tsubame_zoom_phase = 0 
+	is_time_stop_triggered = false
+	_tsubame_zoom_phase = 0
 
 	combo_step = 80
 	player.invincible_time_left = 3.0
@@ -297,10 +292,9 @@ func start_intro_skill() -> void:
 	step_cooldown = 0.15
 	is_attacking = true
 	is_vfx_fired = false
-	_phantom_flags_synced = false
-	is_time_stop_triggered = false 
-	_tsubame_zoom_phase = 0 
-	
+	is_time_stop_triggered = false
+	_tsubame_zoom_phase = 0
+
 	if is_instance_valid(player):
 		player.invincible_time_left = 1.5
 	
@@ -332,14 +326,6 @@ func get_current_velocity(delta: float) -> Vector2:
 	var new_x = player.velocity.x
 	var new_y = player.velocity.y
 	var anim_time = player.animation_player.current_animation_position
-
-	# ==========================================
-	# 🌟 殘影接管的旗標同步防呆 (預留區塊)
-	# ==========================================
-	if not (player is Player) and not _phantom_flags_synced:
-		_phantom_flags_synced = true
-		if combo_step == 22 and anim_time >= 0.32:
-			is_wave_fired = true
 
 	# ==========================================
 	# 🚨 終極防爆衝基底：統一套用 M平方定律
@@ -745,37 +731,6 @@ func cancel_attack() -> void:
 	var p_scabbard = player.get("scabbard")
 	if p_scabbard: p_scabbard.fade_in()
 
-# ==========================================
-# 👻 殘影系統合約接口 (解耦設計)
-# ==========================================
-func can_spawn_phantom() -> bool:
-	# 飛索突進 (61) 期間，屬於特殊幾何位移，嚴禁生成殘影
-	# 直接回傳 false 讓主系統知道這招必須純粹地被打斷
-	if combo_step == 61:
-		return false
-	return true
-
-func get_phantom_lifespan() -> float:
-	# 🌟 核心升級：62 是三階段下墜攻擊，可能從很高的地方掉下來！
-	# 強烈要求殘影系統給予長達 5.0 秒的保險壽命，確保它能活著砸到地面！
-	# (等它順利落地播完 _land 後，自然會提早觸發 animation_finished 優雅死亡)
-	if combo_step == 62:
-		return 5.0 
-		
-	# 回傳 -1.0 代表不干涉，讓殘影系統使用預設的短暫壽命
-	return -1.0
-
-func should_phantom_keep_alive(anim_name: String) -> bool:
-	# 🌟 核心升級：62 號招式是「三階段連鎖狀態機」！
-	# 絕對不准在「起手 (_start)」或「下墜 (_fall)」播完時銷毀殘影！
-	# 只有當「落地 (_land)」播完時，才允許殘影自然死亡！
-	if combo_step == 62:
-		var start_anim = AIR_ATTACK_CONFIG[62]["anim"]
-		if anim_name == start_anim or anim_name == "sickle/air_attack_2_fall":
-			return true
-			
-	return false
-	
 func requires_sheath() -> bool:
 	if combo_step == 0:
 		return false
@@ -847,14 +802,12 @@ func _apply_hitbox_config(config: Dictionary) -> void:
 		hitbox.sticky_multi_hit = config.get("sticky", false)
 		
 		if "energy_reward" in hitbox: hitbox.energy_reward = float(config.get("energy", 0))
-		if "switch_reward" in hitbox: hitbox.switch_reward = float(config.get("switch", 0))
 		if "link_reward" in hitbox: hitbox.link_reward = int(config.get("link_reward", 0))
-		
+
 		hitbox.spark_type = 0; hitbox.spark_scale = 0.3; hitbox.spark_color = Color(0.6, 0.1, 0.2, 1.0); hitbox.aura_color = Color(1, 0.1, 0.4, 1)
-		hitbox.hit_targets.clear() 
-		
+		hitbox.hit_targets.clear()
+
 		_current_energy_reward = float(config.get("energy", 0))
-		_current_switch_reward = float(config.get("switch", 0))
 		_current_link_reward = int(config.get("link_reward", 0))
 		_multi_hit_energy = config.get("multi_hit_energy", false)
 		_has_granted_resources_this_step = false
@@ -883,9 +836,9 @@ func _on_hitbox_hit(hurtbox: Node) -> void:
 		if _current_link_reward > 0:
 			gain_chain_link(_current_link_reward)
 			
-		if _current_energy_reward > 0 or _current_switch_reward > 0:
+		if _current_energy_reward > 0:
 			if player.has_method("add_weapon_resource"):
-				player.add_weapon_resource(WEAPON_ID, _current_energy_reward, _current_switch_reward)
+				player.add_weapon_resource(WEAPON_ID, _current_energy_reward)
 				
 		_has_granted_resources_this_step = true
 		
@@ -899,8 +852,7 @@ func _get_ground_distance() -> float:
 
 func _apply_charge_zoom(target_zoom: Vector2, duration: float = 0.2) -> void:
 	if not (player is Player): return
-	if player.name.begins_with("Phantom"): return
-	
+
 	var camera = get_viewport().get_camera_2d()
 	if camera:
 		if _camera_tween and _camera_tween.is_valid(): _camera_tween.kill()
@@ -1021,9 +973,7 @@ func _get_auto_target(radius: float) -> Node2D:
 		var target_owner = hb.owner if hb.owner else hb.get_parent()
 		if not is_instance_valid(target_owner) or target_owner == player: continue
 		if target_owner.get("is_dead") == true: continue
-		
-		if target_owner.name.begins_with("Phantom"): continue
-		
+
 		# 🌟 局部新增：隔牆寻敵攔截網
 		var space_state = player.get_world_2d().direct_space_state
 		

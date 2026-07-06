@@ -18,11 +18,6 @@ func _ready() -> void:
 	call_deferred("_delayed_load_arts")
 
 func _delayed_load_arts() -> void:
-	# 🌟 終極護盾：如果持有人是殘影，代表這是由殘影完美複製的武器，絕對不准重載卡帶！
-	if player != null and player.name.begins_with("Phantom"):
-		return
-		
-	# 此時 player 絕對已經有值了，安心派發給武藝組件！
 	load_martial_arts(equipped_martial_arts)
 
 # ==========================================
@@ -89,9 +84,8 @@ var last_attack_time: float = 0.0
 var is_attacking: bool = false
 var step_cooldown: float = 0.0
 
-var is_vfx_fired: bool = false 
-var is_tower_spawned: bool = false 
-var _phantom_flags_synced: bool = false
+var is_vfx_fired: bool = false
+var is_tower_spawned: bool = false
 var is_enhanced_mode: bool = false
 
 var is_ult_buff_active: bool = false 
@@ -264,11 +258,6 @@ func get_current_velocity(delta: float) -> Vector2:
 	var new_x = player.velocity.x
 	var new_y = player.velocity.y
 	var anim_time = player.animation_player.current_animation_position
-	
-	if not (player is Player) and not _phantom_flags_synced:
-		_phantom_flags_synced = true
-		if combo_step in [1, 2, 3, 4, 5] and anim_time >= 0.1: is_vfx_fired = true
-		if combo_step == 50 and anim_time >= 0.7: is_vfx_fired = true
 
 	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
 	var base_friction = player.FLOOR_ACCELERATION * (speed_mult * speed_mult) * delta

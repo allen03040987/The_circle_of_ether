@@ -65,7 +65,7 @@ func physics_update(delta: float) -> void:
 	
 	ghost_timer += delta
 	if ghost_timer >= 0.05:
-		player.add_ghost()
+		player.add_ghost(Color(1.0, 1.0, 1.0, 0.4))
 		ghost_timer = 0.0
 
 	var move_input = Input.get_axis("move_left", "move_right")

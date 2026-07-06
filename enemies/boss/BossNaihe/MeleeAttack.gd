@@ -25,7 +25,11 @@ func enter() -> void:
 	elif next_move == "A8":
 		combo_count = 8
 		_play_attack_anim("attack_8")
-		
+	else:
+		# 🔧 保底：next_melee 若殘留無法辨識的值（例如 A4，那是 RetreatAttack 專屬招），一律當 A1 處理，避免啞火站定原地
+		combo_count = 1
+		_play_attack_anim("attack_1")
+
 func _play_attack_anim(anim_name: String) -> void:
 	boss.face_player() # 每一刀揮出前，都會重新瞄準玩家一次
 	

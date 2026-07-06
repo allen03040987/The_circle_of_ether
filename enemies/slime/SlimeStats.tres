@@ -8,4 +8,3 @@ max_health = 10000
 max_poise = 100.0
 max_energy = 9.0
 energy_regen = 2.0
-base_damage = 1

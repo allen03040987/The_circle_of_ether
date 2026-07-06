@@ -30,7 +30,7 @@ func enter() -> void:
 	
 	
 	if CombatManager.has_method("apply_hitstop"):
-		CombatManager.apply_hitstop(0.05, 0.05)
+		CombatManager.apply_hitstop(0.07, 0.0)
 
 func physics_update(delta: float) -> void:
 	# 🌟 核心修復 1：同狀態連續受擊強制重啟

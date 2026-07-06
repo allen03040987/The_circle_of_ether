@@ -37,7 +37,7 @@ var action_sfx_bank: Dictionary = {
 	"hit_6": preload("res://sound/SFX/hit/hit_6.wav"),
 	"hit_7": preload("res://sound/SFX/hit/hit_7.wav"),
 	
-	"ult": preload("res://sound/SFX/attack/uit.wav") ,
+	"ult": preload("res://sound/SFX/attack/ult.wav") ,
 	
 	"laser": preload("res://sound/SFX/attack/laser.wav") ,
 	"beam": preload("res://sound/SFX/attack/beam.wav") ,
@@ -47,12 +47,13 @@ var action_sfx_bank: Dictionary = {
 	"Explosive bass": preload("res://sound/SFX/attack/Explosive bass.wav") ,
 	"Prompt_tone": preload("res://sound/SFX/Prompt tone.wav") ,
 	"accumulating_power": preload("res://sound/SFX/accumulating power.wav") ,
-	"Sheath": preload("res://sound/SFX/attack/Sheath.wav"), 
-
+	
 	"ding": preload("res://sound/Scene sound/ding.wav"), 
 	"elevator": preload("res://sound/Scene sound/elevator.wav"), 
 	"Get_notification": preload("res://sound/Scene sound/Get notification sound.wav"), 
 	"christmas_bells": preload("res://sound/SFX/christmas bells.wav"), 
+	
+	"Sheath": preload("res://sound/SFX/attack/Sheath.wav"), 
 }
 
 # ==========================================

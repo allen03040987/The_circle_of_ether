@@ -15,6 +15,10 @@ var current_phase: int = 1
 
 var _hb_defaults := {} # 🌟 用來備份 Hitbox 的初始面板設定
 
+# --- 招式空窗期受擊硬直閘門 ---
+var _hurt_gate_active: bool = false
+var _hurt_gate_end_time: float = 0.0
+
 const ATTACKS = {
 	"combo_1": {"anim": "naihe/attack_1", "dist": 150}, 
 	"combo_2": {"anim": "naihe/attack_2", "dist": 150}, 
@@ -25,9 +29,10 @@ var current_attack_anim: String = ""
 # ⚙️ 初始化與生命週期
 # ==========================================
 func _ready() -> void:
-	can_be_launched = false
-	has_full_super_armor = true
-	
+	super._ready() # 🔧 補上：之前漏了呼叫，導致 Enemy 基底的破防紅閃沒接上（Slime/TrainingDummy 都有呼叫這行）
+	can_be_launched = true
+	has_full_super_armor = false
+
 	# 🌟 記下面板設定
 	var hb = get_node_or_null("Graphics/WeaponHitbox")
 	if hb:
@@ -37,7 +42,9 @@ func _ready() -> void:
 			"hit_interval": hb.get("hit_interval"),
 			"damage_amount": hb.get("damage_amount"),
 			"attack_type": hb.get("attack_type"),
-			"knockback_force": hb.get("knockback_force") # 🌟 多備份這行擊退力！
+			"knockback_force": hb.get("knockback_force"), # 🌟 多備份這行擊退力！
+			"spark_type": hb.get("spark_type"), # 🔧 補上：A8 吸引攻擊會覆寫這個，普通招式要能還原
+			"custom_spark_scene": hb.get("custom_spark_scene")
 		}
 	
 	if hurtbox and not hurtbox.hurt.is_connected(_on_hurtbox_hurt):
@@ -55,19 +62,52 @@ func _physics_process(delta: float) -> void:
 func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
 	# 1. 呼叫基底計算傷害與削韌
 	take_damage(hitbox)
-	 
+
+	var current_state = state_machine.current_state.name.to_lower()
+
 	# 🌟 2. 唯一攔截：只看有沒有被打出癱瘓！
 	if stats and stats.is_broken:
 		# 確保不會在已經癱瘓或死亡時重複觸發
-		var current_state = state_machine.current_state.name.to_lower()
 		if current_state != "paralyzed" and current_state != "death":
 			state_machine.transition_to("Paralyzed")
-			
+
+	# 🌟 3. 招式空窗期（Decision 播 idle）或正在 Hurt 時被打到
+	elif current_state == "decision" or current_state == "hurt":
+		# 🌟 不論是不是第一下，都要重新套用這次的擊退力（含垂直）
+		# 這樣連續打的空中連段每一下都會重新墊高，不會只吃第一下初速就被重力拉回地面
+		if pending_damage != null:
+			var kb: Vector2 = pending_damage["knockback_force"]
+			velocity = kb
+			pending_damage = null
+
+		if current_state == "decision":
+			state_machine.transition_to("Hurt")
+		else:
+			# 已經在 Hurt：transition_to 會被「同狀態不重入」防呆擋掉，直接強制重播動畫，
+			# 確保空中被連續打時每一下都有視覺回饋（閘門到期判定完全交給 Hurt.gd 每幀自己檢查）
+			var anim_name = "hurt_1" if randf() < 0.5 else "hurt_2"
+			if animation_player.has_animation(anim_name):
+				animation_player.play(anim_name, -1, action_speed_mult)
+
+func trigger_hurt_gate() -> void:
+	if not _hurt_gate_active:
+		_hurt_gate_active = true
+		_hurt_gate_end_time = (Time.get_ticks_msec() / 1000.0) + randf_range(0.5, 2.0)
+
+func is_hurt_gate_open() -> bool:
+	if not _hurt_gate_active:
+		return true
+	if (Time.get_ticks_msec() / 1000.0) >= _hurt_gate_end_time and is_on_floor():
+		_hurt_gate_active = false
+		return true
+	return false
+
 func face_player() -> void:
 	if is_instance_valid(player_target):
-		var dir = sign(player_target.global_position.x - global_position.x)
-		if dir != 0:
-			direction = dir 
+		var dx = player_target.global_position.x - global_position.x
+		# 🔧 死區：X 座標非常接近時不要每幀翻面，避免速度來回抵銷變成原地卡住
+		if absf(dx) > 4.0:
+			direction = sign(dx)
 			
 func _on_health_changed() -> void:
 	if stats.health <= 0:
@@ -93,15 +133,9 @@ func wake_up() -> void:
 			$BossUI.show_boss_bar()
 
 # ==========================================
-# 🎬 動畫安全播放與特效接口
+# 🎬 特效接口
 # ==========================================
-func play_safe_anim(anim_name: String) -> void:
-	if animation_player.has_animation(anim_name):
-		if animation_player.current_animation != anim_name:
-			# 強制套用緩速乘數 (支援韌性破防系統)
-			animation_player.play(anim_name, -1, action_speed_mult)
-	else:
-		printerr("❌ BOSS 找不到動畫: ", anim_name)
+# play_safe_anim() 已搬到 Enemy.gd 基底，讓所有敵人共用同一套「動畫安全播放」邏輯
 
 func fire_cannon() -> void:
 	if not CANNON_SCENE: return
@@ -179,7 +213,9 @@ func enable_hitbox(shape_name: String = "") -> void:
 				hb.damage_amount = _hb_defaults["damage_amount"]
 				hb.attack_type = _hb_defaults["attack_type"]
 				hb.knockback_force = _hb_defaults["knockback_force"] # 🌟 還原擊退力！
-			
+				hb.spark_type = _hb_defaults["spark_type"] # 🔧 還原火花：修復 A8 用過後永久沒火花的問題
+				hb.custom_spark_scene = _hb_defaults["custom_spark_scene"]
+
 			# 普通招式維持原有的強制定向擊退邏輯
 			var base_kb_x = abs(hb.knockback_force.x) 
 			var base_kb_y = hb.knockback_force.y      

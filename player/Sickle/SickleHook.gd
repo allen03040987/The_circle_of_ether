@@ -4,7 +4,6 @@ extends Node2D
 var fly_direction: Vector2 = Vector2.RIGHT
 var direction: int = 1
 var thrower: Node = null
-var weapon: Node = null # 🌟 新增：直接儲存武器腳本的參照
 var speed: float = 1100.0
 var max_distance: float = 500.0
 

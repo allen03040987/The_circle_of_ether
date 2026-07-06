@@ -39,7 +39,7 @@ const AVAILABLE_WEAPONS = [
 
 const AVAILABLE_ARTS = {
 	"katana": [
-		{"name": "逆鱗返（別選）", "path": "res://player/MartialArts/Katana/Art_Katana_1.gd"},
+		{"name": "逆鱗返", "path": "res://player/MartialArts/Katana/Art_Katana_1.gd"},
 		{"name": "升龍斬", "path": "res://player/MartialArts/Katana/Art_Katana_2.gd"},
 		{"name": "寸位斷", "path": "res://player/MartialArts/Katana/Art_Katana_3.gd"},
 		{"name": "居合貫", "path": "res://player/MartialArts/Katana/Art_Katana_4.gd"},

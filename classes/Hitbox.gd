@@ -35,8 +35,9 @@ var hit_targets: Dictionary = {}
 @export_group("打擊回饋")
 @export var hit_sfx_type: String = "" 
 @export var shake_intensity: float = 0.0  
-@export var shake_on_hit_only: bool = true 
+@export var shake_on_hit_only: bool = true
 var _has_shaken_this_attack: bool = false
+var _suppress_feedback: bool = false
 
 @export_group("火花進階設定")
 @export var spark_type: SparkType = SparkType.SLASH
@@ -147,10 +148,14 @@ func _execute_hit(hurtbox: Node) -> void:
 	else:
 		absolute_knockback = Vector2(knockback_force.x * attacker_dir, knockback_force.y)
 	
-	hit.emit(hurtbox)      
+	_suppress_feedback = false
+	hit.emit(hurtbox)
 	if hurtbox.has_method("hurt"): hurtbox.hurt(self)
-	elif hurtbox.has_signal("hurt"): hurtbox.emit_signal("hurt", self) 
-	
+	elif hurtbox.has_signal("hurt"): hurtbox.emit_signal("hurt", self)
+
+	# 🔧 如果對方在 hurt 訊號的處理過程中判定為「閃避成功」，就不要播放震動/音效/火花
+	if _suppress_feedback: return
+
 	if shake_intensity > 0 and CombatManager.has_method("apply_camera_shake"):
 		CombatManager.apply_camera_shake(shake_intensity)
 	if hit_sfx_type != "":
@@ -178,3 +183,7 @@ func register_dodge(hurtbox: Area2D) -> void:
 	if not hit_targets.has(hurtbox): hit_targets[hurtbox] = {"hits_done": 0, "last_hit_time": 0.0}
 	if hit_targets[hurtbox]["hits_done"] < max_hits:
 		hit_targets[hurtbox]["hits_done"] += 1
+
+## 讓正在處理中的這一次命中跳過震動/音效/火花回饋 (在 hurt 訊號的處理流程中呼叫，例如閃避判定成立時)
+func suppress_feedback() -> void:
+	_suppress_feedback = true

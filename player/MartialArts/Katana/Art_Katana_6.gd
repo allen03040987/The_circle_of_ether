@@ -1,4 +1,4 @@
-class_name ArtKatana_6
+class_name Art_Katana_6
 extends MartialArt
 ## 太刀專屬大招卡帶 (Ultimate Dimensional Slash) - 訊號驅動完美版
 
@@ -28,7 +28,7 @@ func enter() -> void:
 		"anim": "katana/Art_Katana_6_start", "hitbox_name": "ArtKatana_6", "type": Damage.Type.HEAVY, 
 		"knockback": Vector2(10.0, -100.0), "shake": 5.0, "shake_on_hit_only": true, 
 		"base_dmg": 150, "spark_scale": 1.0, "hit_sfx_type": "hit", 
-		"max_hits": 20, "interval": 0.1, "sticky": true, "action_type": Weapon.ActionType.ULTIMATE
+		"max_hits": 20, "interval": 0.1
 	}
 	weapon.combo_step = 22
 	weapon._play_martial_art_attack(config)
@@ -42,7 +42,7 @@ func _on_animation_finished(anim_name: String) -> void:
 		var end_config = {
 			"anim": "katana/Art_Katana_6_end", "hitbox_name": "None", "type": Damage.Type.LIGHT, 
 			"knockback": Vector2.ZERO, "shake": 0.0, "shake_on_hit_only": true, 
-			"base_dmg": 0, "action_type": Weapon.ActionType.ULTIMATE
+			"base_dmg": 0,
 		}
 		weapon._play_martial_art_attack(end_config)
 		player.invincible_time_left = 0.5 

@@ -58,5 +58,5 @@ Hitbox/Weapon code guards autoload calls with `has_method()` checks — treat th
 ## Conventions to know before editing
 
 - Comments are bilingual (Traditional Chinese + English) with emoji section banners (`# ==...==`) — match this style in files that already use it.
-- Player/weapon/clone code frequently uses duck-typed `.get("property_name")` lookups (e.g. against `PhantomStriker.gd`, the clone mechanic) instead of typed references — this is intentional loose coupling, not an oversight to "fix" with static typing.
+- Player/weapon code frequently uses duck-typed `.get("property_name")` lookups instead of typed references — this is intentional loose coupling, not an oversight to "fix" with static typing.
 - `PixelBaker/PixelBaker.gd.gd` has a doubled extension — this is the actual filename on disk, not a typo to silently rename.

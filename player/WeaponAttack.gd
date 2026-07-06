@@ -159,9 +159,6 @@ func physics_update(delta: float) -> void:
 				else:
 					if player.has_meta("saved_combo_step"): player.remove_meta("saved_combo_step")
 				
-				if player.has_method("spawn_phantom_striker"):
-					player.spawn_phantom_striker(player.current_weapon)
-					
 				if player.has_method("_flash_character"):
 					player._flash_character()
 				

@@ -1,8 +1,10 @@
-[gd_scene load_steps=13 format=3 uid="uid://bgt6pjmwir35b"]
+[gd_scene load_steps=15 format=3 uid="uid://bgt6pjmwir35b"]
 
 [ext_resource type="Script" path="res://enemies/training_dummy/training_dummy.gd" id="1_lklol"]
 [ext_resource type="Script" path="res://classes/Hurtbox.gd" id="2_4wl7k"]
 [ext_resource type="Texture2D" uid="uid://dyuk1mgbcn7tv" path="res://enemies/training_dummy/AQ.png" id="2_gbo31"]
+[ext_resource type="Script" path="res://classes/Stats.gd" id="3_stats"]
+[ext_resource type="Resource" uid="uid://c0y2a1k8m8jvx" path="res://enemies/training_dummy/TrainingDummyStats.tres" id="4_dstat"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_hpybf"]
 size = Vector2(23, 61)
@@ -15,7 +17,7 @@ length = 0.001
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/path = NodePath("Graphics/Sprite2D:frame")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
@@ -32,7 +34,7 @@ step = 0.05
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/path = NodePath("Graphics/Sprite2D:frame")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
@@ -49,7 +51,7 @@ step = 0.05
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/path = NodePath("Graphics/Sprite2D:frame")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
@@ -66,7 +68,7 @@ step = 0.5
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/path = NodePath("Graphics/Sprite2D:frame")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
@@ -83,7 +85,7 @@ step = 0.05
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/path = NodePath("Graphics/Sprite2D:frame")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
@@ -108,8 +110,11 @@ _data = {
 z_index = 10
 collision_layer = 4
 script = ExtResource("1_lklol")
+direction = 1
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
+[node name="Graphics" type="Node2D" parent="."]
+
+[node name="Sprite2D" type="Sprite2D" parent="Graphics"]
 position = Vector2(-3, -32)
 texture = ExtResource("2_gbo31")
 hframes = 7
@@ -125,6 +130,10 @@ script = ExtResource("2_4wl7k")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
 position = Vector2(0.5, -30.5)
 shape = SubResource("RectangleShape2D_hpybf")
+
+[node name="Stats" type="Node" parent="."]
+script = ExtResource("3_stats")
+base_stats = ExtResource("4_dstat")
 
 [node name="StatsLabel" type="Label" parent="."]
 offset_left = -9.0

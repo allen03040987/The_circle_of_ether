@@ -77,10 +77,8 @@ var is_perfect_dodging := false
 var pending_damage = null
 var current_weapon: Weapon = null
 
-const WEAPON_SWITCH_COOLDOWN: float = 1.0 
-var weapon_switch_cooldown_timer: float = 0.0     
-
-@export var enable_phantom_system: bool = false
+const WEAPON_SWITCH_COOLDOWN: float = 1.0
+var weapon_switch_cooldown_timer: float = 0.0
 
 # ==========================================
 # 🧰 裝備庫與初始化
@@ -348,7 +346,18 @@ func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
 	if state_machine.current_state.name.to_lower() == "slide":
 		if state_machine.current_state.has_method("trigger_perfect_dodge"):
 			state_machine.current_state.trigger_perfect_dodge()
+		if hitbox.has_method("suppress_feedback"):
+			hitbox.suppress_feedback()
 		return
+
+	# 🌟 武藝卡帶的格擋反擊接口（例如逆鱗返）：正在施放的武藝若能反擊，就完全格擋這一下
+	if is_instance_valid(current_weapon) and is_instance_valid(current_weapon.get("active_martial_art")):
+		var active_art = current_weapon.active_martial_art
+		if active_art.is_active and active_art.has_method("trigger_counter"):
+			active_art.trigger_counter()
+			if hitbox.has_method("suppress_feedback"):
+				hitbox.suppress_feedback()
+			return
 
 	pending_damage = {
 		"source": hitbox, "amount": final_amount, "type": final_type,
@@ -384,23 +393,10 @@ func strike_impulse(strength: float) -> void:
 # ==========================================
 # 🎨 特效與環境互動 
 # ==========================================
-## 生成殘影特效 (閃避或 BUFF 期間)
-func add_ghost() -> void:
-	var ghost := Sprite2D.new()
-	var original_sprite := $Graphics/Sprite2D
-	ghost.texture = original_sprite.texture
-	ghost.hframes = original_sprite.hframes; ghost.vframes = original_sprite.vframes; ghost.frame = original_sprite.frame
-	ghost.region_enabled = original_sprite.region_enabled; ghost.region_rect = original_sprite.region_rect
-	ghost.offset = original_sprite.offset; ghost.flip_h = original_sprite.flip_h; ghost.flip_v = original_sprite.flip_v
-	
-	ghost.global_position = global_position + Vector2(0, -29) 
-	ghost.scale = graphics.scale 
-	ghost.modulate = Color(1.8, 0.4, 2.5, 0.15) if is_perfect_dodging else Color(0.5, 1.8, 1.0, 0.4)
-	
-	get_parent().add_child(ghost)
-	var tween := create_tween()
-	tween.tween_property(ghost, "modulate:a", 0.0, 0.3).set_trans(Tween.TRANS_SINE)
-	tween.tween_callback(ghost.queue_free)
+## 生成殘影特效 (閃避或 BUFF 期間)：實際生成邏輯統一交給 CombatManager，這裡只組裝玩家專屬參數
+## color 由呼叫端指定（不同情境的殘影顏色不一樣，例如 Slide 用白色、太刀強化用亮綠藍色）
+func add_ghost(color: Color = Color(1.0, 1.0, 1.0, 0.4)) -> void:
+	CombatManager.spawn_ghost($Graphics/Sprite2D, global_position + Vector2(0, -29), graphics.scale, color)
 
 func can_wall_slide() -> bool: return is_on_wall() and hand_checker.is_colliding() and foot_checker.is_colliding()
 func register_interactable(v: Interactable) -> void:
@@ -461,12 +457,7 @@ func spawn_anim_vfx(
 	vfx.scale = Vector2(direction * custom_scale.x, custom_scale.y)
 	vfx.rotation_degrees = rotation_deg * direction
 	var hdr_color = Color(custom_color.r * raw_intensity, custom_color.g * raw_intensity, custom_color.b * raw_intensity, custom_color.a)
-	_apply_vfx_colors(vfx, hdr_color, aura_color)
-
-func _apply_vfx_colors(node: Node, main_color: Color, aura_color: Color) -> void:
-	if node is CanvasItem and node.name != "AnimationPlayer":
-		node.self_modulate = aura_color if node.name == "Aura" else main_color
-	for child in node.get_children(): _apply_vfx_colors(child, main_color, aura_color)
+	CombatManager._apply_vfx_colors(vfx, hdr_color, aura_color)
 
 # ==========================================
 # 📊 系統調度與資源 
@@ -487,13 +478,12 @@ func clear_time_stop() -> void:
 		if CombatManager.has_method("clear_domain_time"): CombatManager.clear_domain_time()
 
 @export_group("合軸戰鬥倍率")
-var energy_regen_mult: float = 1.0   
-var switch_regen_mult: float = 1.0   
+var energy_regen_mult: float = 1.0
 var weapon_resources: Dictionary = {}
-var current_outro_buff: String = "" 
+var current_outro_buff: String = ""
 
 ## 添加特定武器的資源能量
-func add_weapon_resource(weapon_id: String, base_energy: float, _base_switch: float = 0.0) -> void:
+func add_weapon_resource(weapon_id: String, base_energy: float) -> void:
 	if not weapon_resources.has(weapon_id): weapon_resources[weapon_id] = {"energy": 0.0}
 	var data = weapon_resources[weapon_id]
 	data["energy"] = clamp(data["energy"] + (base_energy * energy_regen_mult), 0.0, 100.0)
@@ -502,11 +492,6 @@ func get_weapon_energy(weapon_id: String) -> float: return weapon_resources[weap
 func consume_weapon_energy(weapon_id: String, amount: float) -> bool:
 	if weapon_resources.has(weapon_id) and weapon_resources[weapon_id]["energy"] >= amount:
 		weapon_resources[weapon_id]["energy"] -= amount; return true
-	return false
-
-func consume_switch_value(weapon_id: String) -> bool:
-	if weapon_resources.has(weapon_id) and weapon_resources[weapon_id]["switch"] >= 100.0:
-		weapon_resources[weapon_id]["switch"] = 0.0; return true
 	return false
 
 func get_all_weapons_martial_arts() -> Dictionary:
@@ -548,14 +533,13 @@ func _execute_weapon_switch() -> void:
 	var next_idx = (current_idx + 1) % total_weapons
 	_perform_swap(weapon_slot.get_child(next_idx))
 
-## 實際執行武器交換並觸發合軸幻象
+## 實際執行武器交換
 func _perform_swap(next_weapon: Node) -> void:
 	is_input_locked = false
 	var is_attacking = state_machine.current_state.name.to_lower() == "weaponattack"
 	if self.velocity.y < -300: self.velocity.y = -300
-		
-	if is_attacking: spawn_phantom_striker(current_weapon); _flash_character() 
-	elif not is_on_floor(): _flash_character() 
+
+	if is_attacking or not is_on_floor(): _flash_character()
 
 	if is_instance_valid(current_weapon):
 		if current_weapon.has_method("cancel_attack"): current_weapon.cancel_attack()
@@ -573,14 +557,6 @@ func _perform_swap(next_weapon: Node) -> void:
 		if current_state not in ["jump", "fall", "wallslide"]: state_machine.transition_to("Fall") 
 	else: state_machine.transition_to("SwapWeapon")
 	
-const PHANTOM_SCENE = preload("res://player/PhantomStriker.tscn") 
-
-func spawn_phantom_striker(outgoing_weapon: Weapon) -> void:
-	if not enable_phantom_system or not PHANTOM_SCENE: return
-	var phantom = PHANTOM_SCENE.instantiate()
-	phantom.setup(self, outgoing_weapon)
-	get_tree().current_scene.add_child(phantom)
-
 func _flash_character() -> void:
 	if graphics:
 		graphics.modulate = Color(2.5, 2.5, 2.5, 1.0)
