@@ -26,6 +26,10 @@ var current_action_type: int = ActionType.NONE
 func get_weapon_default_spark() -> Dictionary:
 	return {}
 
+## 這把武器目前的移動速度倍率（例如長槍丟出去、人還沒接回槍的時候身法變輕巧）。基底固定 1.0，武器自己覆寫。
+func get_speed_multiplier() -> float:
+	return 1.0
+
 @export_group("外觀設定")
 @export var scabbard_texture: Texture2D
 

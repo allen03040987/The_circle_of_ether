@@ -8,6 +8,7 @@ extends Node2D
 
 var direction: int = 1
 var thrower: Node2D = null
+var weapon: Spear = null ## 🌟 接住的瞬間要通知本體，讓收槍強化技的判定窗開起來
 var is_returning: bool = false
 var is_caught: bool = false # 🌟 新增：是否已經回到手上了？
 var traveled_distance: float = 0.0 # 🌟 採用劍氣的絕對距離計算法
@@ -24,8 +25,10 @@ func _ready() -> void:
 	hitbox.owner = self
 	
 	# 🌟 5 秒後強制安全銷毀 (這足夠讓 5 段黏著打擊完美打完！)
+	# 這個保底路徑代表槍沒有正常被接住，要記得解鎖武器，不然玩家會永遠卡在丟槍狀態
 	get_tree().create_timer(5.0).timeout.connect(func():
 		if is_instance_valid(self):
+			_notify_lost_if_needed()
 			queue_free()
 	)
 
@@ -34,6 +37,7 @@ func _physics_process(delta: float) -> void:
 	if is_caught: return 
 
 	if not is_instance_valid(thrower):
+		_notify_lost_if_needed()
 		queue_free()
 		return
 
@@ -66,11 +70,21 @@ func _physics_process(delta: float) -> void:
 func catch_boomerang() -> void:
 	is_caught = true
 	hide() # 隱藏迴旋鏢外觀
-	
+
 	# 關閉觸發器，不再抓取新怪物
-	hitbox.set_deferred("monitoring", false) 
+	hitbox.set_deferred("monitoring", false)
 	hitbox.set_deferred("monitorable", false)
-	
+
+	# 🌟 通知本體：槍接住了，開啟收槍強化技判定窗
+	if is_instance_valid(weapon) and weapon.has_method("notify_spear_caught"):
+		weapon.notify_spear_caught()
+
 	# ⚡ 絕對不呼叫 queue_free()！
 	# 讓這顆隱形的節點繼續活著，Hitbox 裡面的 sticky_multi_hit 迴圈就能無情地把剩下的傷害跳完！
 	# 等到 5 秒時間一到，_ready 裡面的計時器自然會把它收走。
+
+## 保底用：槍沒有正常被接住就消失了（保底計時器到期、或丟槍者中途失效），只解鎖武器不開強化技窗口
+func _notify_lost_if_needed() -> void:
+	if is_caught: return
+	if is_instance_valid(weapon) and weapon.has_method("notify_spear_lost"):
+		weapon.notify_spear_lost()

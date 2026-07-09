@@ -47,7 +47,6 @@ const AVAILABLE_ARTS = {
 		{"name": "次元極意", "path": "res://player/MartialArts/Katana/Art_Katana_6.gd"}
 	],
 	"spear": [
-		{"name": "向上挑飛 (22)", "path": "res://player/MartialArts/Spear/Art_Spear_22.gd"},
 		{"name": "大範圍聚怪 (21)", "path": "res://player/MartialArts/Spear/Art_Spear_21.gd"}
 	],
 	"talisman": [

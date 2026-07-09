@@ -83,6 +83,10 @@ func physics_update(delta: float) -> void:
 		current_max_speed = lerp(player.WALK_SPEED, player.RUN_SPEED, ramp_t)
 		should_run = player.move_ramp_time >= WALK_TO_RUN_RAMP_DURATION
 
+	# 🌟 武器自身的移速倍率（例如長槍丟出去、還沒接回來時身法變輕巧）
+	if is_instance_valid(player.current_weapon):
+		current_max_speed *= player.current_weapon.get_speed_multiplier()
+
 	var wanted_walking = not should_run
 	if player.is_walking != wanted_walking:
 		player.is_walking = wanted_walking

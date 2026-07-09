@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Communication
+
+The developer communicates in Traditional Chinese (繁體中文) and expects replies in Traditional Chinese by default. Don't switch to English mid-conversation unless explicitly asked to.
+
 ## Project Overview
 
 "以太之圓" (The Circle of Ether) — a Godot 4.2 (GL Compatibility renderer) 2D game written in GDScript. The project bundles **two largely independent gameplay systems** in one repo:
