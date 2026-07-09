@@ -20,8 +20,13 @@ func enter() -> void:
 		combo_count = 6
 		_play_attack_anim("attack_6")
 	elif next_move == "A7":
-		combo_count = 7 
-		_play_attack_anim("attack_7") # A7 還沒做好，先播 A1 代替
+		combo_count = 7
+		# 🌟 黃圈技範例：這招前搖足足 1.44 秒，開 1.0 秒判定窗，期間被「對策技」(breaks_guard) 命中就會被彈開
+		boss.start_guard_window(1.0)
+		# 🔧 標記這招的 Hitbox 是黃圈技專屬：只有對策技能破解，逆鱗返這類通用彈反型招式對它無效
+		var weapon_hb = boss.get_node_or_null("Graphics/WeaponHitbox") as Hitbox
+		if weapon_hb: weapon_hb.requires_countermeasure = true
+		_play_attack_anim("attack_7")
 	elif next_move == "A8":
 		combo_count = 8
 		_play_attack_anim("attack_8")
@@ -84,3 +89,6 @@ func physics_update(delta: float) -> void:
 # ==========================================
 func exit() -> void:
 	boss.disable_hitbox()
+	# 🔧 離開時清掉黃圈技標記，避免殘留影響下一招
+	var weapon_hb = boss.get_node_or_null("Graphics/WeaponHitbox") as Hitbox
+	if weapon_hb: weapon_hb.requires_countermeasure = false

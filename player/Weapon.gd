@@ -5,15 +5,26 @@ extends Node2D
 
 var player: Node
 
+## 招式標籤：位元旗標(bitmask)，一招可以同時掛多個標籤（例如「普攻＋空戰」）。
+## NORMAL/SKILL 的數值刻意維持跟舊版一樣是 1/2，所有既有的 `== ActionType.NORMAL` 這類比較不會被影響；
+## INTRO/ASSIST 目前整個專案都沒用到，直接挪去空的位元不會動到任何東西。
 enum ActionType {
-	NONE,
-	NORMAL,
-	SKILL,
-	INTRO,
-	ASSIST
+	NONE = 0,
+	NORMAL = 1,      # 普攻：沒什麼特點的基礎連段
+	SKILL = 2,       # 戰技：武器本體除了普攻以外的招式
+	MARTIAL_ART = 4, # 武藝：三卡槽的武藝卡帶
+	AIR = 8,         # 空戰：能在空中施放
+	INTRO = 16,
+	ASSIST = 32
 }
 
-var current_action_type: ActionType = ActionType.NONE
+var current_action_type: int = ActionType.NONE
+
+## 這把武器的火花「預設外觀」——招式資料裡的某招沒指定 spark 欄位時，優先套用這裡（而不是 Hitbox.gd 的通用預設）。
+## 子類別 (Katana.gd / Spear.gd ...) 覆寫這個方法即可帶出自己專屬的火花識別度，基底回傳空字典代表沒有客製化、全部退回 Hitbox 通用預設。
+## 🔧 這裡故意用方法而不是 const：GDScript 不允許子類別重新宣告跟父類別同名的 const。
+func get_weapon_default_spark() -> Dictionary:
+	return {}
 
 @export_group("外觀設定")
 @export var scabbard_texture: Texture2D
@@ -61,8 +72,17 @@ func execute_martial_art(slot_index: int) -> void:
 		var can_air = target_art.get("can_use_in_air") if "can_use_in_air" in target_art else false
 		if not can_air:
 			print("🚫 [系統攔截] 武藝 '", target_art.get("art_name"), "' 只能在地面施放！")
-			return 
-			
+			return
+
+	# 🔋 能量閘門：所有武藝統一在這裡扣費，不放行任何一招裸放。
+	# Player._has_martial_art() 已經在輸入層先擋過一次（避免撞到「取消目前招式後才發現放不出來」的怪空檔），
+	# 這裡是最終、唯一真正生效的把關（例如未來若有非輸入觸發的武藝施放，也一樣會被扣到）
+	var cost = target_art.get("energy_cost") if "energy_cost" in target_art else 0.0
+	if cost > 0 and player.has_method("consume_martial_energy"):
+		if not player.consume_martial_energy(cost):
+			print("🚫 [系統攔截] 武藝 '", target_art.get("art_name"), "' 能量不足，需要 ", cost)
+			return
+
 	if is_instance_valid(active_martial_art) and active_martial_art.has_method("cancel"):
 		active_martial_art.cancel()
 		
@@ -88,20 +108,11 @@ func get_dynamic_skill_icon(slot: int) -> Texture2D:
 			if ma_icon != null: return ma_icon
 	return null
 	
-## 處理分身/幻影將打擊資源傳回給本體武器的邏輯
-func try_forward_resource(method_name: String, amount: int) -> bool:
-	if not (player is Player):
-		var rp = player.get("real_player")
-		if is_instance_valid(rp):
-			var slot = rp.get("weapon_slot")
-			if is_instance_valid(slot):
-				for w in slot.get_children():
-					if w.get("WEAPON_ID") == self.get("WEAPON_ID") and w.has_method(method_name):
-						w.call(method_name, amount)
-						return true
-		return true
+## 🌟 分身/幻影(PhantomStriker)系統已整個刪除，`player` 現在必定是真正的 Player，這裡永遠沒有東西可轉發。
+## 保留這個函式與呼叫端 (Sickle/Spear/Talisman) 的 `if try_forward_resource(...): return` 寫法不變，只是把已確認打不到的死路徑清掉。
+func try_forward_resource(_method_name: String, _amount: int) -> bool:
 	return false
-	
+
 # ==========================================
 # 🎬 總監呼叫介面 (Virtual Methods)
 # ==========================================

@@ -14,8 +14,8 @@ const ACTIONS = {
 	"art_1": "武技一",
 	"art_2": "武技二",
 	"art_3": "武技三",
-	"ultimate": "終結",
-	"silde": "閃避衝刺",
+	"guard": "格擋",
+	"slide": "閃避衝刺",
 	"switch_weapon": "切換武器",
 	"interact": "交互",
 	

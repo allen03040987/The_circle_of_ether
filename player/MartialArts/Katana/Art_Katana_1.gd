@@ -7,8 +7,7 @@ const SWORD_WAVE_SCENE = preload("res://player/Katana/c_3_wave.tscn")
 const CONFIG = {
 	"anim": "katana/Art_Katana_1", # 格擋成功出招（反擊劍氣）
 	"base_dmg": 700,
-	"energy": 15,
-	"action_type": Weapon.ActionType.SKILL
+	"action_type": Weapon.ActionType.MARTIAL_ART
 }
 
 const ANIM_START := "katana/Art_Katana_1_start" # 格檔前
@@ -26,6 +25,9 @@ var channel_timer: float = 0.0
 var has_countered: bool = false
 var wave_fired: bool = false
 var has_turned: bool = false # 站樁期間只能轉向一次
+
+func _ready() -> void:
+	energy_cost = 1.0
 
 func enter() -> void:
 	super.enter()
@@ -64,12 +66,17 @@ func _on_animation_finished(anim_name: String) -> void:
 			if anim_name == CONFIG["anim"]:
 				_finish_art()
 
-## 供 Player.gd 在挨打當下呼叫：完全格擋這一下攻擊，射出劍氣反擊並獲得無敵
-func trigger_counter() -> void:
-	if not is_active or has_countered: return
+## 供 Player.gd 在挨打當下呼叫：START（前搖）與 LOOP（格擋判定）都算判定區間
+## 回傳 true 代表這一下攻擊被完全格擋了；回傳 false 代表沒接住，讓 Player.gd 照正常流程處理傷害
+func trigger_counter() -> bool:
+	if not is_active or has_countered: return false
+	if current_stage != Stage.START and current_stage != Stage.LOOP: return false
 	has_countered = true
 	current_stage = Stage.COUNTER
 	wave_fired = false
+
+	# 🌟 反擊成功才需要收招：換一個不在 no_sheath_steps 裡的代號，讓招式結束時會播收刀動畫
+	weapon.combo_step = 13
 
 	player.grant_invincibility(COUNTER_INVINCIBLE_DURATION)
 	player.play_safe_anim(CONFIG["anim"])
@@ -78,6 +85,7 @@ func trigger_counter() -> void:
 		CombatManager.apply_camera_shake(15.0, 0.1)
 
 	print("⚔️ [逆鱗返] 觸發反擊！獲得 ", COUNTER_INVINCIBLE_DURATION, " 秒無敵，劍氣將於動畫 ", WAVE_FIRE_TIME, " 秒時發射！")
+	return true
 
 func _spawn_sword_wave() -> void:
 	if not SWORD_WAVE_SCENE: return
@@ -105,17 +113,6 @@ func _spawn_sword_wave() -> void:
 	wave.hitbox.attack_type = Damage.Type.LIGHT
 	wave.hitbox.spark_scale = 0.3
 	wave.hitbox.hit_sfx_type = "hit"
-
-	var w_energy = float(CONFIG["energy"])
-	var wave_state = [false]
-
-	wave.hitbox.hit.connect(func(hurtbox: Node):
-		if is_instance_valid(player) and is_instance_valid(hurtbox.owner) and hurtbox.owner == player: return
-		if not wave_state[0]:
-			if player.has_method("add_weapon_resource"):
-				player.add_weapon_resource(weapon.get("WEAPON_ID"), w_energy)
-			wave_state[0] = true
-	)
 
 func get_current_velocity(delta: float) -> Vector2:
 	if is_active and not has_countered and current_stage != Stage.END:

@@ -586,6 +586,8 @@ attack_dash_speed = 1100.0
 attack_dash_duration = 0.1
 attack_prepare_time = 1.5
 attack_cooldown_time = 3.0
+base_damage = 10
+base_knockback = Vector2(400, 0)
 
 [node name="Sprite2D" parent="Graphics" index="0"]
 material = SubResource("ShaderMaterial_yv6i8")
@@ -603,23 +605,25 @@ texture = ExtResource("4_y2h08")
 region_rect = Rect2(0, 0, 800, 200)
 
 [node name="WallChecker" type="RayCast2D" parent="Graphics" index="2"]
+visible = false
 position = Vector2(-3, -9)
 target_position = Vector2(21, 0)
 
 [node name="FloorChecker" type="RayCast2D" parent="Graphics" index="3"]
+visible = false
 position = Vector2(11, -2)
 target_position = Vector2(0, 4)
 
 [node name="playerChecker" type="RayCast2D" parent="Graphics" index="4"]
+visible = false
 position = Vector2(-3, -9)
 target_position = Vector2(96, -1)
 collision_mask = 3
 
 [node name="Hitbox" parent="Graphics" index="5"]
+visible = false
 knockback_force = Vector2(500, 0)
-spark_type = 1
 spark_base_offset = Vector2(0, -5)
-spark_random_offset = Vector2(0, 0)
 spark_scale = 0.25
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/Hitbox" index="0"]
@@ -633,10 +637,14 @@ collision_mask = 0
 script = ExtResource("4_eg2iw")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/Hurtbox" index="0"]
-position = Vector2(0.5, -10)
+position = Vector2(0, -11)
 shape = SubResource("RectangleShape2D_bvdo0")
 
+[node name="SparkAnchor" type="Marker2D" parent="Graphics/Hurtbox" index="1"]
+position = Vector2(0, -6)
+
 [node name="CollisionShape2D" parent="." index="1"]
+visible = false
 position = Vector2(0.5, -6)
 shape = SubResource("RectangleShape2D_x35dd")
 

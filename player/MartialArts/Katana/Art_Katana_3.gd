@@ -5,20 +5,24 @@ const CONFIG = {
 	"anim": "katana/Art_Katana_3",
 	"hitbox_name": "Art_Katana_3",
 	"type": Damage.Type.LIGHT,
-	"max_hits": 3,
+	"max_hits": 1,
 	"interval": 0.1,
 	"knockback": Vector2(-100.0, -200.0),
 	"shake": 10.0,
 	"shake_on_hit_only": true,
 	"base_dmg": 300,
-	"energy": 5,
-	"switch": 5,
 	"hit_sfx_type": "hit",
-	"action_type": Weapon.ActionType.SKILL
+	"spark": {"type": Hitbox.SparkType.SLASH_2 , "scale": 0.55},
+	"action_type": Weapon.ActionType.MARTIAL_ART | Weapon.ActionType.AIR,
+	"breaks_guard": true,
+	"guard_slowdown_duration": 0.7 # 攻擊判定框是 0.4~0.6 秒，0.7 秒剛好在 0.85/0.95 秒的收招後搖衝力發動前結束
 }
+
+var _time_stop_triggered: bool = false # 供 Katana.gd 標記「這次的世界時緩是我觸發的」
 
 func _ready() -> void:
 	can_use_in_air = true # 🌟 開放空戰特權
+	energy_cost = 3.0
 	
 func enter() -> void:
 	super.enter()
@@ -66,3 +70,8 @@ func _finish_art() -> void:
 	if player.animation_player.animation_finished.is_connected(_on_animation_finished):
 		player.animation_player.animation_finished.disconnect(_on_animation_finished)
 	player.animation_player.speed_scale = 1.0
+
+	# 🔧 不管是正常收招還是中途被打斷，只要是這招觸發的世界時緩都要主動解除，避免中途取消時世界卡在慢動作
+	if _time_stop_triggered:
+		_time_stop_triggered = false
+		if player.has_method("clear_time_stop"): player.clear_time_stop()

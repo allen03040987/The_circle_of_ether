@@ -75,13 +75,18 @@ func physics_update(delta: float) -> void:
 		if player.slide_cooldown_timer.is_stopped():
 			state_machine.transition_to("Slide")
 			return
-			
+
+	# 預輸入：格擋
+	if player.guard_request_timer.time_left > 0:
+		state_machine.transition_to("Guard")
+		return
+
 	# 🧱 邊緣判定：滑牆
 	if player.can_wall_slide():
 		state_machine.transition_to("WallSlide")
 		return
 
 	# ⚔️ 戰鬥大門：聽從 Player.gd 的攻擊緩衝請求
-	if player.is_combo_requested or player.is_heavy_requested or player.is_ult_requested:
+	if player.is_combo_requested or player.is_heavy_requested:
 		state_machine.transition_to("WeaponAttack")
 		return

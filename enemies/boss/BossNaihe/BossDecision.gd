@@ -68,10 +68,10 @@ func _make_decision() -> void:
 			else: next_state = "MeleeAttack"; next_melee = "A1"
 
 		else:
-			# 🟡 中距離 (60~300)：A4後撤(30%)、A8吸引突進(30%)、A7近劈(30%)、A1(10%)
+			# 🟡 中距離 (60~300)：A4後撤(20%)、A8吸引突進(20%)、A7近劈(30%)、A1(10%)
 			if roll < 0.30: next_state = "RetreatAttack"; next_melee = "A4"
 			elif roll < 0.60: next_state = "MeleeAttack"; next_melee = "A8"
-			elif roll < 0.90: next_state = "MeleeAttack"; next_melee = "A7"
+			elif roll < 0.80: next_state = "MeleeAttack"; next_melee = "A7"
 			else: next_state = "MeleeAttack"; next_melee = "A1"
 		
 		# 💡 如果這招跟上一招不一樣，就滿意地跳出迴圈！

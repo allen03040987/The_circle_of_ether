@@ -13,7 +13,6 @@
 [ext_resource type="PackedScene" uid="uid://bnxo3v1t67xfj" path="res://Explod/tscn/Circular cut.tscn" id="5_u4grm"]
 [ext_resource type="PackedScene" uid="uid://ejwp3sdtv1s3" path="res://Explod/tscn/whirlwind.tscn" id="6_fptfq"]
 [ext_resource type="Texture2D" uid="uid://08ww515mlicw" path="res://enemies/boss/BossNaihe/idle.png" id="6_oe7dt"]
-[ext_resource type="Script" path="res://enemies/boss/BossNaihe/BossIdle.gd" id="6_ulw7j"]
 [ext_resource type="Script" path="res://enemies/boss/BossNaihe/BossChase.gd" id="7_2kliv"]
 [ext_resource type="Texture2D" uid="uid://cjryid6axvyd7" path="res://enemies/boss/BossNaihe/walk.png" id="7_2n0p1"]
 [ext_resource type="Texture2D" uid="uid://boomdwqeuejcd" path="res://enemies/boss/BossNaihe/A2.png" id="9_eqyp7"]
@@ -1792,6 +1791,9 @@ script = ExtResource("3_sl0xj")
 position = Vector2(0, 1)
 shape = SubResource("RectangleShape2D_jg3ut")
 
+[node name="SparkAnchor" type="Marker2D" parent="Graphics/Hurtbox"]
+position = Vector2(0, -6)
+
 [node name="WeaponHitbox" type="Area2D" parent="Graphics"]
 collision_layer = 0
 collision_mask = 8
@@ -1799,7 +1801,6 @@ script = ExtResource("4_lbp7r")
 damage_amount = 10
 spark_base_offset = Vector2(0, -30)
 spark_random_angle = 360.0
-spark_random_offset = Vector2(0, 0)
 spark_scale = 0.4
 spark_color = Color(2.2549, 1, 5, 1)
 aura_color = Color(1, 0, 1, 0.501961)
@@ -1842,9 +1843,6 @@ base_stats = SubResource("Resource_7m4m8")
 [node name="StateMachine" type="Node" parent="." node_paths=PackedStringArray("initial_state")]
 script = ExtResource("5_p2ur3")
 initial_state = NodePath("Dormant")
-
-[node name="Idle" type="Node2D" parent="StateMachine"]
-script = ExtResource("6_ulw7j")
 
 [node name="Chase" type="Node2D" parent="StateMachine"]
 script = ExtResource("7_2kliv")

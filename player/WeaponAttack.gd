@@ -71,14 +71,7 @@ func enter() -> void:
 	player.heavy_buffer_time = 0.0
 
 	_update_facing()
-	
-	# 發派最高優先級指令
-	if player.is_ult_requested:
-		player.is_ult_requested = false
-		if player.current_weapon.has_method("start_ultimate"):
-			player.current_weapon.start_ultimate()
-		return
-		
+
 	if wants_martial:
 		if player.current_weapon.has_method("execute_martial_art"):
 			player.current_weapon.execute_martial_art(martial_slot)
@@ -102,38 +95,45 @@ func physics_update(delta: float) -> void:
 
 	if not player.is_input_locked:
 		
-		# 1. 偵測大招強制打斷
-		if player.is_ult_requested:
-			if player.current_weapon.has_method("can_use_ultimate") and player.current_weapon.can_use_ultimate():
-				player.is_ult_requested = false
-				_frames_in_state = 0 
-				player.can_combo = false 
+		# 1. 偵測格擋強制打斷：跟 Slide 同性質的反射型狀態，能直接打斷正在進行的任何招式
+		if player.guard_request_timer.time_left > 0:
+			_frames_in_state = 0
+			player.can_combo = false
+			player.combo_buffer_time = 0.0
+			player.heavy_buffer_time = 0.0
+
+			player.current_weapon.cancel_attack()
+			state_machine.transition_to("Guard")
+			return
+
+		# 1.5 偵測武藝強制打斷：權限僅次閃避，不受 can_combo 連段窗口限制，
+		# 能直接打斷正在進行的普攻/戰技，或是另一個正在施放的武藝卡帶——
+		# 但如果玩家連按的是「同一招」，就不重啟，防止靠連打同招無限刷新（例如卡血條或無敵幀）
+		if player.is_martial_requested and player.current_weapon.has_method("execute_martial_art"):
+			var m_slot = player.requested_martial_slot
+			var weapon = player.current_weapon
+			var requested_art = weapon.martial_slots[m_slot - 1] if m_slot >= 1 and m_slot <= weapon.martial_slots.size() else null
+			var is_same_art_still_running = is_instance_valid(weapon.active_martial_art) and weapon.active_martial_art == requested_art
+
+			player.is_martial_requested = false
+			player.martial_buffer_time = 0.0
+
+			if not is_same_art_still_running:
+				_frames_in_state = 0
+				player.can_combo = false
+				player.is_combo_requested = false
+				player.is_heavy_requested = false
 				player.combo_buffer_time = 0.0
 				player.heavy_buffer_time = 0.0
-				
-				_update_facing() 
-				player.current_weapon.cancel_attack() 
-				player.current_weapon.start_ultimate()
-				
-				if player.scabbard: player.scabbard.fade_out()
+
+				_update_facing()
+				weapon.cancel_attack()
+				weapon.execute_martial_art(m_slot)
 				return
-			else:
-				player.is_ult_requested = false 
 
 		# 2. 偵測連段派生 (Combo Chaining)
 		if player.can_combo and _frames_in_state > 3:
-			if player.is_martial_requested:
-				var m_slot = player.requested_martial_slot
-				_frames_in_state = 0 
-				player.can_combo = false 
-				player.is_martial_requested = false
-				player.martial_buffer_time = 0.0
-				
-				_update_facing()
-				if player.current_weapon.has_method("execute_martial_art"):
-					player.current_weapon.execute_martial_art(m_slot)
-			
-			elif player.is_heavy_requested:
+			if player.is_heavy_requested:
 				_frames_in_state = 0 
 				player.can_combo = false 
 				player.is_heavy_requested = false
@@ -154,7 +154,9 @@ func physics_update(delta: float) -> void:
 		# 3. 偵測閃避取消 (Dodge Cancel)
 		if player.slide_request_timer.time_left > 0 and player.stats.energy >= 3:
 			if player.current_weapon.can_be_canceled_by_dodge():
-				if player.current_weapon.get("current_action_type") == Weapon.ActionType.NORMAL:
+				# 🔧 改成位元旗標檢查：招式可能同時掛著「普攻＋空戰」這種複合標籤，用 == 精準比對會漏掉
+				var action_type: int = player.current_weapon.get("current_action_type")
+				if (action_type & Weapon.ActionType.NORMAL) != 0:
 					player.set_meta("saved_combo_step", player.current_weapon.combo_step)
 				else:
 					if player.has_meta("saved_combo_step"): player.remove_meta("saved_combo_step")
@@ -192,5 +194,9 @@ func physics_update(delta: float) -> void:
 ## 被外力或狀態機強制切換時的清掃邏輯
 func exit() -> void:
 	if is_instance_valid(player.current_weapon):
-		if player.current_weapon.get("is_attacking"):
+		# 🔧 除了 is_attacking，也要看有沒有正在執行中的武藝卡帶——
+		# 很多武藝卡帶（例如 Art_Katana_3）自己不會設定 is_attacking = true，
+		# 只看 is_attacking 會漏呼叫 cancel_attack()，武藝自己的收尾清理（例如解除時緩）就永遠不會執行
+		var has_active_martial_art = is_instance_valid(player.current_weapon.get("active_martial_art"))
+		if player.current_weapon.get("is_attacking") or has_active_martial_art:
 			player.current_weapon.cancel_attack()

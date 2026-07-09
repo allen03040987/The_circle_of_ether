@@ -74,7 +74,12 @@ func physics_update(delta: float) -> void:
 		if player.slide_cooldown_timer.is_stopped():
 			state_machine.transition_to("Slide")
 			return
-	
+
+	# 預輸入：格擋
+	if player.guard_request_timer.time_left > 0:
+		state_machine.transition_to("Guard")
+		return
+
 	# 🏔️ 到達最高點，速度開始往下掉，進入下墜
 	if player.velocity.y >= 0:
 		state_machine.transition_to("Fall")

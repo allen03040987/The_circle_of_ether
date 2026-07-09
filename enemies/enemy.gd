@@ -91,6 +91,69 @@ func _on_poise_broken(broken: bool) -> void:
 		var tween = create_tween()
 		tween.tween_property(graphics, "modulate", Color.WHITE, 0.5)
 
+# ==========================================
+# ⚡ 黃圈彈刀 (格擋判定窗)
+# ==========================================
+const GUARD_CIRCLE_SCENE = preload("res://Explod/tscn/EnemyGuardCircle.tscn")
+const GUARD_BREAK_BURST_SCENE = preload("res://Explod/tscn/GuardBreakBurst.tscn")
+
+var is_guard_window_open: bool = false
+var _guard_window_active: bool = false
+var _guard_circle_vfx: Node2D = null
+
+## 開啟一段「黃圈彈刀」判定窗：duration 秒內都能被 breaks_guard 攻擊命中破解，沒有前搖，一開就能破
+func start_guard_window(duration: float = 1.0) -> void:
+	if _guard_window_active: return
+	_guard_window_active = true
+	is_guard_window_open = true
+
+	if GUARD_CIRCLE_SCENE and graphics:
+		_guard_circle_vfx = GUARD_CIRCLE_SCENE.instantiate()
+		graphics.add_child(_guard_circle_vfx)
+		_guard_circle_vfx.position = Vector2(0, -50) # 🔧 Graphics 是以腳底為原點，往上抬到身體中段附近
+
+	# 🔧 這裡故意用一般計時器（會被 Engine.time_scale 影響），不是 CombatManager.get_skill_timer()：
+	# 破黃光招式觸發的世界時緩本來就是要讓這個判定窗「真的變長」，如果窗口關閉是不受時緩影響的真實時間，
+	# 時緩再怎麼慢，窗口還是準時關閉，等於時緩完全沒延長玩家能出手的機會
+	get_tree().create_timer(duration).timeout.connect(func():
+		if not is_instance_valid(self): return
+		_close_guard_window()
+	)
+
+func _close_guard_window() -> void:
+	is_guard_window_open = false
+	_guard_window_active = false
+	if is_instance_valid(_guard_circle_vfx) and _guard_circle_vfx.has_method("stop"):
+		_guard_circle_vfx.stop()
+	_guard_circle_vfx = null
+
+## 供各敵人 _on_hurtbox_hurt() 開頭呼叫：命中的攻擊若能破解目前開啟的黃圈判定窗，就統一處理高額傷害。
+## 回傳 true 代表已經處理完畢（呼叫端可疊加自己專屬的額外反應，例如 Boss 的削韌+強制硬直）；false 代表沒破防，照正常流程走
+func try_guard_break(hitbox: Hitbox) -> bool:
+	if not is_guard_window_open: return false
+	if not ("breaks_guard" in hitbox) or not hitbox.breaks_guard: return false
+	if stats == null: return false
+
+	_close_guard_window()
+
+	var dmg = int(float(hitbox.damage_amount if "damage_amount" in hitbox else 1) * 3.0)
+	stats.health -= dmg
+
+	if CombatManager.has_method("spawn_damage_number"):
+		CombatManager.spawn_damage_number(dmg, global_position + Vector2(0, -30), true)
+	if CombatManager.has_method("apply_camera_shake"):
+		CombatManager.apply_camera_shake(20.0, 0.15)
+
+	if GUARD_BREAK_BURST_SCENE:
+		var burst = GUARD_BREAK_BURST_SCENE.instantiate()
+		get_tree().current_scene.add_child(burst)
+		burst.global_position = global_position + Vector2(0, -30)
+
+	AudioManager.play_action_sfx("Counterattack_successful", -2.0)
+
+	_trigger_white_flash()
+	return true
+
 func take_damage(hitbox: Hitbox) -> void:
 	if stats == null or stats.health <= 0: return
 		

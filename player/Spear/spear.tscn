@@ -39,7 +39,6 @@ script = ExtResource("7_ew6yt")
 knockback_force = Vector2(50, 0)
 spark_base_offset = Vector2(0, -5)
 spark_random_angle = 360.0
-spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
 position = Vector2(49.5, -30)
@@ -67,7 +66,6 @@ collision_mask = 16
 script = ExtResource("7_ew6yt")
 spark_base_offset = Vector2(0, -5)
 spark_random_angle = 360.0
-spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="attack_enhanced"]
 position = Vector2(37, -17)
@@ -80,7 +78,6 @@ collision_mask = 16
 script = ExtResource("7_ew6yt")
 spark_base_offset = Vector2(0, -5)
 spark_random_angle = 360.0
-spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="C2"]
 position = Vector2(8, -63)
@@ -93,7 +90,6 @@ collision_mask = 16
 script = ExtResource("7_ew6yt")
 spark_base_offset = Vector2(0, -5)
 spark_random_angle = 360.0
-spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="C3"]
 position = Vector2(2, -49.5)
@@ -106,7 +102,6 @@ collision_mask = 16
 script = ExtResource("7_ew6yt")
 spark_base_offset = Vector2(-5, 0)
 spark_random_angle = 360.0
-spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Air_J"]
 position = Vector2(38.5, -26.5)

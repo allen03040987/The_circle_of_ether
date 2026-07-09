@@ -12,15 +12,15 @@ const CONFIG = {
 	"shake": 20.0,
 	"shake_on_hit_only": true,
 	"base_dmg": 450,
-	"energy": 5,
-	"switch": 5,
 	"hit_sfx_type": "hit",
-	"action_type": Weapon.ActionType.SKILL
+	"spark": {"type": Hitbox.SparkType.SLASH, "scale": 0.55,"random_offset": Vector2(25.0, 25.0)},
+	"action_type": Weapon.ActionType.MARTIAL_ART | Weapon.ActionType.AIR
 }
 
 func _ready() -> void:
 	can_use_in_air = true # 🌟 開放空戰特權
-	
+	energy_cost = 2.0
+
 func enter() -> void:
 	super.enter()
 	

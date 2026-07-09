@@ -14,10 +14,13 @@ signal settings_changed
 # ==========================================
 # ⚙️ 全域偏好設定
 # ==========================================
-var config_default_walking: bool = false 
+var config_auto_run: bool = false
 var config_enable_screen_shake: bool = true
 var config_enable_hit_flash: bool = true
+var config_enable_damage_numbers: bool = true
 var config_fullscreen: bool = false
+var config_music_volume: float = 1.0
+var config_sfx_volume: float = 1.0
 
 # ==========================================
 # 🌍 全域狀態與節點參考
@@ -38,34 +41,55 @@ func _ready() -> void:
 	default_player_stats = player_stats.to_dict()
 	
 	load_settings()
-	
+
 	if config_fullscreen:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
-		
+
 	_load_custom_keybindings_at_launch()
-	
+	apply_audio_volumes()
+
 # ==========================================
 # ⚙️ 設定檔存讀系統
 # ==========================================
 func save_settings() -> void:
 	var config = ConfigFile.new()
-	config.set_value("Controls", "default_walking", config_default_walking)
+	config.set_value("Controls", "auto_run", config_auto_run)
 	config.set_value("Visuals", "enable_screen_shake", config_enable_screen_shake)
 	config.set_value("Visuals", "enable_hit_flash", config_enable_hit_flash)
+	config.set_value("Visuals", "enable_damage_numbers", config_enable_damage_numbers)
 	config.set_value("Visuals", "fullscreen", config_fullscreen)
+	config.set_value("Audio", "music_volume", config_music_volume)
+	config.set_value("Audio", "sfx_volume", config_sfx_volume)
 	config.save(SETTINGS_PATH)
 
 func load_settings() -> void:
 	var config = ConfigFile.new()
 	var err = config.load(SETTINGS_PATH)
-	
+
 	if err == OK:
-		config_default_walking = config.get_value("Controls", "default_walking", false)
+		config_auto_run = config.get_value("Controls", "auto_run", false)
 		config_enable_screen_shake = config.get_value("Visuals", "enable_screen_shake", true)
 		config_enable_hit_flash = config.get_value("Visuals", "enable_hit_flash", true)
+		config_enable_damage_numbers = config.get_value("Visuals", "enable_damage_numbers", true)
 		config_fullscreen = config.get_value("Visuals", "fullscreen", false)
+		config_music_volume = config.get_value("Audio", "music_volume", 1.0)
+		config_sfx_volume = config.get_value("Audio", "sfx_volume", 1.0)
 	else:
 		save_settings()
+
+## 把目前的音樂/音效音量設定套用到對應的 Audio Bus (BGM / SFX)
+func apply_audio_volumes() -> void:
+	_set_bus_volume("BGM", config_music_volume)
+	_set_bus_volume("SFX", config_sfx_volume)
+
+func _set_bus_volume(bus_name: String, linear_volume: float) -> void:
+	var bus_idx = AudioServer.get_bus_index(bus_name)
+	if bus_idx == -1: return
+
+	var v = clampf(linear_volume, 0.0, 1.0)
+	AudioServer.set_bus_mute(bus_idx, v <= 0.0)
+	if v > 0.0:
+		AudioServer.set_bus_volume_db(bus_idx, linear_to_db(v))
 
 func _load_custom_keybindings_at_launch() -> void:
 	var config = ConfigFile.new()
@@ -73,7 +97,7 @@ func _load_custom_keybindings_at_launch() -> void:
 	
 	InputMap.load_from_project_settings()
 	
-	var actions = ["move_left", "move_right", "jump", "attack", "heavy_attack", "martial_modifier", "art_1", "art_2", "art_3", "ultimate", "silde", "switch_weapon", "interact"]
+	var actions = ["move_left", "move_right", "jump", "attack", "heavy_attack", "martial_modifier", "art_1", "art_2", "art_3", "guard", "slide", "switch_weapon", "interact"]
 	
 	for action_name in actions:
 		var has_key = config.has_section_key("Controls", action_name + "_key")

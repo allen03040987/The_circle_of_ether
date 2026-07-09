@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://3dlwty0cnnfj"]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://Explod/hit_spark.gd" id="1_a5kku"]
 [ext_resource type="Texture2D" uid="uid://bf36i0a6pooe8" path="res://Explod/slash sparks.png" id="2_vhlp8"]
@@ -11,8 +11,8 @@ colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
 
 [sub_resource type="GradientTexture2D" id="GradientTexture2D_4n6ao"]
 gradient = SubResource("Gradient_c1ubx")
-width = 300
-height = 286
+width = 400
+height = 300
 fill = 1
 fill_from = Vector2(0.5, 0.5)
 fill_to = Vector2(0.6, 0.6)
@@ -114,7 +114,7 @@ _data = {
 "slash": SubResource("Animation_p13pf")
 }
 
-[node name="SlashSpark" type="Node2D"]
+[node name="SlashSpark4" type="Node2D"]
 scale = Vector2(1, 0.8)
 script = ExtResource("1_a5kku")
 
@@ -122,7 +122,9 @@ script = ExtResource("1_a5kku")
 modulate = Color(1, 1, 1, 0.376471)
 material = SubResource("CanvasItemMaterial_tewop")
 position = Vector2(10, 0)
+rotation = -0.455531
 scale = Vector2(2.58203, 2.59766)
+skew = 0.79587
 texture = SubResource("GradientTexture2D_4n6ao")
 
 [node name="CPUParticles2D" type="CPUParticles2D" parent="."]
@@ -139,18 +141,14 @@ linear_accel_min = -100.0
 
 [node name="Sprite-0001" type="Sprite2D" parent="CPUParticles2D"]
 position = Vector2(10, -1)
-scale = Vector2(1.5, 1.5)
+scale = Vector2(2, 2)
+skew = -0.0226893
 texture = ExtResource("2_vhlp8")
 hframes = 3
 vframes = 3
 frame = 6
 region_enabled = true
 region_rect = Rect2(0, 0, 384, 384)
-metadata/_aseprite_wizard_interface_config_ = {
-"animation_section": false,
-"output_section": false,
-"slice_section": false
-}
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
 libraries = {

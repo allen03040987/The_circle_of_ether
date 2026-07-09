@@ -8,16 +8,13 @@ const CONFIG = {
 	"max_hits": 4,                     
 	"interval": 0.1,                   
 	"sticky": true,                    
-	"knockback": Vector2(50.0, -400.0),
+	"knockback": Vector2(100.0, -400.0),
 	"shake": 10.0,                     
 	"shake_on_hit_only": true,
 	"base_dmg": 180,                   
 	"hit_sfx_type": "hit",
-	"energy": 3,                       
-	"switch": 4,
-	"spark_type": 1,
-	"spark_scale": 0.8,
-	"action_type": Weapon.ActionType.SKILL
+	"spark": {"type": Hitbox.SparkType.SLASH , "scale": 0.45},
+	"action_type": Weapon.ActionType.MARTIAL_ART
 }
 
 @export var launch_start_time: float = 0.1      
@@ -27,6 +24,9 @@ const CONFIG = {
 
 var is_launch_triggered: bool = false
 var launch_timer: float = 0.0
+
+func _ready() -> void:
+	energy_cost = 2.0
 
 func enter() -> void:
 	super.enter()

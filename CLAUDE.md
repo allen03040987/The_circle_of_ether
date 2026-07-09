@@ -48,7 +48,7 @@ VsMods: `VsMods/state/VsHitbox.gd` is a completely separate Area2D class with fi
 | Autoload | Script | Responsibility |
 |---|---|---|
 | `Game` | `globals/game.gd` (`GameManager`) | Settings persistence (ConfigFile), fullscreen, custom keybindings, cross-scene world/player stats |
-| `CombatManager` | `Explod/CombatManager.gd` | `Engine.time_scale` arbitration (hitstop/slowdown vs. UI pause), camera shake, hit-spark VFX spawning |
+| `CombatManager` | `Explod/CombatManager.gd` | `Engine.time_scale` arbitration (domain slowdown/time-stop vs. UI pause — no hitstop, the game deliberately doesn't use it), camera shake, hit-spark VFX spawning |
 | `AudioManager` | `sound/AudioManager.gd` | SFX/hit-SFX playback (`play_sfx`, `play_hit_sfx`) |
 | `VsGameManager` | `VsMods/ui/VsGameManager.gd` | Cross-scene P1/P2 character & custom-skill selection cache for VsMods |
 | `Vignette`, `PauseMenu` | scene autoloads | Screen vignette effect; pause UI |

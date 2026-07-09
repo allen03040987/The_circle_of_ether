@@ -3,12 +3,12 @@
 importer="wav"
 type="AudioStreamWAV"
 uid="uid://cmccw75mrucv1"
-path="res://.godot/imported/Sprint.wav-f733cfa62a97a87c9fa52f8cbe165d7f.sample"
+path="res://.godot/imported/sprint.wav-08ab152171f1e8b049c04a587b068673.sample"
 
 [deps]
 
-source_file="res://sound/SFX/Sprint.wav"
-dest_files=["res://.godot/imported/Sprint.wav-f733cfa62a97a87c9fa52f8cbe165d7f.sample"]
+source_file="res://sound/SFX/sprint.wav"
+dest_files=["res://.godot/imported/sprint.wav-08ab152171f1e8b049c04a587b068673.sample"]
 
 [params]
 

@@ -11,12 +11,6 @@ var _domain_scale: float = 1.0
 var _is_ui_paused: bool = false
 
 # ==========================================
-# 🧊 打擊頓幀系統 (Hitstop)
-# ==========================================
-var _hitstop_scale: float = 1.0
-var _hitstop_end_time: float = 0.0
-
-# ==========================================
 # 📳 螢幕震動控制變數
 # ==========================================
 var _shake_tween: Tween
@@ -53,23 +47,6 @@ func set_ui_paused(is_paused: bool) -> void:
 	_is_ui_paused = is_paused
 	_update_time_scale()
 
-## 觸發短暫的打擊頓幀 (命中瞬間的凍結手感)，時間到會自動解除
-## 不會覆蓋掉更強或剩餘時間更久的頓幀/領域時停效果；scale 可以是 0.0 (完全凍結)
-func apply_hitstop(duration: float, scale: float) -> void:
-	var current_time = Time.get_ticks_msec() / 1000.0
-	if scale < _hitstop_scale or current_time + duration > _hitstop_end_time:
-		_hitstop_scale = scale
-		_hitstop_end_time = current_time + duration
-		_update_time_scale()
-		get_skill_timer(duration).timeout.connect(_on_hitstop_timeout.bind(_hitstop_end_time))
-
-## 頓幀計時器到期後的解除處理：用結束時間戳比對，避免舊計時器誤刪掉後來更新的頓幀
-func _on_hitstop_timeout(expected_end_time: float) -> void:
-	if not is_equal_approx(expected_end_time, _hitstop_end_time): return
-	_hitstop_scale = 1.0
-	_hitstop_end_time = 0.0
-	_update_time_scale()
-
 ## 內部核心：仲裁並更新目前的 Engine.time_scale，並同步更新抗時停特效
 func _update_time_scale() -> void:
 	if _is_ui_paused:
@@ -78,8 +55,6 @@ func _update_time_scale() -> void:
 		var scale = 1.0
 		if _is_domain_active:
 			scale = min(scale, _domain_scale)
-		if _hitstop_scale < 1.0:
-			scale = min(scale, _hitstop_scale)
 		Engine.time_scale = scale
 
 	var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
@@ -127,23 +102,40 @@ func apply_camera_shake(intensity: float, duration: float = 0.06) -> void:
 # ==========================================
 # 🎨 特效預載與生成 (VFX Spawn)
 # ==========================================
-const SLASH_SPARK_SCENE = preload("res://Explod/tscn/hit_spark.tscn") 
-const BLUNT_SPARK_SCENE = preload("res://Explod/tscn/blunt_spark.tscn")
+const SLASH_SPARK_SCENE = preload("res://Explod/tscn/sparks/slash_spark.tscn")
+const BLUNT_SPARK_SCENE = preload("res://Explod/tscn/sparks/blunt_spark.tscn")
+# 🌟 SLASH_2~5 / BLUNT_2~5：暫時沿用 SLASH/BLUNT 的舊美術當佔位，等美術資源到位後直接把這幾個 .tscn 裡的貼圖換掉即可，不用再動這裡的程式碼
+const SLASH_2_SPARK_SCENE = preload("res://Explod/tscn/sparks/slash_spark_2.tscn")
+const SLASH_3_SPARK_SCENE = preload("res://Explod/tscn/sparks/slash_spark_3.tscn")
+const SLASH_4_SPARK_SCENE = preload("res://Explod/tscn/sparks/slash_spark_4.tscn")
+const SLASH_5_SPARK_SCENE = preload("res://Explod/tscn/sparks/slash_spark_5.tscn")
+const BLUNT_2_SPARK_SCENE = preload("res://Explod/tscn/sparks/blunt_spark_2.tscn")
+const BLUNT_3_SPARK_SCENE = preload("res://Explod/tscn/sparks/blunt_spark_3.tscn")
+const BLUNT_4_SPARK_SCENE = preload("res://Explod/tscn/sparks/blunt_spark_4.tscn")
+const BLUNT_5_SPARK_SCENE = preload("res://Explod/tscn/sparks/blunt_spark_5.tscn")
 const DODGE_SPARK_SCENE = preload("res://Explod/tscn/DodgeSpark.tscn")
 const DAMAGE_NUMBER_SCENE = preload("res://Explod/tscn/DamageNumber.tscn")
 const ENERGY_ORB_SCENE = preload("res://player/energy_orb.tscn")
 
 ## 在指定位置生成打擊火花或自訂特效
-func spawn_spark(type: int, spawn_position: Vector2, attacker_dir: int = 1, target_node: Node = null, angle_offset: float = 0.0, custom_scale: float = 1.0, custom_color: Color = Color.WHITE, custom_scene: PackedScene = null, aura_color: Color = Color.WHITE, raw_intensity: float = 1.0) -> void: 
+func spawn_spark(type: int, spawn_position: Vector2, attacker_dir: int = 1, target_node: Node = null, angle_offset: float = 0.0, custom_scale: float = 1.0, custom_color: Color = Color.WHITE, custom_scene: PackedScene = null, aura_color: Color = Color.WHITE, raw_intensity: float = 1.0) -> void:
 	var spark_scene: PackedScene = null
 	match type:
-		0: spark_scene = SLASH_SPARK_SCENE
-		1: spark_scene = BLUNT_SPARK_SCENE 
-		2: 
+		Hitbox.SparkType.SLASH: spark_scene = SLASH_SPARK_SCENE
+		Hitbox.SparkType.BLUNT: spark_scene = BLUNT_SPARK_SCENE
+		Hitbox.SparkType.SLASH_2: spark_scene = SLASH_2_SPARK_SCENE
+		Hitbox.SparkType.SLASH_3: spark_scene = SLASH_3_SPARK_SCENE
+		Hitbox.SparkType.SLASH_4: spark_scene = SLASH_4_SPARK_SCENE
+		Hitbox.SparkType.SLASH_5: spark_scene = SLASH_5_SPARK_SCENE
+		Hitbox.SparkType.BLUNT_2: spark_scene = BLUNT_2_SPARK_SCENE
+		Hitbox.SparkType.BLUNT_3: spark_scene = BLUNT_3_SPARK_SCENE
+		Hitbox.SparkType.BLUNT_4: spark_scene = BLUNT_4_SPARK_SCENE
+		Hitbox.SparkType.BLUNT_5: spark_scene = BLUNT_5_SPARK_SCENE
+		Hitbox.SparkType.OTHER:
 			if custom_scene: spark_scene = custom_scene
 			else:
 				printerr("❌ [CombatManager] 嘗試生成 OTHER 特效，但沒有配置 custom_spark_scene！")
-				return 
+				return
 
 	if spark_scene:
 		var spark = spark_scene.instantiate()
@@ -168,6 +160,7 @@ func _apply_vfx_colors(node: Node, main_color: Color, aura_color: Color) -> void
 
 ## 生成傷害數字浮動文字
 func spawn_damage_number(amount: int, spawn_pos: Vector2, is_heavy: bool = false) -> void:
+	if not Game.config_enable_damage_numbers: return
 	if not DAMAGE_NUMBER_SCENE: return
 	var dmg_num = DAMAGE_NUMBER_SCENE.instantiate()
 	get_tree().current_scene.add_child(dmg_num)

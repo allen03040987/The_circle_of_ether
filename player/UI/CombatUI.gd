@@ -22,8 +22,12 @@ extends Control
 @onready var ult_buff_bar = $SpearResources/UltBuffBar 
 
 @onready var talisman_ui = $TalismanResources
-@onready var talisman_charge_bar = $TalismanResources/ChargeBar 
-@onready var talisman_enhanced_bar = $TalismanResources/EnhancedBar 
+@onready var talisman_charge_bar = $TalismanResources/ChargeBar
+@onready var talisman_enhanced_bar = $TalismanResources/EnhancedBar
+
+# --- 武藝能量（全域資源，不分武器，一直顯示） ---
+@onready var martial_energy_bar: ProgressBar = $MartialEnergyBar
+@onready var martial_energy_label: Label = $MartialEnergyLabel
 
 # --- 內部快取變數 ---
 var cached_weapon: Node = null 
@@ -79,6 +83,9 @@ func _process(_delta: float) -> void:
 		"katana": _update_katana_values(current_weapon)
 		"spear": _update_spear_values(current_weapon)
 		"talisman": _update_talisman_values(current_weapon)
+
+	# 6. 武藝能量（跟武器無關，永遠顯示）
+	_update_martial_energy_bar()
 
 # ==========================================
 # 📡 訊號接收：組合鍵高亮呼吸燈
@@ -153,6 +160,25 @@ func _update_spear_values(weapon: Node) -> void:
 		else:
 			ult_buff_bar.hide() 
 			
+## 武藝能量：全域資源，不分武器，跟太刀劍意值(current_iai)是兩回事
+func _update_martial_energy_bar() -> void:
+	if not is_instance_valid(martial_energy_bar): return
+
+	var current_energy = player.get("martial_energy")
+	var max_energy = player.get("MAX_MARTIAL_ENERGY")
+
+	# 🛡️ 防呆機制：const 透過 .get() 抓不到時，預設給 10
+	if max_energy == null or max_energy <= 0:
+		max_energy = 10.0
+	if current_energy == null:
+		current_energy = 0.0
+
+	martial_energy_bar.value = (float(current_energy) / float(max_energy)) * 100.0
+
+	if is_instance_valid(martial_energy_label):
+		# 🔧 能量都是 0.2/1.0 這種小數增量，四捨五入成整數顯示會誤導（例如打3下明明才 0.6，卻顯示成 1）
+		martial_energy_label.text = "武藝能量 %.1f/%d" % [current_energy, roundi(max_energy)]
+
 func _update_katana_values(weapon: Node) -> void:
 	# 抓取太刀本體的劍意值 (Iai)
 	var current_iai = weapon.get("current_iai")

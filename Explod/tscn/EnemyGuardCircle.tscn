@@ -1,0 +1,149 @@
+[gd_scene load_steps=9 format=3 uid="uid://dvj4n8pq2wxrs"]
+
+[ext_resource type="Script" path="res://Explod/EnemyGuardCircle.gd" id="1_gcirc"]
+[ext_resource type="Texture2D" uid="uid://b0ojmjmu36756" path="res://Explod/Aggregation ring.png" id="2_ring"]
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_gcirc"]
+blend_mode = 1
+
+[sub_resource type="Gradient" id="Gradient_gcirc"]
+colors = PackedColorArray(1, 0.95, 0.1, 1, 1, 0.9, 0.1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_gcirc"]
+gradient = SubResource("Gradient_gcirc")
+width = 200
+height = 200
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.6, 0.6)
+
+[sub_resource type="Animation" id="Animation_dxhyu"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Aura:texture:width")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [200]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Aura:texture:height")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [200]
+}
+
+[sub_resource type="Animation" id="Animation_pulse"]
+resource_name = "pulse"
+step = 0.05
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("CPUParticles2D/Sprite-0001:modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.1, 1),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Color(0.913725, 0.866667, 0, 0), Color(1, 0.95, 0.1, 1), Color(0.913725, 0.866667, 0, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("CPUParticles2D/Sprite-0001:frame")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Aura:modulate")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.45, 1),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [Color(1, 0.95, 0.1, 0), Color(1, 0.95, 0.1, 0.55), Color(1, 0.95, 0.1, 0.55), Color(1, 0.95, 0.1, 0)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Aura:texture:width")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.1, 1),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [600, 200]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Aura:texture:height")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0.1, 1),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [600, 200]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_gcirc"]
+_data = {
+"RESET": SubResource("Animation_dxhyu"),
+"pulse": SubResource("Animation_pulse")
+}
+
+[node name="EnemyGuardCircle" type="Node2D"]
+scale = Vector2(0.8, 0.8)
+script = ExtResource("1_gcirc")
+
+[node name="Aura" type="Sprite2D" parent="."]
+modulate = Color(1, 0.95, 0.1, 0)
+material = SubResource("CanvasItemMaterial_gcirc")
+scale = Vector2(1.5, 1.5)
+texture = SubResource("GradientTexture2D_gcirc")
+
+[node name="CPUParticles2D" type="CPUParticles2D" parent="."]
+emitting = false
+amount = 1
+one_shot = true
+explosiveness = 1.0
+direction = Vector2(0, 0)
+spread = 0.0
+gravity = Vector2(0, 0)
+
+[node name="Sprite-0001" type="Sprite2D" parent="CPUParticles2D"]
+modulate = Color(0.913725, 0.866667, 0, 0)
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("2_ring")
+hframes = 3
+vframes = 3
+frame = 7
+region_enabled = true
+region_rect = Rect2(0, 0, 384, 384)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+"": SubResource("AnimationLibrary_gcirc")
+}

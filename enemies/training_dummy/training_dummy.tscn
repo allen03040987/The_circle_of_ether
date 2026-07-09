@@ -131,6 +131,9 @@ script = ExtResource("2_4wl7k")
 position = Vector2(0.5, -30.5)
 shape = SubResource("RectangleShape2D_hpybf")
 
+[node name="SparkAnchor" type="Marker2D" parent="Hurtbox"]
+position = Vector2(0, -32)
+
 [node name="Stats" type="Node" parent="."]
 script = ExtResource("3_stats")
 base_stats = ExtResource("4_dstat")

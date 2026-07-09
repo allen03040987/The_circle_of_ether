@@ -6,6 +6,9 @@ signal back_requested
 @onready var walk_toggle: CheckButton = $Panel/ScrollContainer/VBoxContainer/WalkToggle
 @onready var shake_toggle: CheckButton = $Panel/ScrollContainer/VBoxContainer/ShakeToggle
 @onready var flash_toggle: CheckButton = $Panel/ScrollContainer/VBoxContainer/FlashToggle
+@onready var damage_number_toggle: CheckButton = $Panel/ScrollContainer/VBoxContainer/DamageNumberToggle
+@onready var music_volume_slider: HSlider = $Panel/ScrollContainer/VBoxContainer/MusicVolumeSlider
+@onready var sfx_volume_slider: HSlider = $Panel/ScrollContainer/VBoxContainer/SfxVolumeSlider
 @onready var fullscreen_toggle: CheckButton = $Panel/ScrollContainer/VBoxContainer/CheckButton
 @onready var keybind_button: Button = $Panel/ScrollContainer/VBoxContainer/KeybindButton
 @onready var keybind_menu: Control = $KeybindMenu
@@ -24,7 +27,10 @@ func _ready() -> void:
 	walk_toggle.toggled.connect(_on_walk_toggled)
 	shake_toggle.toggled.connect(_on_shake_toggled)
 	flash_toggle.toggled.connect(_on_flash_toggled) # 🌟 2. 綁定白光開關的點擊事件
-	
+	damage_number_toggle.toggled.connect(_on_damage_number_toggled)
+	music_volume_slider.value_changed.connect(_on_music_volume_changed)
+	sfx_volume_slider.value_changed.connect(_on_sfx_volume_changed)
+
 	if is_instance_valid(fullscreen_toggle) and not fullscreen_toggle.toggled.is_connected(_on_fullscreen_toggled):
 		fullscreen_toggle.toggled.connect(_on_fullscreen_toggled)
 		
@@ -53,10 +59,14 @@ func _on_visibility_changed() -> void:
 		if keybind_menu: keybind_menu.hide()
 
 func _refresh_ui_state() -> void:
-	walk_toggle.set_pressed_no_signal(Game.config_default_walking)
+	walk_toggle.set_pressed_no_signal(Game.config_auto_run)
 	shake_toggle.set_pressed_no_signal(Game.config_enable_screen_shake)
 	flash_toggle.set_pressed_no_signal(Game.config_enable_hit_flash) # 🌟 3. 同步白光開關的畫面狀態
-	
+	damage_number_toggle.set_pressed_no_signal(Game.config_enable_damage_numbers)
+	music_volume_slider.set_value_no_signal(Game.config_music_volume)
+	sfx_volume_slider.set_value_no_signal(Game.config_sfx_volume)
+
+
 	var current_mode = DisplayServer.window_get_mode()
 	var is_fullscreen = (current_mode == DisplayServer.WINDOW_MODE_FULLSCREEN or current_mode == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
 	if is_instance_valid(fullscreen_toggle):
@@ -65,9 +75,9 @@ func _refresh_ui_state() -> void:
 # 📡 UI 互動與訊號廣播 (UI Interaction & Signals)
 # ==========================================
 func _on_walk_toggled(toggled_on: bool) -> void:
-	Game.config_default_walking = toggled_on
+	Game.config_auto_run = toggled_on
 	Game.save_settings()
-	print("⚙️ 面板設定已儲存：常駐行走 = ", toggled_on)
+	print("⚙️ 面板設定已儲存：自動奔跑 = ", toggled_on)
 	Game.settings_changed.emit()
 
 func _on_shake_toggled(toggled_on: bool) -> void:
@@ -81,10 +91,29 @@ func _on_flash_toggled(toggled_on: bool) -> void:
 	Game.config_enable_hit_flash = toggled_on
 	Game.save_settings()
 	print("⚙️ 面板設定已儲存：受擊白光 = ", toggled_on)
-	
+
 	# 廣播訊號，Enemy 的腳本會去讀這個值！
 	Game.settings_changed.emit()
-		
+
+func _on_damage_number_toggled(toggled_on: bool) -> void:
+	Game.config_enable_damage_numbers = toggled_on
+	Game.save_settings()
+	print("⚙️ 面板設定已儲存：顯示傷害飄字 = ", toggled_on)
+	Game.settings_changed.emit()
+
+func _on_music_volume_changed(value: float) -> void:
+	Game.config_music_volume = value
+	Game.apply_audio_volumes()
+	Game.save_settings()
+	Game.settings_changed.emit()
+
+func _on_sfx_volume_changed(value: float) -> void:
+	Game.config_sfx_volume = value
+	Game.apply_audio_volumes()
+	Game.save_settings()
+	Game.settings_changed.emit()
+
+
 # ==========================================
 # ⌨️ 自定義按鍵選單切換邏輯
 # ==========================================

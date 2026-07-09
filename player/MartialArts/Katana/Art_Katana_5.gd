@@ -11,9 +11,8 @@ const CONFIG = {
 	"shake": 50.0,
 	"shake_on_hit_only": true,
 	"base_dmg": 932,
-	"energy": 15,
-	"switch": 20,
-	"action_type": Weapon.ActionType.SKILL
+	"spark": {"type": Hitbox.SparkType.SLASH , "scale": 0.45},
+	"action_type": Weapon.ActionType.MARTIAL_ART
 }
 
 # 🌟 蓄力三階段狀態宣告
@@ -26,9 +25,14 @@ var waves_fired: int = 0        # 已經發射的數量
 var wave_fire_timer: float = 0.0# 連發間隔計時器
 var last_charge_level: int = 0  # 🌟 新增：用來紀錄上一次的蓄力階數 (0, 1, 2, 3)
 
-# 🌟 清洗後的乾淨按鍵偵測：只抓普攻與戰技，防止其他按鍵干擾
+func _ready() -> void:
+	energy_cost = 4.0
+
+# 🌟 按鍵偵測：普攻/戰技 + 三個武藝卡帶按鍵都要抓，不然放在 art_3(滑鼠中鍵) 這種沒有跟 attack/heavy_attack 共用實體按鍵的槽位，
+# 蓄力會被誤判成「放開了」直接擊發——art_1/art_2 因為剛好跟 attack/heavy_attack 共用左鍵/右鍵，之前才會「碰巧」正常
 func _check_holding() -> bool:
-	return Input.is_action_pressed("attack") or Input.is_action_pressed("heavy_attack")
+	return Input.is_action_pressed("attack") or Input.is_action_pressed("heavy_attack") \
+		or Input.is_action_pressed("art_1") or Input.is_action_pressed("art_2") or Input.is_action_pressed("art_3")
 
 func enter() -> void:
 	super.enter()
@@ -176,17 +180,6 @@ func _spawn_sword_wave() -> void:
 	wave.hitbox.attack_type = Damage.Type.LIGHT
 	wave.hitbox.spark_scale = 0.3
 	wave.hitbox.hit_sfx_type = "hit"
-	
-	var w_energy = float(CONFIG["energy"])
-	var wave_state = [false] 
-	
-	wave.hitbox.hit.connect(func(hurtbox: Node):
-		if is_instance_valid(player) and is_instance_valid(hurtbox.owner) and hurtbox.owner == player: return
-		if not wave_state[0]:
-			if player.has_method("add_weapon_resource"): 
-				player.add_weapon_resource(weapon.get("WEAPON_ID"), w_energy)
-			wave_state[0] = true
-	)
 
 # 🌟 輔助函數：執行擊發狀態切換
 # 🌟 輔助函數：執行擊發狀態切換

@@ -21,8 +21,13 @@ func enter() -> void:
 		if player.slide_cooldown_timer.is_stopped():
 			state_machine.transition_to("Slide")
 			return
-		
-	if player.is_heavy_requested or player.is_combo_requested or player.is_counter_requested:
+
+	if player.guard_request_timer.time_left > 0:
+		state_machine.transition_to("Guard")
+		return
+
+
+	if player.is_heavy_requested or player.is_combo_requested:
 		state_machine.transition_to("WeaponAttack")
 		return
 		
@@ -79,9 +84,14 @@ func physics_update(delta: float) -> void:
 		if player.slide_cooldown_timer.is_stopped():
 			state_machine.transition_to("Slide")
 			return
-		
+
+	if player.guard_request_timer.time_left > 0:
+		state_machine.transition_to("Guard")
+		return
+
+
 	# 預輸入：戰鬥大門 (統一聽從 Player.gd 的舉牌)
-	if player.is_heavy_requested or player.is_combo_requested or player.is_counter_requested:
+	if player.is_heavy_requested or player.is_combo_requested:
 		state_machine.transition_to("WeaponAttack")
 		return
 		

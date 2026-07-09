@@ -3,6 +3,8 @@ extends Enemy
 ## 奈何橋 (Naihe Bridge) - 關底 BOSS
 ## 負責管理 BOSS 專屬技能、階段轉換與 Hitbox 動態方向賦予。
 
+signal died ## 死亡動畫播完、屍體真正消失前廣播——Worlds/BossArenaTrigger.gd 靠這個訊號開門
+
 @onready var state_machine: StateMachine = $StateMachine
 @onready var player_target: Player = get_tree().get_first_node_in_group("Player") 
 @onready var hurtbox: Hurtbox = $Graphics/Hurtbox
@@ -16,8 +18,13 @@ var current_phase: int = 1
 var _hb_defaults := {} # 🌟 用來備份 Hitbox 的初始面板設定
 
 # --- 招式空窗期受擊硬直閘門 ---
+@export_group("受擊硬直閘門設定")
+@export var hurt_gate_range: Vector2 = Vector2(0.5, 2.0) # 一般被打斷（空窗期挨打）的硬直閘門隨機範圍
+@export var guard_break_hurt_gate_range: Vector2 = Vector2(2.0, 4.0) # 黃圈技被彈開時的硬直閘門隨機範圍，每隻 BOSS 可各自調整
+
 var _hurt_gate_active: bool = false
 var _hurt_gate_end_time: float = 0.0
+var _next_hurt_uses_guard_break_range: bool = false
 
 const ATTACKS = {
 	"combo_1": {"anim": "naihe/attack_1", "dist": 150}, 
@@ -60,13 +67,31 @@ func _physics_process(delta: float) -> void:
 # ⚔️ 戰鬥邏輯與狀態
 # ==========================================
 func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
+	var current_state = state_machine.current_state.name.to_lower()
+
+	# 🌟 0. 黃圈彈刀：先檢查這一下有沒有破解目前開啟的判定窗
+	if try_guard_break(hitbox):
+		# 🔧 這一下如果打死了 BOSS，try_guard_break() 內的 stats.health -= dmg 已經同步觸發
+		# health_changed -> _on_health_changed() -> transition_to("Death")，不能再用扣血前的舊 current_state
+		# 硬蓋成 Hurt，不然 BOSS 會卡在 Hurt 狀態不會真的死掉
+		if stats == null or stats.health <= 0: return
+
+		# BOSS 專屬額外反應：大量削韌 + 強制立刻進入 Hurt（不受空窗期限制）
+		if "poise" in stats and not stats.is_broken:
+			stats.poise -= 50.0
+		if current_state != "paralyzed" and current_state != "death":
+			_next_hurt_uses_guard_break_range = true
+			state_machine.transition_to("Hurt")
+		return
+
 	# 1. 呼叫基底計算傷害與削韌
 	take_damage(hitbox)
 
-	var current_state = state_machine.current_state.name.to_lower()
+	# 🔧 同上：這下打死了就不要再處理癱瘓/硬直轉換，避免蓋掉已經同步發生的 Death 轉換
+	if stats == null or stats.health <= 0: return
 
 	# 🌟 2. 唯一攔截：只看有沒有被打出癱瘓！
-	if stats and stats.is_broken:
+	if stats.is_broken:
 		# 確保不會在已經癱瘓或死亡時重複觸發
 		if current_state != "paralyzed" and current_state != "death":
 			state_machine.transition_to("Paralyzed")
@@ -89,10 +114,23 @@ func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
 			if animation_player.has_animation(anim_name):
 				animation_player.play(anim_name, -1, action_speed_mult)
 
+## 供不是透過 take_damage()/_on_hurtbox_hurt() 造成韌性歸零的來源呼叫（例如 GuardState 格擋成功的削韌）。
+## _on_hurtbox_hurt() 裡的 Paralyzed 轉換只有在「真的挨了一下攻擊」時才會被檢查到，
+## 如果韌性是被這種旁路扣到 0，is_broken 雖然會變 true，但不會有任何東西觸發狀態機轉換，
+## 必須等到下一次真的被打中才會進癱瘓——這裡補上這個缺口，讓韌性一歸零就立刻進場
+func check_poise_break() -> void:
+	if stats == null or not stats.is_broken: return
+	var current_state = state_machine.current_state.name.to_lower()
+	if current_state != "paralyzed" and current_state != "death":
+		state_machine.transition_to("Paralyzed")
+
 func trigger_hurt_gate() -> void:
 	if not _hurt_gate_active:
 		_hurt_gate_active = true
-		_hurt_gate_end_time = (Time.get_ticks_msec() / 1000.0) + randf_range(0.5, 2.0)
+		# 🌟 黃圈技被彈開強制進 Hurt 時，用比較長的閘門範圍當作懲罰；一般空窗期挨打維持原本範圍
+		var gate_range = guard_break_hurt_gate_range if _next_hurt_uses_guard_break_range else hurt_gate_range
+		_next_hurt_uses_guard_break_range = false
+		_hurt_gate_end_time = (Time.get_ticks_msec() / 1000.0) + randf_range(gate_range.x, gate_range.y)
 
 func is_hurt_gate_open() -> bool:
 	if not _hurt_gate_active:

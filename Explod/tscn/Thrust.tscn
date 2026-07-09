@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://ctyogelocusje"]
+[gd_scene load_steps=9 format=3 uid="uid://7068kp6xhch1"]
 
 [ext_resource type="Script" path="res://Explod/hit_spark.gd" id="1_aiup3"]
 [ext_resource type="Texture2D" uid="uid://dk7cw5jfyc8ki" path="res://Explod/Thrust.png" id="2_beauy"]
@@ -6,11 +6,11 @@
 [sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_tewop"]
 blend_mode = 1
 
-[sub_resource type="Gradient" id="Gradient_c1ubx"]
+[sub_resource type="Gradient" id="Gradient_pun3g"]
 colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
 
 [sub_resource type="GradientTexture2D" id="GradientTexture2D_4n6ao"]
-gradient = SubResource("Gradient_c1ubx")
+gradient = SubResource("Gradient_pun3g")
 width = 150
 height = 300
 fill = 1

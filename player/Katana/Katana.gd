@@ -11,9 +11,16 @@ extends Weapon
 @export var no_sheath_steps: Array[int] = [1, 11, 12, 31, 32, 40 , 99] # 招式代號已更新
  
 
-const WEAPON_ID: String = "katana"          
+const WEAPON_ID: String = "katana"
 const DIMENSIONAL_SLASH_SCENE = preload("res://Explod/tscn/Dimensional Slash.tscn")
 const SWORD_WAVE_SCENE = preload("res://player/Katana/c_3_wave.tscn")
+
+# 🎨 太刀專屬的火花預設外觀：招式資料裡沒寫 "spark" 對應欄位時，優先套用這裡（比 Hitbox.gd 的通用預設優先）
+func get_weapon_default_spark() -> Dictionary:
+	return {
+		# 		類型						大小					顏色												光色						隨機角度					位置									偏移					
+			"type": Hitbox.SparkType.SLASH, "scale": 0.25, "color": Color(1.4, 3.0, 1.0, 1.0), "aura_color": Color(0, 1, 1, 1),"random_angle": 180.0,"base_offset": Vector2(0.0, 0.0) ,"random_offset": Vector2(0.0, 0.0)
+	}
 
 # ==========================================
 # 🥋 專屬武藝系統 (Martial Arts Loadout)
@@ -37,35 +44,128 @@ const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.01, 1.01), 2: Vector2(1
 # 📖 2. 招式數據庫 (Data-Driven Combat Config)
 # ==========================================
 
-# 🗡️ [地面普攻字典] (代號: 1 ~ 5)
+# 🗡️ [地面普攻字典] (代號: 1 ~ 5, 10)
 const DICT_LIGHT_GROUND = {
-	1: {"anim": "katana/light_1", "hitbox_name": "light", "max_hits": 1, "interval": 0.0, "knockback": Vector2(100.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit_3", "energy": 200, "switch": 500, "action_type": Weapon.ActionType.NORMAL},
-	2: {"anim": "katana/light_2", "hitbox_name": "light", "max_hits": 1, "interval": 0.0, "knockback": Vector2(150.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
-	3: {"anim": "katana/light_3", "hitbox_name": "light", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
-	4: {"anim": "katana/light_4", "hitbox_name": "light", "max_hits": 1, "interval": 0.0, "knockback": Vector2(200.0, 0.0), "base_dmg": 512, "hit_sfx_type": "hit", "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
-	5: {"anim": "katana/light_5", "hitbox_name": "light", "max_hits": 1, "interval": 0.0, "knockback": Vector2(400.0, 0.0), "shake": 30.0, "hit_sfx_type": "hit_5", "base_dmg": 645, "energy": 2, "switch": 5, "action_type": Weapon.ActionType.NORMAL},
-	10: {"anim": "katana/light_enhanced_2", "hitbox_name": "light_2","type": Damage.Type.HEAVY,"knockback": Vector2(50.0, -400.0),"shake": 30.0,"shake_on_hit_only": false,"base_dmg": 560,"hit_sfx_type": "hit_2","energy": 10,"switch": 15,"spark_type": 1, "spark_scale": 0.8, "action_type": Weapon.ActionType.SKILL}
+	1: {
+		"anim": "katana/light_1", "hitbox_name": "light",
+		"type": Damage.Type.LIGHT, "base_dmg": 512, "max_hits": 1, "interval": 0.0, "sticky": false,
+		"knockback": Vector2(100.0, 0.0), "shake": 2.5, "shake_on_hit_only": true, "hit_sfx_type": "hit_3",
+		"spark": {"type": Hitbox.SparkType.BLUNT, "scale": 0.35, "color": Color(3.0, 1.1, 1.0, 1.0), "aura_color": Color(1.0 ,0.5, 0.2, 1.0),"random_offset": Vector2(10.0, 10.0)},
+		"action_type": Weapon.ActionType.NORMAL,
+	},
+	2: {
+		"anim": "katana/light_2", "hitbox_name": "light",
+		"type": Damage.Type.LIGHT, "base_dmg": 512, "max_hits": 1, "interval": 0.0, "sticky": false,
+		"knockback": Vector2(150.0, 0.0), "shake": 2.5, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"spark": {"type": Hitbox.SparkType.SLASH}, "action_type": Weapon.ActionType.NORMAL,
+	},
+	3: {
+		"anim": "katana/light_3", "hitbox_name": "light",
+		"type": Damage.Type.LIGHT, "base_dmg": 512, "max_hits": 1, "interval": 0.0, "sticky": false,
+		"knockback": Vector2(200.0, 0.0), "shake": 2.5, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"spark": {"type": Hitbox.SparkType.SLASH}, "action_type": Weapon.ActionType.NORMAL,
+	},
+	4: {
+		"anim": "katana/light_4", "hitbox_name": "light",
+		"type": Damage.Type.LIGHT, "base_dmg": 512, "max_hits": 1, "interval": 0.0, "sticky": false,
+		"knockback": Vector2(200.0, 0.0), "shake": 2.5, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"spark": {"type": Hitbox.SparkType.SLASH}, "action_type": Weapon.ActionType.NORMAL,
+	},
+	5: {
+		"anim": "katana/light_5", "hitbox_name": "light",
+		"type": Damage.Type.LIGHT, "base_dmg": 645, "max_hits": 1, "interval": 0.0, "sticky": false,
+		"knockback": Vector2(400.0, 0.0), "shake": 30.0, "shake_on_hit_only": true, "hit_sfx_type": "hit_5",
+		"spark": {"type": Hitbox.SparkType.SLASH_2, "scale": 0.45,}, "action_type": Weapon.ActionType.NORMAL,
+	},
+	10: {
+		"anim": "katana/light_enhanced_2", "hitbox_name": "light_2",
+		"type": Damage.Type.HEAVY, "base_dmg": 560, "max_hits": 1, "interval": 0.0, "sticky": false,
+		"knockback": Vector2(50.0, -400.0), "shake": 30.0, "shake_on_hit_only": false, "hit_sfx_type": "hit_2",
+		"spark": {"type": Hitbox.SparkType.BLUNT, "scale": 0.7, "color": Color(3.0, 1.2, 1.0, 1.0), "aura_color": Color(1.0 ,1.0, 0.0, 1.0),"random_offset": Vector2(10.0, 10.0)},
+		"action_type": Weapon.ActionType.SKILL,
+	},
 }
 
-
-# 🦅 [空中連段字典] (代號: 11, 12)
+# 🦅 [空中連段字典] (代號: 11 ~ 13)
 const DICT_LIGHT_AIR = {
-	11: { "anim": "katana/air_light_1", "hitbox_name": "air_light", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(20.0, -200.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "action_type": Weapon.ActionType.NORMAL},
-	12: { "anim": "katana/air_light_2", "hitbox_name": "air_light", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(200.0, -200.0), "base_dmg": 300,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "action_type": Weapon.ActionType.NORMAL},
-	13: { "anim": "katana/air_light_3", "hitbox_name": "air_light", "max_hits": 1, "interval": 0.0, "type": Damage.Type.LIGHT, "knockback": Vector2(300.0, -300.0), "shake": 10.0, "base_dmg": 350,"hit_sfx_type": "hit", "energy": 2, "switch": 4, "action_type": Weapon.ActionType.NORMAL},
+	11: {
+		"anim": "katana/air_light_1", "hitbox_name": "air_light",
+		"type": Damage.Type.LIGHT, "base_dmg": 300, "max_hits": 1, "interval": 0.0, "sticky": false,
+		"knockback": Vector2(200.0, -200.0), "shake": 2.5, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"spark": {"type": Hitbox.SparkType.SLASH}, "action_type": Weapon.ActionType.NORMAL | Weapon.ActionType.AIR,
+	},
+	12: {
+		"anim": "katana/air_light_2", "hitbox_name": "air_light",
+		"type": Damage.Type.LIGHT, "base_dmg": 300, "max_hits": 1, "interval": 0.0, "sticky": false,
+		"knockback": Vector2(200.0, -200.0), "shake": 2.5, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"spark": {"type": Hitbox.SparkType.SLASH}, "action_type": Weapon.ActionType.NORMAL | Weapon.ActionType.AIR,
+	},
+	13: {
+		"anim": "katana/air_light_3", "hitbox_name": "air_light",
+		"type": Damage.Type.LIGHT, "base_dmg": 350, "max_hits": 1, "interval": 0.0, "sticky": false,
+		"knockback": Vector2(300.0, -300.0), "shake": 10.0, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"spark": {"type": Hitbox.SparkType.SLASH_2, "scale": 0.45,}, "action_type": Weapon.ActionType.NORMAL | Weapon.ActionType.AIR,
+	},
 }
 
-# 💥 [戰技與大招字典] (代號: 21, 31, 32)
+# 💥 [戰技與大招字典] (代號: 21~23 地面戰技, 25~27 空中大招, 30/31/40 地面大招)
 const DICT_HEAVY_ULT = {
-	21: { "anim": "katana/heavy_1", "hitbox_name": "heavy", "type": Damage.Type.LIGHT, "knockback": Vector2(100.0, 0.0), "shake": 2.0, "shake_on_hit_only": true, "base_dmg": 200, "hit_sfx_type": "hit", "energy": 10, "switch": 15, "max_hits": 3, "interval": 0.1, "sticky": true },
-	22: { "anim": "katana/heavy_2", "hitbox_name": "heavy_1", "type": Damage.Type.HEAVY, "knockback": Vector2(50.0, -100.0), "shake": 5.0, "shake_on_hit_only": true, "base_dmg": 200, "max_hits": 8, "interval": 0.05, "sticky": true, "hit_sfx_type": "hit", "energy": 15, "switch": 20 },
-	23: { "anim": "katana/heavy_3", "hitbox_name": "heavy_2", "type": Damage.Type.HEAVY, "knockback": Vector2(50.0, -400.0), "shake": 5.0, "shake_on_hit_only": true, "base_dmg": 300, "max_hits": 3, "interval": 0.1, "sticky": true, "hit_sfx_type": "hit", "energy": 10, "switch": 15 }, 
-	25: { "anim": "katana/air_heavy_start", "hitbox_name": "None", "base_dmg": 0 }, # 階段 1：下墜前準備（無判定）
-	26: { "anim": "katana/air_heavy_loop", "hitbox_name": "air_light", "type": Damage.Type.LIGHT, "knockback": Vector2(200.0, -50.0), "base_dmg": 120, "max_hits": 5, "interval": 0.1, "hit_sfx_type": "hit", "sticky": true }, # 階段 2：下墜循環（帶有多段向下拖拽判定）
-	27: { "anim": "katana/air_heavy_land", "hitbox_name": "None", "shake": 45.0, "shake_on_hit_only": false, "base_dmg": 0 },
-	30: { "anim": "katana/sheath_enhanced_loop", "hitbox_name": "None", "base_dmg": 0 },
-	31: { "anim": "katana/sheath_enhanced", "hitbox_name": "sheath_enhanced", "type": Damage.Type.HEAVY, "knockback": Vector2(0.0, -80.0), "shake": 0.0, "shake_on_hit_only": true, "base_dmg": 600, "hit_sfx_type": "hit", "energy": 25, "switch": 30, "max_hits": 12, "interval": 0.1, "sticky": true, "action_type": Weapon.ActionType.SKILL },
-	40: { "anim": "katana/sheath_enhanced_2", "hitbox_name": "None", "base_dmg": 0 }
+	21: {
+		"anim": "katana/heavy_1", "hitbox_name": "heavy",
+		"type": Damage.Type.LIGHT, "base_dmg": 200, "max_hits": 3, "interval": 0.1, "sticky": true,
+		"knockback": Vector2(100.0, 0.0), "shake": 2.0, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"spark": {"type": Hitbox.SparkType.SLASH}, "action_type": Weapon.ActionType.SKILL,
+	},
+	22: {
+		"anim": "katana/heavy_2", "hitbox_name": "heavy_1",
+		"type": Damage.Type.HEAVY, "base_dmg": 200, "max_hits": 8, "interval": 0.05, "sticky": true,
+		"knockback": Vector2(50.0, -50.0), "shake": 5.0, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"spark": {"type": Hitbox.SparkType.SLASH, "scale": 0.35,"random_offset": Vector2(25.0, 25.0)},
+		"action_type": Weapon.ActionType.SKILL,
+	},
+	23: {
+		"anim": "katana/heavy_3", "hitbox_name": "heavy_2",
+		"type": Damage.Type.HEAVY, "base_dmg": 300, "max_hits": 3, "interval": 0.1, "sticky": true,
+		"knockback": Vector2(50.0, -400.0), "shake": 5.0, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"spark": {"type": Hitbox.SparkType.SLASH, "scale": 0.35,}, "action_type": Weapon.ActionType.SKILL,
+	},
+	# 階段 1：下墜前準備（無判定，hitbox_name 是 "None" 所以下面這些欄位單純只是紀錄用）
+	25: {
+		"anim": "katana/air_heavy_start", "hitbox_name": "None",
+		"base_dmg": 0,
+		"action_type": Weapon.ActionType.SKILL | Weapon.ActionType.AIR,
+	},
+	# 階段 2：下墜循環（帶有多段向下拖拽判定）
+	26: {
+		"anim": "katana/air_heavy_loop", "hitbox_name": "air_light",
+		"type": Damage.Type.LIGHT, "base_dmg": 120, "max_hits": 5, "interval": 0.1, "sticky": true,
+		"knockback": Vector2(250.0, -50.0), "shake": 2.5, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"spark": {"type": Hitbox.SparkType.SLASH, "scale": 0.35,}, "action_type": Weapon.ActionType.SKILL | Weapon.ActionType.AIR,
+	},
+	# 階段 3：落地（無判定，撞擊震動由動畫軌道另外觸發，不是走這個 hitbox 流程）
+	27: {
+		"anim": "katana/air_heavy_land", "hitbox_name": "None",
+		"base_dmg": 0,
+		"action_type": Weapon.ActionType.SKILL | Weapon.ActionType.AIR,
+	},
+	# 地面終極拔刀斬：30 起手前搖 -> 31 出刀 -> 40 收刀後續（30/40 無判定）
+	30: {
+		"anim": "katana/sheath_enhanced_loop", "hitbox_name": "None",
+		"base_dmg": 0,
+		"action_type": Weapon.ActionType.SKILL,
+	},
+	31: {
+		"anim": "katana/sheath_enhanced", "hitbox_name": "sheath_enhanced",
+		"type": Damage.Type.HEAVY, "base_dmg": 600, "max_hits": 12, "interval": 0.1, "sticky": true,
+		"knockback": Vector2(0.0, -80.0), "shake": 0.0, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"spark": {"type": Hitbox.SparkType.SLASH_3, "scale": 0.55,"random_offset": Vector2(20.0, 20.0)}, 
+		"action_type": Weapon.ActionType.SKILL,
+	},
+	40: {
+		"anim": "katana/sheath_enhanced_2", "hitbox_name": "None",
+		"base_dmg": 0,
+		"action_type": Weapon.ActionType.SKILL,
+	},
 }
 
 # ==========================================
@@ -82,9 +182,12 @@ const DICT_HEAVY_ULT = {
 # --- 內部狀態 ---
 var current_active_hitbox: Hitbox = null
 
-var _current_energy_reward: float = 0.0
+const NORMAL_HIT_MARTIAL_ENERGY: float = 0.2 ## 非武藝招式每次命中給的武藝能量，跟 _multi_hit_energy 搭配決定一段連段只算一次還是每一下都算
 var _multi_hit_energy: bool = false
 var _has_granted_resources_this_step: bool = false
+## 🌟 這一步的 hitbox 是不是武藝出的——在 _apply_hitbox_config() 當下就把它「拍照」記下來，
+## 之後判斷要不要發能量一律看這個，不要看當下的 active_martial_art（sticky 連段可能拖到武藝已經 is_active=false/被清空之後才補完最後幾下）
+var _current_step_is_martial_art: bool = false
 
 var combo_step: int = 0
 var last_attack_time: float = 0.0
@@ -417,8 +520,9 @@ func get_current_velocity(delta: float) -> Vector2:
 				CombatManager.apply_camera_shake(60.0) 
 				
 			if is_instance_valid(current_active_hitbox):
-				current_active_hitbox.hit_targets.clear() 
-				current_active_hitbox.max_hits = 1        
+				current_active_hitbox.hit_targets.clear()
+				current_active_hitbox.lock_attacker_direction()
+				current_active_hitbox.max_hits = 1
 				current_active_hitbox.sticky_multi_hit = false 
 				current_active_hitbox.damage_amount = 4500 
 				current_active_hitbox.knockback_force = Vector2(200.0, -500.0) 
@@ -588,19 +692,16 @@ func _play_air_step(step: int) -> void:
 func _play_martial_art_attack(config: Dictionary) -> void:
 	disable_hitbox()
 	_apply_hitbox_config(config)
-	if current_active_hitbox:
-		if config.has("spark_type"): current_active_hitbox.spark_type = config["spark_type"]
-		if config.has("spark_scale"): current_active_hitbox.spark_scale = config["spark_scale"]
 	if config.has("sfx") and config["sfx"] != null: AudioManager.play_sfx(config["sfx"], -5.0)
 	if player.animation_player.current_animation == config["anim"]: player.animation_player.stop()
 	player.play_safe_anim(config["anim"])
 	
 func _apply_hitbox_config(config: Dictionary) -> void:
-	_is_hitbox_locked = false 
+	_is_hitbox_locked = false
 	current_action_type = config.get("action_type", Weapon.ActionType.NONE)
 	var target_hitbox_name = config.get("hitbox_name", "Hitbox")
 	var hitbox := get_node_or_null(target_hitbox_name) as Hitbox
-	
+
 	if hitbox:
 		var final_dmg = float(config["base_dmg"])
 		if is_iai_buff_active:
@@ -616,12 +717,37 @@ func _apply_hitbox_config(config: Dictionary) -> void:
 		if "shake_intensity" in hitbox: hitbox.shake_intensity = config.get("shake", 2.5)
 		if "shake_on_hit_only" in hitbox: hitbox.shake_on_hit_only = config.get("shake_on_hit_only", true)
 		hitbox.sticky_multi_hit = config.get("sticky", false)
-		if "energy_reward" in hitbox: hitbox.energy_reward = float(config.get("energy", 0))
-		hitbox.spark_type = 0; hitbox.spark_scale = 0.3; hitbox.spark_color = Color(0.7, 1.5, 0.5, 1.0); hitbox.aura_color = Color(0, 1, 1, 1)
-		hitbox.hit_targets.clear() 
-		_current_energy_reward = float(config.get("energy", 0))
+		hitbox.breaks_guard = config.get("breaks_guard", false)
+		# 🌟 能破黃光的招式給予「世界時緩」：參考 Art_Katana_6 大招的時停手法（世界慢下來，但玩家自己的動畫速度反向補償回正常速度）
+		# 跟 Slide.gd 的魔女時間不同——魔女時間玩家自己也會被拖慢，這裡玩家的招式本身要維持正常速度，才不會被自己的前搖拖累而彈不到
+		# ⚠️ duration 務必只涵蓋「前搖到出手」的區間，設定值超過收招後搖的關鍵幀時間點，
+		# 會連同動畫裡既有的 strike_impulse 後搖衝力一起被 1/time_scale 放大，變成暴衝
+		if hitbox.breaks_guard and player.has_method("trigger_time_stop"):
+			var slow_scale = 0.001 # 🌟 改回偽時停（跟 Art_Katana_6 大招同款數值），0.15 的緩速手感不夠穩定
+			var slow_duration = config.get("guard_slowdown_duration", 0.7)
+			player.trigger_time_stop(slow_duration, slow_scale)
+			player.animation_player.speed_scale = 1.0 / slow_scale
+			# 🔧 讓武藝卡帶自己記住「是我觸發的時停」，中途被打斷時才知道要主動解除，不會讓世界卡在慢動作
+			if is_instance_valid(active_martial_art):
+				active_martial_art.set("_time_stop_triggered", true)
+		# 🎨 火花屬性：三層 fallback —— ①這招自己的 "spark" 覆蓋 ②太刀專屬的 get_weapon_default_spark() ③Hitbox.gd 的通用預設
+		var spark_cfg: Dictionary = config.get("spark", {})
+		var weapon_spark: Dictionary = get_weapon_default_spark()
+		hitbox.spark_type = spark_cfg.get("type", weapon_spark.get("type", Hitbox.DEFAULT_SPARK_TYPE))
+		hitbox.spark_scale = spark_cfg.get("scale", weapon_spark.get("scale", Hitbox.DEFAULT_SPARK_SCALE))
+		hitbox.spark_color = spark_cfg.get("color", weapon_spark.get("color", Hitbox.DEFAULT_SPARK_COLOR))
+		hitbox.aura_color = spark_cfg.get("aura_color", weapon_spark.get("aura_color", Hitbox.DEFAULT_AURA_COLOR))
+		hitbox.spark_raw_intensity = spark_cfg.get("raw_intensity", weapon_spark.get("raw_intensity", Hitbox.DEFAULT_SPARK_RAW_INTENSITY))
+		hitbox.spark_random_angle = spark_cfg.get("random_angle", weapon_spark.get("random_angle", Hitbox.DEFAULT_SPARK_RANDOM_ANGLE))
+		hitbox.spark_base_offset = spark_cfg.get("base_offset", weapon_spark.get("base_offset", Hitbox.DEFAULT_SPARK_BASE_OFFSET))
+		hitbox.spark_random_offset = spark_cfg.get("random_offset", weapon_spark.get("random_offset", Hitbox.DEFAULT_SPARK_RANDOM_OFFSET))
+		hitbox.attach_spark_to_victim = spark_cfg.get("attach_to_victim", weapon_spark.get("attach_to_victim", Hitbox.DEFAULT_ATTACH_SPARK_TO_VICTIM))
+		hitbox.custom_spark_scene = spark_cfg.get("custom_scene", weapon_spark.get("custom_scene", null))
+		hitbox.hit_targets.clear()
+		hitbox.lock_attacker_direction() # 🌟 這次出招的擊退方向鎖定在這一刻，連段期間玩家再怎麼轉身/移動都不會中途變卦
 		_multi_hit_energy = config.get("multi_hit_energy", false)
 		_has_granted_resources_this_step = false
+		_current_step_is_martial_art = is_instance_valid(active_martial_art)
 		if current_active_hitbox and current_active_hitbox.hit.is_connected(_on_hitbox_hit):
 			current_active_hitbox.hit.disconnect(_on_hitbox_hit)
 		current_active_hitbox = hitbox
@@ -630,10 +756,14 @@ func _apply_hitbox_config(config: Dictionary) -> void:
 
 func _on_hitbox_hit(hurtbox: Node) -> void:
 	if is_instance_valid(player) and is_instance_valid(hurtbox.owner) and hurtbox.owner == player: return
+	gain_iai(0.5)
+
+	# 🔋 只有「非武藝招式」的命中才給武藝能量——如果連武藝自己打中東西也回能量，
+	# 這個能量限制就形同虛設（隨便放一招就把施放它自己的成本賺回來）
+	# 🌟 用 config 當下拍下來的旗標判斷，不用即時的 active_martial_art——sticky 連段可能拖到武藝已經結束/清空後才補完最後幾下命中
+	if _current_step_is_martial_art: return
 	if _multi_hit_energy or not _has_granted_resources_this_step:
-		if _current_energy_reward > 0:
-			if player.has_method("add_weapon_resource"): player.add_weapon_resource(WEAPON_ID, _current_energy_reward)
-		gain_iai(0.5)
+		if player.has_method("gain_martial_energy"): player.gain_martial_energy(NORMAL_HIT_MARTIAL_ENERGY)
 		_has_granted_resources_this_step = true
 		
 func _get_ground_distance() -> float:

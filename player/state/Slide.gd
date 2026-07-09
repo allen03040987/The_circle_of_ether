@@ -4,9 +4,10 @@ extends State
 ## 處理一般閃避位移、殘影特效，並包含「極限閃避 (魔女時間)」機制。
 
 const SLIDING_SFX = preload("res://sound/SFX/sliding.wav")
-const SLIDING_SFX_2 = preload("res://sound/SFX/Sprint.wav")
+const SLIDING_SFX_2 = preload("res://sound/SFX/sprint.wav")
 const SLIDING_SFX_3 = preload("res://sound/SFX/attack/Wind_2.wav")
 const SUCCESS_SFX = preload("res://sound/SFX/Successfully_dodged.wav")
+const PERFECT_DODGE_MARTIAL_ENERGY: float = 1.0 ## 完美閃避給的武藝能量，比一般命中(0.2)高，獎勵技巧性回避
 
 # ==========================================
 # 📐 物理與控制變數
@@ -48,10 +49,6 @@ func enter() -> void:
 	player.slide_cooldown_timer.start()
 
 func physics_update(delta: float) -> void:
-	if player.is_ult_requested:
-		state_machine.transition_to("WeaponAttack")
-		return
-		
 	# 只要狀態被切換，physics_update 就會停止執行，絕不會有幽靈音效跑出來！
 	if not has_played_sfx and not has_perfect_dodged:
 		sfx_delay_timer += delta
@@ -83,7 +80,10 @@ func physics_update(delta: float) -> void:
 
 func exit() -> void:
 	player.velocity.x *= 0.5
-	
+
+	# 🌟 閃避銜接移動：短暫的窗口內接著跑，Run.gd 會直接用全速奔跑起步，不用重新從走路開始爬升
+	player.dash_chain_timer.start()
+
 	if not player.is_combo_requested and not player.is_perfect_dodging:
 		player.remove_meta("dodge_offset")
 		player.remove_meta("saved_combo_step")
@@ -123,9 +123,13 @@ func trigger_perfect_dodge() -> void:
 	
 	CombatManager.get_skill_timer(0.5).timeout.connect(func(): is_locked = false)
 	
-	player.stats.energy += 3 
+	player.stats.energy += 3
 	player.invincible_timer.start(0.5)
 	player.is_perfect_dodging = true
+
+	# 🔋 完美閃避才給武藝能量，單純按衝刺沒躲到攻擊不算——獎勵的是「躲過真正的攻擊」這個技巧
+	if player.has_method("gain_martial_energy"):
+		player.gain_martial_energy(PERFECT_DODGE_MARTIAL_ENERGY)
 	
 	if CombatManager.has_method("spawn_dodge_spark"):
 		CombatManager.spawn_dodge_spark(player.global_position)

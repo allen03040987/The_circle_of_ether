@@ -2,9 +2,9 @@ extends State
 class_name PlayerHurtState
 
 func enter() -> void:
-	player.is_ult_requested = false
 	player.is_combo_requested = false
 	player.is_heavy_requested = false
+	player.guard_request_timer.stop()
 	
 	if player.scabbard:
 		player.scabbard.fade_in()
@@ -26,11 +26,6 @@ func enter() -> void:
 			player.direction = player.Direction.LEFT if d_kb.x > 0 else player.Direction.RIGHT
 		
 		player.pending_damage = null
-		
-	
-	
-	if CombatManager.has_method("apply_hitstop"):
-		CombatManager.apply_hitstop(0.07, 0.0)
 
 func physics_update(delta: float) -> void:
 	# 🌟 核心修復 1：同狀態連續受擊強制重啟

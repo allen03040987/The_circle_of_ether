@@ -1,0 +1,18 @@
+[remap]
+
+importer="aseprite_wizard.plugin"
+type="SpriteFrames"
+uid="uid://b04uudsuso01e"
+path="res://.godot/imported/slash sparks_2.ase-c8a3087a9d7b264d8a27deb5812d300b.res"
+
+[deps]
+
+source_file="res://Explod/slash sparks_2.ase"
+dest_files=["res://.godot/imported/slash sparks_2.ase-c8a3087a9d7b264d8a27deb5812d300b.res"]
+
+[params]
+
+split_layers=false
+exclude_layers_pattern=""
+only_visible_layers=false
+sheet_type="Packed"

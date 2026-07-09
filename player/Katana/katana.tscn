@@ -69,9 +69,6 @@ collision_layer = 0
 collision_mask = 16
 script = ExtResource("2_ieebl")
 knockback_force = Vector2(50, 0)
-spark_base_offset = Vector2(0, -5)
-spark_random_angle = 360.0
-spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="light"]
 position = Vector2(21.5, -23.5)
@@ -103,9 +100,7 @@ collision_layer = 0
 collision_mask = 16
 script = ExtResource("2_ieebl")
 attack_type = 0
-spark_base_offset = Vector2(-5, 0)
 spark_random_angle = 360.0
-spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="light_1"]
 position = Vector2(47, -33.25)
@@ -119,7 +114,6 @@ collision_mask = 16
 script = ExtResource("2_ieebl")
 spark_base_offset = Vector2(-5, 0)
 spark_random_angle = 360.0
-spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="light_2"]
 position = Vector2(-1.5, -34.5)
@@ -133,7 +127,6 @@ collision_mask = 16
 script = ExtResource("2_ieebl")
 spark_base_offset = Vector2(-5, 0)
 spark_random_angle = 360.0
-spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D2" type="CollisionShape2D" parent="Art_Katana_1"]
 position = Vector2(0, -44.5)
@@ -146,7 +139,6 @@ collision_mask = 16
 script = ExtResource("2_ieebl")
 spark_base_offset = Vector2(-5, 0)
 spark_random_angle = 360.0
-spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="heavy"]
 position = Vector2(19, -31.625)
@@ -159,7 +151,6 @@ collision_mask = 16
 script = ExtResource("2_ieebl")
 spark_base_offset = Vector2(-5, 0)
 spark_random_angle = 360.0
-spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="heavy_2"]
 position = Vector2(19, -47.8125)
@@ -172,7 +163,6 @@ collision_mask = 16
 script = ExtResource("2_ieebl")
 spark_base_offset = Vector2(-5, 0)
 spark_random_angle = 360.0
-spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="heavy_1"]
 position = Vector2(34, -32)
@@ -186,7 +176,6 @@ collision_mask = 16
 script = ExtResource("2_ieebl")
 spark_base_offset = Vector2(-5, 0)
 spark_random_angle = 360.0
-spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Art_Katana_3"]
 position = Vector2(95, -13.5)
@@ -205,7 +194,6 @@ collision_mask = 16
 script = ExtResource("2_ieebl")
 spark_base_offset = Vector2(-5, 0)
 spark_random_angle = 360.0
-spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="air_light"]
 position = Vector2(5, -34.5)
@@ -225,7 +213,6 @@ script = ExtResource("2_ieebl")
 attack_type = 0
 spark_base_offset = Vector2(-5, 0)
 spark_random_angle = 360.0
-spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="sheath_enhanced"]
 position = Vector2(35.8595, -48.9999)
@@ -250,7 +237,6 @@ script = ExtResource("2_ieebl")
 attack_type = 0
 spark_base_offset = Vector2(-5, 0)
 spark_random_angle = 360.0
-spark_random_offset = Vector2(0, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="ArtKatana_6"]
 position = Vector2(1.90735e-06, -39)

@@ -1,8 +1,6 @@
 class_name BossDeathState
 extends BossState
 
-signal died # 宣告死亡訊號，專門用來通知大門開鎖
-
 func enter() -> void:
 	print("💀 奈何橋已被擊敗！")
 	

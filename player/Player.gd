@@ -8,7 +8,7 @@ enum Direction { LEFT = -1, RIGHT = 1 }
 # ==========================================
 # 📐 物理與基礎屬性
 # ==========================================
-const WALK_SPEED := 150.0
+const WALK_SPEED := 200.0
 const RUN_SPEED := 350.0
 const JUMP_VELOCITY := -410.0
 const FLOOR_ACCELERATION := RUN_SPEED / 0.04
@@ -32,7 +32,9 @@ signal weapon_switched(new_weapon: Weapon)
 @onready var jump_request_timer: Timer = $JumpRequestTimer
 @onready var slide_request_timer: Timer = $SlideRequestTimer
 @onready var slide_cooldown_timer: Timer = $SlideCooldownTimer
+@onready var guard_request_timer: Timer = $GuardRequestTimer
 @onready var invincible_timer: Timer = $InvincibleTimer
+@onready var dash_chain_timer: Timer = $DashChainTimer
 
 @onready var foot_checker: RayCast2D = $Graphics/FootChecker
 @onready var hand_checker: RayCast2D = $Graphics/HandChecker
@@ -49,7 +51,9 @@ var locked_facing_dir: int = 0
 var invincible_time_left: float = 0.0 
 var interacting_with: Array[Interactable] = []
 var is_dead := false
-var is_walking := false
+var is_walking := false ## 目前這一刻走路(true)還是奔跑(false)——由 Run.gd 每幀依加速進度動態更新，Jump/Fall 也會讀這個決定空中極速
+var move_ramp_time: float = 0.0 ## 走路連續加速到奔跑的進度計時，停下來(進 Idle)就會歸零
+var is_force_walk_zone: bool = false ## 強制走路區域（目前只有大本營場景在用；未來的「安全區」觸發器也應該透過 update_movement_by_scene() 設定這個旗標）
 
 # ==========================================
 # ⚔️ 戰鬥狀態與輸入緩存
@@ -64,18 +68,31 @@ signal martial_mode_changed(is_active: bool)
 var _last_martial_mode := false
 
 var is_weapon_invincible := false
-var is_ult_requested := false 
-var is_input_locked := false 
+var is_input_locked := false
 
 var combo_buffer_time: float = 0.0
 var heavy_buffer_time: float = 0.0
 var martial_buffer_time: float = 0.0
 const ATTACK_BUFFER_DURATION: float = 0.2
 
-var is_counter_requested := false
 var is_perfect_dodging := false
 var pending_damage = null
 var current_weapon: Weapon = null
+
+# ==========================================
+# 🔋 武藝能量 (Martial Art Energy)
+# ==========================================
+## 全域資源(不分武器)：非武藝招式命中、完美閃避都能獲得，施放武藝依各招 energy_cost 扣除
+const MAX_MARTIAL_ENERGY: float = 10.0
+var martial_energy: float = 0.0
+
+func gain_martial_energy(amount: float) -> void:
+	martial_energy = clampf(martial_energy + amount, 0.0, MAX_MARTIAL_ENERGY)
+
+func consume_martial_energy(amount: float) -> bool:
+	if martial_energy < amount: return false
+	martial_energy -= amount
+	return true
 
 const WEAPON_SWITCH_COOLDOWN: float = 1.0
 var weapon_switch_cooldown_timer: float = 0.0
@@ -121,27 +138,16 @@ func equip_loadout(weapon_ids: Array[String]) -> void:
 		weapon_slot.remove_child(child) 
 	
 	current_weapon = null
-	
-	var keys_to_remove = []
-	for old_w_id in weapon_resources.keys():
-		if old_w_id not in equipped_weapon_ids:
-			keys_to_remove.append(old_w_id)
-			
-	for key in keys_to_remove:
-		weapon_resources.erase(key)
-	
+
 	for w_id in equipped_weapon_ids:
 		if WEAPON_BLUEPRINTS.has(w_id):
 			var new_weapon = WEAPON_BLUEPRINTS[w_id].instantiate()
 			weapon_slot.add_child(new_weapon)
-			new_weapon.hide() 
-			new_weapon.player = self 
-			
+			new_weapon.hide()
+			new_weapon.player = self
+
 			if saved_weapons_data.has(w_id) and new_weapon.has_method("import_weapon_data"):
 				new_weapon.import_weapon_data(saved_weapons_data[w_id])
-			
-			if not weapon_resources.has(w_id):
-				weapon_resources[w_id] = {"energy": 0.0}
 		else:
 			printerr("❌ 找不到武器藍圖：", w_id)
 			
@@ -186,7 +192,7 @@ func _process(delta: float) -> void:
 	if weapon_switch_cooldown_timer > 0: weapon_switch_cooldown_timer -= unscaled_delta
 		
 	if combo_buffer_time > 0 and not is_input_locked: combo_buffer_time -= unscaled_delta
-	else: is_combo_requested = false; is_ult_requested = false
+	else: is_combo_requested = false
 
 	if heavy_buffer_time > 0 and not is_input_locked: heavy_buffer_time -= unscaled_delta
 	else: is_heavy_requested = false
@@ -195,16 +201,16 @@ func _process(delta: float) -> void:
 	else: is_martial_requested = false
 	
 	if is_input_locked:
-		is_combo_requested = false; is_heavy_requested = false; is_ult_requested = false; is_martial_requested = false
+		is_combo_requested = false; is_heavy_requested = false; is_martial_requested = false
 		combo_buffer_time = 0.0; heavy_buffer_time = 0.0; martial_buffer_time = 0.0
-		
+
 	if is_on_floor() and is_instance_valid(current_weapon) and "air_attack_locked" in current_weapon:
 		current_weapon.air_attack_locked = false
-	
+
 	var current_state = state_machine.current_state.name.to_lower() if is_instance_valid(state_machine.current_state) else ""
 	var is_in_hitstun = current_state in ["hurt", "launched", "dying"]
-	
-	if not is_input_locked and not is_dead and not is_in_hitstun and not is_ult_requested and weapon_slot.get_child_count() >= 2:
+
+	if not is_input_locked and not is_dead and not is_in_hitstun and weapon_slot.get_child_count() >= 2:
 		if weapon_switch_cooldown_timer <= 0 and Input.is_action_just_pressed("switch_weapon"):
 			_execute_weapon_switch()
 			weapon_switch_cooldown_timer = WEAPON_SWITCH_COOLDOWN
@@ -253,18 +259,14 @@ func _unhandled_input(event: InputEvent) -> void:
 				can_buffer = current_weapon.can_use_heavy()
 			if can_buffer: is_heavy_requested = true; heavy_buffer_time = ATTACK_BUFFER_DURATION
 		
-	if event.is_action_pressed("ultimate"):
-		var can_buffer = true
-		if is_instance_valid(current_weapon) and current_weapon.has_method("can_use_ultimate"):
-			can_buffer = current_weapon.can_use_ultimate()
-		if can_buffer: is_ult_requested = true; combo_buffer_time = ATTACK_BUFFER_DURATION
-		
+	if event.is_action_pressed("guard"): guard_request_timer.start()
+
 	if event.is_action_pressed("jump"): jump_request_timer.start()
 	if event.is_action_released("jump"):
 		jump_request_timer.stop()
 		if velocity.y < JUMP_VELOCITY / 2: velocity.y = JUMP_VELOCITY / 2
 
-	if event.is_action_pressed("silde"): slide_request_timer.start()
+	if event.is_action_pressed("slide"): slide_request_timer.start()
 	if event.is_action_pressed("interact") and not interacting_with.is_empty():
 		interacting_with.back().interact()
 
@@ -291,7 +293,7 @@ func take_damage(temp_damage: Damage) -> void:
 	if is_dead or state_machine.current_state.name.to_lower() == "dying": return
 	if invincible_time_left > 0 or invincible_timer.time_left > 0: return
 	
-	is_combo_requested = false; is_heavy_requested = false; is_ult_requested = false
+	is_combo_requested = false; is_heavy_requested = false
 	combo_buffer_time = 0.0; heavy_buffer_time = 0.0
 	
 	stats.health -= temp_damage.amount
@@ -350,11 +352,20 @@ func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
 			hitbox.suppress_feedback()
 		return
 
-	# 🌟 武藝卡帶的格擋反擊接口（例如逆鱗返）：正在施放的武藝若能反擊，就完全格擋這一下
-	if is_instance_valid(current_weapon) and is_instance_valid(current_weapon.get("active_martial_art")):
+	# 🛡️ 格擋：判定完全交給 GuardState.try_block() 現場裁決（是否還在判定窗內、是否為黃圈技），
+	# 不使用全域無敵旗標，避免長時間開啟的敵人 hitbox 在無敵結束後補上第二下傷害
+	if state_machine.current_state.name.to_lower() == "guard":
+		if state_machine.current_state.has_method("try_block") and state_machine.current_state.try_block(hitbox):
+			if hitbox.has_method("suppress_feedback"):
+				hitbox.suppress_feedback()
+			return
+
+	# 🌟 武藝卡帶的格擋反擊接口（例如逆鱗返這類「彈反型招式」）：只有武藝自己回報「接住了」才完全格擋這一下
+	# ⚠️ 「黃圈技」的攻擊會標記 requires_countermeasure，只有專屬的「對策技」能破解，通用彈反型招式對它無效
+	var is_yellow_circle_attack = ("requires_countermeasure" in hitbox) and hitbox.requires_countermeasure
+	if not is_yellow_circle_attack and is_instance_valid(current_weapon) and is_instance_valid(current_weapon.get("active_martial_art")):
 		var active_art = current_weapon.active_martial_art
-		if active_art.is_active and active_art.has_method("trigger_counter"):
-			active_art.trigger_counter()
+		if active_art.is_active and active_art.has_method("trigger_counter") and active_art.trigger_counter():
 			if hitbox.has_method("suppress_feedback"):
 				hitbox.suppress_feedback()
 			return
@@ -403,19 +414,22 @@ func register_interactable(v: Interactable) -> void:
 	if state_machine.current_state.name.to_lower() != "dying" and v not in interacting_with: interacting_with.append(v)
 func unregister_interactable(v: Interactable) -> void: interacting_with.erase(v)
 
+## force_walk 目前只有 World.is_base（大本營場景）在用；未來的「安全區」觸發器也應該呼叫這個方法
+## 來鎖死走路速度——不管自動奔跑設定或衝刺銜接與否，強制走路區域一律優先
 func update_movement_by_scene(force_walk: bool) -> void:
-	is_walking = true if force_walk else Game.config_default_walking 
-	if state_machine.current_state != null and state_machine.current_state.name.to_lower() == "run":
-		play_safe_anim("walking" if is_walking else "running")
+	is_force_walk_zone = force_walk
+	if force_walk:
+		move_ramp_time = 0.0
+		is_walking = true
+		if state_machine.current_state != null and state_machine.current_state.name.to_lower() == "run":
+			play_safe_anim("walking")
 
+## 快捷鍵版本的「自動奔跑」開關，跟設定面板裡的勾選框是同一份設定
 func toggle_walk_mode() -> void:
-	var current_world = get_tree().current_scene
-	if current_world is World and "is_base" in current_world and current_world.is_base: return 
-	is_walking = !is_walking
-	if Game.config_default_walking != is_walking:
-		Game.config_default_walking = is_walking
-		Game.save_settings()
-	if state_machine.current_state.name.to_lower() == "run": play_safe_anim("walking" if is_walking else "running")
+	if is_force_walk_zone: return
+	Game.config_auto_run = !Game.config_auto_run
+	Game.save_settings()
+	Game.settings_changed.emit()
 
 func _on_global_settings_changed() -> void:
 	var is_base = false
@@ -477,22 +491,7 @@ func clear_time_stop() -> void:
 		current_time_scale = 1.0; time_stop_left = 0.0; animation_player.speed_scale = 1.0
 		if CombatManager.has_method("clear_domain_time"): CombatManager.clear_domain_time()
 
-@export_group("合軸戰鬥倍率")
-var energy_regen_mult: float = 1.0
-var weapon_resources: Dictionary = {}
 var current_outro_buff: String = ""
-
-## 添加特定武器的資源能量
-func add_weapon_resource(weapon_id: String, base_energy: float) -> void:
-	if not weapon_resources.has(weapon_id): weapon_resources[weapon_id] = {"energy": 0.0}
-	var data = weapon_resources[weapon_id]
-	data["energy"] = clamp(data["energy"] + (base_energy * energy_regen_mult), 0.0, 100.0)
-
-func get_weapon_energy(weapon_id: String) -> float: return weapon_resources[weapon_id]["energy"] if weapon_resources.has(weapon_id) else 0.0
-func consume_weapon_energy(weapon_id: String, amount: float) -> bool:
-	if weapon_resources.has(weapon_id) and weapon_resources[weapon_id]["energy"] >= amount:
-		weapon_resources[weapon_id]["energy"] -= amount; return true
-	return false
 
 func get_all_weapons_martial_arts() -> Dictionary:
 	var current_config = {"katana": ["", "", ""], "spear": ["", "", ""], "talisman": ["", "", ""], "sickle": ["", "", ""]}
@@ -503,10 +502,18 @@ func get_all_weapons_martial_arts() -> Dictionary:
 			if w_id and ma_paths is Array: current_config[w_id] = ma_paths.duplicate()
 	return current_config
 
+## 除了確認該槽位有裝備武藝，也一併檢查能量夠不夠——不夠的話直接在輸入層擋掉，
+## 不要等到 WeaponAttack/Guard 已經取消目前招式才發現放不出來，會卡出一個很怪的空檔
 func _has_martial_art(slot_index: int) -> bool:
 	if not is_instance_valid(current_weapon): return false
 	var m_slots = current_weapon.get("martial_slots")
-	return is_instance_valid(m_slots[slot_index]) if m_slots is Array and m_slots.size() > slot_index else false
+	if not (m_slots is Array and m_slots.size() > slot_index): return false
+
+	var art = m_slots[slot_index]
+	if not is_instance_valid(art): return false
+
+	var cost = art.get("energy_cost") if "energy_cost" in art else 0.0
+	return martial_energy >= cost
 	
 func equip_loadout_with_arts(new_weapon_ids: Array[String], new_arts_config: Dictionary) -> void:
 	equip_loadout(new_weapon_ids)
@@ -566,7 +573,7 @@ func _flash_character() -> void:
 ## 匯出玩家目前戰鬥狀態 (用於跨場景或存檔)
 func export_combat_state() -> Dictionary:
 	var state = {
-		"equipped_weapon_ids": equipped_weapon_ids, "weapon_resources": weapon_resources,
+		"equipped_weapon_ids": equipped_weapon_ids, "martial_energy": martial_energy,
 		"weapon_switch_cooldown_timer": weapon_switch_cooldown_timer,
 		"current_weapon_index": current_weapon.get_index() if is_instance_valid(current_weapon) else 0,
 		"weapons_data": {}, "martial_arts_config": get_all_weapons_martial_arts() if has_method("get_all_weapons_martial_arts") else {}
@@ -583,7 +590,7 @@ func import_combat_state(state: Dictionary) -> void:
 		if state.has("martial_arts_config") and not state["martial_arts_config"].is_empty(): equip_loadout_with_arts(safe_array, state["martial_arts_config"])
 		else: equip_loadout(safe_array) 
 		
-	if state.has("weapon_resources"): weapon_resources = state["weapon_resources"]
+	if state.has("martial_energy"): martial_energy = state["martial_energy"]
 	if state.has("weapon_switch_cooldown_timer"): weapon_switch_cooldown_timer = state["weapon_switch_cooldown_timer"]
 	
 	if state.has("weapons_data"):

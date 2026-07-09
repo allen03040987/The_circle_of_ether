@@ -1,0 +1,22 @@
+[gd_scene load_steps=2 format=3 uid="uid://cha0pins5omnc"]
+
+[ext_resource type="Script" path="res://Explod/GuardBreakBurst.gd" id="1_gbb"]
+
+[node name="GuardBreakBurst" type="Node2D"]
+script = ExtResource("1_gbb")
+
+[node name="CPUParticles2D" type="CPUParticles2D" parent="."]
+emitting = false
+amount = 24
+lifetime = 0.4
+one_shot = true
+explosiveness = 1.0
+spread = 180.0
+gravity = Vector2(0, 0)
+initial_velocity_min = 300.0
+initial_velocity_max = 700.0
+angular_velocity_min = -360.0
+angular_velocity_max = 360.0
+scale_amount_min = 3.0
+scale_amount_max = 6.0
+color = Color(1, 0.95, 0.1, 1)

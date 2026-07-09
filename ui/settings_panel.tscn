@@ -35,7 +35,7 @@ text = "按鍵對應"
 [node name="WalkToggle" type="CheckButton" parent="Panel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 focus_mode = 0
-text = "切換為行走模式 "
+text = "自動奔跑"
 
 [node name="ShakeToggle" type="CheckButton" parent="Panel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
@@ -46,6 +46,33 @@ text = "開啟螢幕震動效果"
 layout_mode = 2
 focus_mode = 0
 text = "開啟敵人受擊閃光"
+
+[node name="DamageNumberToggle" type="CheckButton" parent="Panel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+focus_mode = 0
+text = "顯示傷害飄字"
+
+[node name="MusicVolumeLabel" type="Label" parent="Panel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+text = "音樂音量"
+
+[node name="MusicVolumeSlider" type="HSlider" parent="Panel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+focus_mode = 0
+max_value = 1.0
+step = 0.01
+value = 1.0
+
+[node name="SfxVolumeLabel" type="Label" parent="Panel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+text = "音效音量"
+
+[node name="SfxVolumeSlider" type="HSlider" parent="Panel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+focus_mode = 0
+max_value = 1.0
+step = 0.01
+value = 1.0
 
 [node name="CheckButton" type="CheckButton" parent="Panel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
@@ -64,4 +91,3 @@ offset_bottom = 207.0
 text = "返回"
 
 [connection signal="pressed" from="Panel/ScrollContainer/VBoxContainer/KeybindButton" to="." method="_on_keybind_button_pressed"]
-[connection signal="pressed" from="BackButton" to="." method="_on_button_pressed"]
