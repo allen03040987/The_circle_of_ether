@@ -26,9 +26,9 @@ func get_weapon_default_spark() -> Dictionary:
 # 🥋 專屬武藝系統 (Martial Arts Loadout)
 # ==========================================
 @export var equipped_martial_arts: Array[String] = [
-	"res://player/MartialArts/Katana/Art_Katana_1.gd", 
-	"res://player/MartialArts/Katana/Art_Katana_2.gd", 
-	"res://player/MartialArts/Katana/Art_Katana_3.gd"
+	"res://player/MartialArts/Katana/Art_Katana_1.tscn",
+	"res://player/MartialArts/Katana/Art_Katana_2.tscn",
+	"res://player/MartialArts/Katana/Art_Katana_3.tscn"
 ]
 
 func _ready() -> void:
@@ -604,10 +604,11 @@ func is_attack_finished() -> bool:
 			_play_heavy_ult_step(26)
 			return false 
 			
-		# 🌟 核心修改：只保留 21 號拔刀的長按扣留
+		# 🌟 核心修改：只保留 21 號拔刀的長按扣留——但劍意不夠 40 點、根本沒資格轉進 30 號蓄力的話，
+		# 就不要繼續扣留下去，不然玩家劍意不夠時只要按著不放，角色會卡在動畫最後一幀動彈不得
 		if combo_step == 21:
-			if Input.is_action_pressed("heavy_attack"):
-				return false 
+			if Input.is_action_pressed("heavy_attack") and current_iai >= 40.0:
+				return false
 			
 		player.is_input_locked = false 
 		if combo_step in [11, 12, 13]: air_attack_locked = true

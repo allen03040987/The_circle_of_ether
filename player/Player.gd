@@ -65,6 +65,7 @@ var is_martial_requested := false
 var requested_martial_slot := 0
 
 signal martial_mode_changed(is_active: bool)
+signal martial_art_denied(slot_index: int) ## 該槽位確實裝備了武藝，但按下當下能量不夠施放——給 UI 用來播放紅色警示回饋
 var _last_martial_mode := false
 
 var is_weapon_invincible := false
@@ -101,7 +102,7 @@ var weapon_switch_cooldown_timer: float = 0.0
 # 🧰 裝備庫與初始化
 # ==========================================
 const WEAPON_BLUEPRINTS: Dictionary = {
-	"katana": preload("res://player/Katana/katana.tscn"), 
+	"katana": preload("res://player/Katana/katana.tscn"),
 	"spear": preload("res://player/Spear/spear.tscn"),
 	"talisman": preload("res://player/Talisman/talisman.tscn"),
 	"sickle": preload("res://player/Sickle/Sickle.tscn"),
@@ -109,9 +110,33 @@ const WEAPON_BLUEPRINTS: Dictionary = {
 
 @export var equipped_weapon_ids: Array[String] = ["katana", "spear"]
 
+# ==========================================
+# 🎒 消耗道具 (Consumable Items)
+# ==========================================
+const HEALTH_PACK_SCENE = preload("res://player/Items/HealthPack.tscn") ## 做成場景才能在編輯器裡直接拖圖標進 icon 欄位
+
+var health_item: Node = null ## 專屬固定槽位：血包，沒有動畫，按鍵直接補血，靠存檔點回滿次數
+var equipped_items: Array[Node] = [null, null, null] ## 額外 3 個消耗道具槽位——目前還沒有其他道具可以塞，架構先留著，之後有新道具再補裝備/UI邏輯
+
+## 使用額外道具槽位（目前都是空的，沒裝備就直接沒反應）
+func _use_equipped_item(slot_index: int) -> void:
+	if slot_index < 0 or slot_index >= equipped_items.size(): return
+	var item = equipped_items[slot_index]
+	if is_instance_valid(item): item.use()
+
 ## 初始化玩家，載入裝備並根據場景更新移動模式
 func _ready() -> void:
-	equip_loadout(equipped_weapon_ids)
+	# 🌟 裝備配置優先讀玩家在裝備介面上次留下的設定檔——不管有沒有存檔，一律沿用最後一次的配置。
+	# 如果是從既有存檔讀取，Game.change_scene() 之後還會呼叫 import_combat_state() 覆蓋成存檔當下的配置，這裡不用擔心衝突
+	if Game.has_saved_loadout:
+		equip_loadout_with_arts(Game.saved_equipped_weapon_ids, Game.saved_martial_arts_config)
+	else:
+		equip_loadout(equipped_weapon_ids)
+
+	health_item = HEALTH_PACK_SCENE.instantiate()
+	add_child(health_item)
+	health_item.setup(self)
+
 	var is_base = false
 	var current_world = get_tree().current_scene
 	if current_world is World and "is_base" in current_world:
@@ -235,17 +260,26 @@ func _unhandled_input(event: InputEvent) -> void:
 	var is_mod_held = Input.is_action_pressed("martial_modifier")
 	
 	if is_mod_held:
-		if event.is_action_pressed("art_1") and _has_martial_art(0):
-			is_martial_requested = true; is_combo_requested = true; requested_martial_slot = 1
-			martial_buffer_time = ATTACK_BUFFER_DURATION; combo_buffer_time = ATTACK_BUFFER_DURATION
-			get_viewport().set_input_as_handled() 
-		elif event.is_action_pressed("art_2") and _has_martial_art(1):
-			is_martial_requested = true; is_combo_requested = true; requested_martial_slot = 2
-			martial_buffer_time = ATTACK_BUFFER_DURATION; combo_buffer_time = ATTACK_BUFFER_DURATION
+		if event.is_action_pressed("art_1"):
+			if _has_martial_art(0):
+				is_martial_requested = true; is_combo_requested = true; requested_martial_slot = 1
+				martial_buffer_time = ATTACK_BUFFER_DURATION; combo_buffer_time = ATTACK_BUFFER_DURATION
+			elif _martial_art_equipped(0) != null:
+				martial_art_denied.emit(1)
 			get_viewport().set_input_as_handled()
-		elif event.is_action_pressed("art_3") and _has_martial_art(2):
-			is_martial_requested = true; is_combo_requested = true; requested_martial_slot = 3
-			martial_buffer_time = ATTACK_BUFFER_DURATION; combo_buffer_time = ATTACK_BUFFER_DURATION
+		elif event.is_action_pressed("art_2"):
+			if _has_martial_art(1):
+				is_martial_requested = true; is_combo_requested = true; requested_martial_slot = 2
+				martial_buffer_time = ATTACK_BUFFER_DURATION; combo_buffer_time = ATTACK_BUFFER_DURATION
+			elif _martial_art_equipped(1) != null:
+				martial_art_denied.emit(2)
+			get_viewport().set_input_as_handled()
+		elif event.is_action_pressed("art_3"):
+			if _has_martial_art(2):
+				is_martial_requested = true; is_combo_requested = true; requested_martial_slot = 3
+				martial_buffer_time = ATTACK_BUFFER_DURATION; combo_buffer_time = ATTACK_BUFFER_DURATION
+			elif _martial_art_equipped(2) != null:
+				martial_art_denied.emit(3)
 			get_viewport().set_input_as_handled()
 	else:
 		if event.is_action_pressed("attack"):
@@ -260,6 +294,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			if can_buffer: is_heavy_requested = true; heavy_buffer_time = ATTACK_BUFFER_DURATION
 		
 	if event.is_action_pressed("guard"): guard_request_timer.start()
+
+	# 🎒 消耗道具：沒有招式優先級判定，純粹按了就用，不用像武藝一樣搶連段輸入緩衝
+	if event.is_action_pressed("use_health_item"):
+		if is_instance_valid(health_item): health_item.use()
+	elif event.is_action_pressed("use_item_1"): _use_equipped_item(0)
+	elif event.is_action_pressed("use_item_2"): _use_equipped_item(1)
+	elif event.is_action_pressed("use_item_3"): _use_equipped_item(2)
 
 	if event.is_action_pressed("jump"): jump_request_timer.start()
 	if event.is_action_released("jump"):
@@ -502,15 +543,20 @@ func get_all_weapons_martial_arts() -> Dictionary:
 			if w_id and ma_paths is Array: current_config[w_id] = ma_paths.duplicate()
 	return current_config
 
+## 該槽位有沒有裝備武藝卡帶（不管能量夠不夠）——給 _has_martial_art() 跟「能量不足警示」共用判斷
+func _martial_art_equipped(slot_index: int) -> Node:
+	if not is_instance_valid(current_weapon): return null
+	var m_slots = current_weapon.get("martial_slots")
+	if not (m_slots is Array and m_slots.size() > slot_index): return null
+
+	var art = m_slots[slot_index]
+	return art if is_instance_valid(art) else null
+
 ## 除了確認該槽位有裝備武藝，也一併檢查能量夠不夠——不夠的話直接在輸入層擋掉，
 ## 不要等到 WeaponAttack/Guard 已經取消目前招式才發現放不出來，會卡出一個很怪的空檔
 func _has_martial_art(slot_index: int) -> bool:
-	if not is_instance_valid(current_weapon): return false
-	var m_slots = current_weapon.get("martial_slots")
-	if not (m_slots is Array and m_slots.size() > slot_index): return false
-
-	var art = m_slots[slot_index]
-	if not is_instance_valid(art): return false
+	var art = _martial_art_equipped(slot_index)
+	if art == null: return false
 
 	var cost = art.get("energy_cost") if "energy_cost" in art else 0.0
 	return martial_energy >= cost
@@ -576,7 +622,8 @@ func export_combat_state() -> Dictionary:
 		"equipped_weapon_ids": equipped_weapon_ids, "martial_energy": martial_energy,
 		"weapon_switch_cooldown_timer": weapon_switch_cooldown_timer,
 		"current_weapon_index": current_weapon.get_index() if is_instance_valid(current_weapon) else 0,
-		"weapons_data": {}, "martial_arts_config": get_all_weapons_martial_arts() if has_method("get_all_weapons_martial_arts") else {}
+		"weapons_data": {}, "martial_arts_config": get_all_weapons_martial_arts() if has_method("get_all_weapons_martial_arts") else {},
+		"health_item_charges": health_item.current_charges if is_instance_valid(health_item) else 0,
 	}
 	for weapon in weapon_slot.get_children():
 		if weapon.has_method("export_weapon_data"): state["weapons_data"][weapon.name] = weapon.export_weapon_data()
@@ -602,6 +649,9 @@ func import_combat_state(state: Dictionary) -> void:
 		var target_idx = int(state["current_weapon_index"])
 		if target_idx >= 0 and target_idx < weapon_slot.get_child_count():
 			_force_equip_weapon(weapon_slot.get_child(target_idx))
+
+	if state.has("health_item_charges") and is_instance_valid(health_item):
+		health_item.current_charges = clampi(int(state["health_item_charges"]), 0, health_item.max_charges)
 
 func _force_equip_weapon(target_weapon: Node) -> void:
 	if current_weapon == target_weapon: return

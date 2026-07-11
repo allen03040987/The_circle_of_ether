@@ -5,7 +5,7 @@ extends State
 
 const SLIDING_SFX = preload("res://sound/SFX/sliding.wav")
 const SLIDING_SFX_2 = preload("res://sound/SFX/sprint.wav")
-const SLIDING_SFX_3 = preload("res://sound/SFX/attack/Wind_2.wav")
+const SLIDING_SFX_3 = preload("res://sound/SFX/attack/wind_2.wav")
 const SUCCESS_SFX = preload("res://sound/SFX/Successfully_dodged.wav")
 const PERFECT_DODGE_MARTIAL_ENERGY: float = 1.0 ## 完美閃避給的武藝能量，比一般命中(0.2)高，獎勵技巧性回避
 

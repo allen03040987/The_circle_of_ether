@@ -8,7 +8,6 @@ signal menu_closed # 通知暫停選單「配置介面已關閉」
 # 🎒 裝備介面專用變數
 # ==========================================
 @onready var status_label: Label = $StatusLabel
-@onready var apply_button: Button = $ApplyButton
 
 @onready var weapon_opt_1: OptionButton = $HBoxContainer/WeaponSlot1/WeaponOpt
 @onready var weapon_opt_2: OptionButton = $HBoxContainer/WeaponSlot2/WeaponOpt
@@ -39,20 +38,20 @@ const AVAILABLE_WEAPONS = [
 
 const AVAILABLE_ARTS = {
 	"katana": [
-		{"name": "逆鱗返", "path": "res://player/MartialArts/Katana/Art_Katana_1.gd"},
-		{"name": "升龍斬", "path": "res://player/MartialArts/Katana/Art_Katana_2.gd"},
-		{"name": "寸位斷", "path": "res://player/MartialArts/Katana/Art_Katana_3.gd"},
-		{"name": "居合貫", "path": "res://player/MartialArts/Katana/Art_Katana_4.gd"},
-		{"name": "零式突氣", "path": "res://player/MartialArts/Katana/Art_Katana_5.gd"},
-		{"name": "次元極意", "path": "res://player/MartialArts/Katana/Art_Katana_6.gd"}
+		{"name": "逆鱗返", "path": "res://player/MartialArts/Katana/Art_Katana_1.tscn"},
+		{"name": "升龍斬", "path": "res://player/MartialArts/Katana/Art_Katana_2.tscn"},
+		{"name": "寸位斷", "path": "res://player/MartialArts/Katana/Art_Katana_3.tscn"},
+		{"name": "居合貫", "path": "res://player/MartialArts/Katana/Art_Katana_4.tscn"},
+		{"name": "零式突氣", "path": "res://player/MartialArts/Katana/Art_Katana_5.tscn"},
+		{"name": "次元極意", "path": "res://player/MartialArts/Katana/Art_Katana_6.tscn"}
 	],
 	"spear": [
-		{"name": "大範圍聚怪 (21)", "path": "res://player/MartialArts/Spear/Art_Spear_21.gd"}
+		{"name": "大範圍聚怪 (21)", "path": "res://player/MartialArts/Spear/Art_Spear_4.tscn"}
 	],
 	"talisman": [
-		{"name": "靈能護身塔 (20)", "path": "res://player/MartialArts/Talisman/Art_Talisman_20.gd"},
-		{"name": "逐風符·昇 (30)", "path": "res://player/MartialArts/Talisman/Art_Talisman_30.gd"},
-		{"name": "馭雷符·降 (31)", "path": "res://player/MartialArts/Talisman/Art_Talisman_31.gd"}
+		{"name": "靈能護身塔 (20)", "path": "res://player/MartialArts/Talisman/Art_Talisman_20.tscn"},
+		{"name": "逐風符·昇 (30)", "path": "res://player/MartialArts/Talisman/Art_Talisman_30.tscn"},
+		{"name": "馭雷符·降 (31)", "path": "res://player/MartialArts/Talisman/Art_Talisman_31.tscn"}
 	],
 	"sickle": []
 }
@@ -75,8 +74,6 @@ func _ready() -> void:
 		for i in range(3):
 			slot1_arts[i].item_selected.connect(_on_art_selected.bind(0, i))
 			slot2_arts[i].item_selected.connect(_on_art_selected.bind(1, i))
-			
-		apply_button.pressed.connect(_on_apply_loadout_pressed)
 	
 	if is_instance_valid(back_button) and not back_button.pressed.is_connected(close_menu):
 		back_button.pressed.connect(close_menu)
@@ -128,7 +125,7 @@ func _sync_ui_to_data() -> void:
 	_refresh_art_dropdowns(1)
 	if status_label: status_label.text = "配置你的主副武器與武藝："
 
-## 處理武器選單變更，確保主副武器不重複
+## 處理武器選單變更，確保主副武器不重複——切換完直接生效，不用另外按確認
 func _on_weapon_selected(item_index: int, slot_index: int) -> void:
 	var new_weapon_id = AVAILABLE_WEAPONS[item_index]["id"]
 	var other_slot = 1 if slot_index == 0 else 0
@@ -136,22 +133,24 @@ func _on_weapon_selected(item_index: int, slot_index: int) -> void:
 		selected_weapons[other_slot] = selected_weapons[slot_index]
 	selected_weapons[slot_index] = new_weapon_id
 	_sync_ui_to_data()
+	_apply_loadout_now()
 
-## 處理武藝槽位變更，並防止同武器裝備重複的武藝
+## 處理武藝槽位變更，並防止同武器裝備重複的武藝——切換完直接生效，不用另外按確認
 func _on_art_selected(item_index: int, main_slot_index: int, art_slot_index: int) -> void:
 	var w_id = selected_weapons[main_slot_index]
 	var ui_slots = slot1_arts if main_slot_index == 0 else slot2_arts
 	var selected_path = ui_slots[art_slot_index].get_item_metadata(item_index)
-	
-	if selected_path != "": 
+
+	if selected_path != "":
 		for i in range(3):
 			if i != art_slot_index and selected_arts[w_id][i] == selected_path:
 				var old_path = selected_arts[w_id][art_slot_index]
 				selected_arts[w_id][i] = old_path
-				break 
-				
+				break
+
 	selected_arts[w_id][art_slot_index] = selected_path
 	_refresh_art_dropdowns(main_slot_index)
+	_apply_loadout_now()
 
 ## 根據當前選擇的武器，刷新對應槽位的可用武藝下拉清單
 func _refresh_art_dropdowns(main_slot_index: int) -> void:
@@ -189,23 +188,21 @@ func _set_opt_by_metadata(opt: OptionButton, meta_value: String) -> void:
 			opt.selected = i
 			return
 
-## 儲存並將裝備變更應用至玩家實體
-func _on_apply_loadout_pressed() -> void:
+## 把目前的選擇立刻套用到玩家實體，並寫進設定檔——不用「確認裝備」按鈕，
+## 也不需要玩家額外存檔，下次開遊戲一樣讀得到這次的裝備配置 (見 Game.save_loadout_config())
+func _apply_loadout_now() -> void:
 	var players = get_tree().get_nodes_in_group("Player")
 	if players.size() > 0:
 		var p = players[0]
 		var current_equipped = p.get("equipped_weapon_ids")
 		var current_arts = p.call("get_all_weapons_martial_arts") if p.has_method("get_all_weapons_martial_arts") else {}
-		
-		if current_equipped == selected_weapons and current_arts == selected_arts:
-			print("♻️ [系統] 裝備與武藝皆無更動！")
-			close_menu()
-			return
-			
-		if p.has_method("equip_loadout_with_arts"):
-			p.call("equip_loadout_with_arts", selected_weapons.duplicate(), selected_arts.duplicate(true))
-		else:
-			p.equip_loadout(selected_weapons.duplicate())
-			
-		print("✅ 雙武器與武藝組件同步更新成功！")
-		close_menu()
+
+		if current_equipped != selected_weapons or current_arts != selected_arts:
+			if p.has_method("equip_loadout_with_arts"):
+				p.call("equip_loadout_with_arts", selected_weapons.duplicate(), selected_arts.duplicate(true))
+			else:
+				p.equip_loadout(selected_weapons.duplicate())
+			print("✅ 雙武器與武藝組件同步更新成功！")
+
+	if Game.has_method("save_loadout_config"):
+		Game.save_loadout_config(selected_weapons.duplicate(), selected_arts.duplicate(true))

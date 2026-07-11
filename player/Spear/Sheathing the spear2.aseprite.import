@@ -1,0 +1,18 @@
+[remap]
+
+importer="aseprite_wizard.plugin"
+type="SpriteFrames"
+uid="uid://d3h0d7amujyg0"
+path="res://.godot/imported/Sheathing the spear2.aseprite-8ad3fecb6e0c73c5baddc632de6306de.res"
+
+[deps]
+
+source_file="res://player/Spear/Sheathing the spear2.aseprite"
+dest_files=["res://.godot/imported/Sheathing the spear2.aseprite-8ad3fecb6e0c73c5baddc632de6306de.res"]
+
+[params]
+
+split_layers=false
+exclude_layers_pattern=""
+only_visible_layers=false
+sheet_type="Packed"

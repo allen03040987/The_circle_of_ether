@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3 uid="uid://vpe0w77sjkii"]
+
+[ext_resource type="Script" path="res://player/MartialArts/Katana/Art_Katana_3.gd" id="1_art"]
+[ext_resource type="Texture2D" uid="uid://cffvkmas3ihmr" path="res://player/UI/Katana/Untitled 04-18-2026 12-09-12 (2).png" id="2_ct4is"]
+
+[node name="Art_Katana_3" type="Node"]
+script = ExtResource("1_art")
+icon = ExtResource("2_ct4is")

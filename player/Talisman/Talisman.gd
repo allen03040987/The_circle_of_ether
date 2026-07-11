@@ -8,9 +8,9 @@ const WEAPON_ID: String = "talisman"
 # 🥋 專屬武藝系統 (Martial Arts Loadout)
 # ==========================================
 @export var equipped_martial_arts: Array[String] = [
-	"res://player/MartialArts/Talisman/Art_Talisman_20.gd", 
-	"res://player/MartialArts/Talisman/Art_Talisman_30.gd", 
-	"res://player/MartialArts/Talisman/Art_Talisman_31.gd"
+	"res://player/MartialArts/Talisman/Art_Talisman_20.tscn",
+	"res://player/MartialArts/Talisman/Art_Talisman_30.tscn",
+	"res://player/MartialArts/Talisman/Art_Talisman_31.tscn"
 ]
 
 func _ready() -> void:

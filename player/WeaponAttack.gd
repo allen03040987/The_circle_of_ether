@@ -25,7 +25,15 @@ func enter() -> void:
 	if not is_instance_valid(player.current_weapon):
 		state_machine.transition_to("Idle")
 		return
-		
+
+	# 🌟 武器自己已經先設好攻擊狀態了（例如長槍接槍瞬間自動觸發的「轉身收槍」前搖，
+	# 不是這次按鍵輸入啟動的）——is_attacking 正常情況下進到這個狀態時必定是 false，
+	# 一旦已經是 true 就代表武器搶先設定好了，跳過下面的搶輸入分派，直接交給 physics_update
+	if player.current_weapon.get("is_attacking") == true:
+		player.can_combo = false
+		_update_facing()
+		return
+
 	# ------------------------------------------
 	# ⏳ 處理魔女時間專屬閃避偏移 (Dodge Offset)
 	# ------------------------------------------

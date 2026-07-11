@@ -39,6 +39,9 @@ func get_speed_multiplier() -> float:
 var martial_slots: Array[Node] = [null, null, null]
 var active_martial_art: Node = null
 
+## 武藝實際成功施放時發出（能量閘門通過、真的 enter() 了）——給 UI 播放施放特效用，跟「輸入被擋下」的 denied 訊號分開
+signal martial_art_cast(slot_index: int)
+
 ## 讀取並實例化玩家配置的武藝腳本
 func load_martial_arts(art_paths: Array[String]) -> void:
 	for slot in martial_slots:
@@ -93,6 +96,8 @@ func execute_martial_art(slot_index: int) -> void:
 	active_martial_art = target_art
 	if active_martial_art.has_method("enter"):
 		active_martial_art.enter()
+
+	martial_art_cast.emit(slot_index)
 
 # ==========================================
 # ⚙️ 初始化與介面

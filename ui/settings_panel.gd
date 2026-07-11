@@ -10,6 +10,7 @@ signal back_requested
 @onready var music_volume_slider: HSlider = $Panel/ScrollContainer/VBoxContainer/MusicVolumeSlider
 @onready var sfx_volume_slider: HSlider = $Panel/ScrollContainer/VBoxContainer/SfxVolumeSlider
 @onready var fullscreen_toggle: CheckButton = $Panel/ScrollContainer/VBoxContainer/CheckButton
+@onready var dev_mode_toggle: CheckButton = $Panel/ScrollContainer/VBoxContainer/DevModeToggle
 @onready var keybind_button: Button = $Panel/ScrollContainer/VBoxContainer/KeybindButton
 @onready var keybind_menu: Control = $KeybindMenu
 @onready var back_button: Button = $BackButton
@@ -33,7 +34,10 @@ func _ready() -> void:
 
 	if is_instance_valid(fullscreen_toggle) and not fullscreen_toggle.toggled.is_connected(_on_fullscreen_toggled):
 		fullscreen_toggle.toggled.connect(_on_fullscreen_toggled)
-		
+
+	if is_instance_valid(dev_mode_toggle) and not dev_mode_toggle.toggled.is_connected(_on_dev_mode_toggled):
+		dev_mode_toggle.toggled.connect(_on_dev_mode_toggled)
+
 	# 3. 初始刷新一次
 	_refresh_ui_state()
 	
@@ -71,6 +75,8 @@ func _refresh_ui_state() -> void:
 	var is_fullscreen = (current_mode == DisplayServer.WINDOW_MODE_FULLSCREEN or current_mode == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
 	if is_instance_valid(fullscreen_toggle):
 		fullscreen_toggle.set_pressed_no_signal(is_fullscreen)
+	if is_instance_valid(dev_mode_toggle):
+		dev_mode_toggle.set_pressed_no_signal(Game.config_dev_mode)
 # ==========================================
 # 📡 UI 互動與訊號廣播 (UI Interaction & Signals)
 # ==========================================
@@ -132,6 +138,12 @@ func _on_keybind_menu_closed() -> void:
 # ==========================================
 # 🖥️ 視窗模式控制
 # ==========================================
+func _on_dev_mode_toggled(toggled_on: bool) -> void:
+	Game.config_dev_mode = toggled_on
+	Game.save_settings()
+	print("⚙️ 面板設定已儲存：開發模式 = ", toggled_on)
+	Game.settings_changed.emit()
+
 func _on_fullscreen_toggled(toggled_on: bool) -> void:
 	if toggled_on:
 		# 切換為無邊框全螢幕 (Alt+Tab 切換最順暢的模式)

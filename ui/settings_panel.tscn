@@ -79,14 +79,19 @@ layout_mode = 2
 text = "全螢幕模式
 "
 
+[node name="DevModeToggle" type="CheckButton" parent="Panel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+focus_mode = 0
+text = "開發模式（血包上限 99）"
+
 [node name="KeybindMenu" parent="." instance=ExtResource("2_oowmq")]
 visible = false
 
 [node name="BackButton" type="Button" parent="."]
 layout_mode = 0
-offset_left = 328.0
+offset_left = 8.0
 offset_top = 176.0
-offset_right = 368.0
+offset_right = 48.0
 offset_bottom = 207.0
 text = "返回"
 

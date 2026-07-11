@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3 uid="uid://c6q0h8n4vqe4h"]
+
+[ext_resource type="Script" path="res://player/Items/HealthPack.gd" id="1_hpk"]
+[ext_resource type="Texture2D" uid="uid://dgccbibxj5uw3" path="res://player/Items/ui/Recover health.png" id="2_mum2u"]
+
+[node name="HealthPack" type="Node"]
+script = ExtResource("1_hpk")
+icon = ExtResource("2_mum2u")

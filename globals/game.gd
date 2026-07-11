@@ -7,7 +7,8 @@ extends Node
 # 📂 檔案路徑與廣播
 # ==========================================
 const SAVE_PATH = "user://data.sav"
-const SETTINGS_PATH = "user://settings.cfg" 
+const SETTINGS_PATH = "user://settings.cfg"
+const LOADOUT_PATH = "user://loadout.cfg" ## 🌟 裝備配置獨立存成設定檔，跟存讀檔系統脫鉤——玩家在裝備介面改了配置，不用特地存檔，下次開遊戲一樣讀得到
 
 signal settings_changed
 
@@ -21,6 +22,14 @@ var config_enable_damage_numbers: bool = true
 var config_fullscreen: bool = false
 var config_music_volume: float = 1.0
 var config_sfx_volume: float = 1.0
+var config_dev_mode: bool = false ## 開發模式：目前效果是血包上限拉到 99，方便測試不用一直補
+
+# ==========================================
+# 🎒 裝備配置 (獨立於存讀檔系統之外)
+# ==========================================
+var saved_equipped_weapon_ids: Array[String] = []
+var saved_martial_arts_config: Dictionary = {}
+var has_saved_loadout: bool = false
 
 # ==========================================
 # 🌍 全域狀態與節點參考
@@ -41,6 +50,7 @@ func _ready() -> void:
 	default_player_stats = player_stats.to_dict()
 	
 	load_settings()
+	load_loadout_config()
 
 	if config_fullscreen:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
@@ -60,6 +70,7 @@ func save_settings() -> void:
 	config.set_value("Visuals", "fullscreen", config_fullscreen)
 	config.set_value("Audio", "music_volume", config_music_volume)
 	config.set_value("Audio", "sfx_volume", config_sfx_volume)
+	config.set_value("Debug", "dev_mode", config_dev_mode)
 	config.save(SETTINGS_PATH)
 
 func load_settings() -> void:
@@ -74,8 +85,35 @@ func load_settings() -> void:
 		config_fullscreen = config.get_value("Visuals", "fullscreen", false)
 		config_music_volume = config.get_value("Audio", "music_volume", 1.0)
 		config_sfx_volume = config.get_value("Audio", "sfx_volume", 1.0)
+		config_dev_mode = config.get_value("Debug", "dev_mode", false)
 	else:
 		save_settings()
+
+# ==========================================
+# 🎒 裝備配置存讀 (獨立於存讀檔系統，改完立刻生效、立刻寫檔)
+# ==========================================
+func save_loadout_config(weapon_ids: Array[String], arts_config: Dictionary) -> void:
+	saved_equipped_weapon_ids = weapon_ids.duplicate()
+	saved_martial_arts_config = arts_config.duplicate(true)
+	has_saved_loadout = true
+
+	var config = ConfigFile.new()
+	config.set_value("Loadout", "equipped_weapon_ids", saved_equipped_weapon_ids)
+	config.set_value("Loadout", "martial_arts_config", saved_martial_arts_config)
+	config.save(LOADOUT_PATH)
+
+func load_loadout_config() -> void:
+	var config = ConfigFile.new()
+	var err = config.load(LOADOUT_PATH)
+	if err != OK: return
+
+	var raw_ids = config.get_value("Loadout", "equipped_weapon_ids", [])
+	var safe_ids: Array[String] = []
+	for id in raw_ids: safe_ids.append(str(id))
+
+	saved_equipped_weapon_ids = safe_ids
+	saved_martial_arts_config = config.get_value("Loadout", "martial_arts_config", {})
+	has_saved_loadout = not saved_equipped_weapon_ids.is_empty()
 
 ## 把目前的音樂/音效音量設定套用到對應的 Audio Bus (BGM / SFX)
 func apply_audio_volumes() -> void:

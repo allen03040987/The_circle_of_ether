@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://crojrivmyls3b"]
+[gd_scene load_steps=17 format=3 uid="uid://crojrivmyls3b"]
 
 [ext_resource type="Script" path="res://player/Spear/Spear.gd" id="1_18skl"]
 [ext_resource type="Texture2D" uid="uid://c3gh0neiqsscu" path="res://player/Spear/spear.png" id="2_uwi20"]
@@ -16,20 +16,29 @@ size = Vector2(179, 55)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_gcxfr"]
 size = Vector2(235, 69)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_hbtip1"]
-size = Vector2(56, 56)
-
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_6kf2a"]
-size = Vector2(236.5, 56)
+size = Vector2(200, 56)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_hbtip2"]
-size = Vector2(24, 56)
+size = Vector2(32, 56)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_klx65"]
+size = Vector2(184, 88)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ngq7e"]
+size = Vector2(72, 88)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hbtip3"]
+size = Vector2(72, 88)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_e5d2s"]
+size = Vector2(200, 72)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hbtip1"]
+size = Vector2(48, 72)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_n8ie8"]
 size = Vector2(416, 214)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_e5d2s"]
-size = Vector2(180, 101)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_3irte"]
 size = Vector2(139, 99)
@@ -38,7 +47,8 @@ size = Vector2(139, 99)
 script = ExtResource("1_18skl")
 scabbard_texture = ExtResource("2_uwi20")
 
-[node name="Hitbox" type="Area2D" parent="."]
+[node name="light" type="Area2D" parent="."]
+visible = false
 collision_layer = 0
 collision_mask = 16
 script = ExtResource("7_ew6yt")
@@ -46,39 +56,28 @@ knockback_force = Vector2(50, 0)
 spark_base_offset = Vector2(0, -5)
 spark_random_angle = 360.0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="light"]
 visible = false
 position = Vector2(49.5, -30)
 shape = SubResource("RectangleShape2D_6d6el")
 disabled = true
 
-[node name="CollisionShape2D2" type="CollisionShape2D" parent="Hitbox"]
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="light"]
 visible = false
 position = Vector2(46.5, -29.5)
 shape = SubResource("RectangleShape2D_7f7ob")
 disabled = true
 
-[node name="CollisionShape2D3" type="CollisionShape2D" parent="Hitbox"]
+[node name="CollisionShape2D3" type="CollisionShape2D" parent="light"]
+visible = false
 position = Vector2(46.5, -28.5)
 shape = SubResource("RectangleShape2D_s2uwu")
 disabled = true
 
-[node name="CollisionShape2D4" type="CollisionShape2D" parent="Hitbox"]
+[node name="CollisionShape2D4" type="CollisionShape2D" parent="light"]
 visible = false
 position = Vector2(29.5, -30.5)
 shape = SubResource("RectangleShape2D_gcxfr")
-disabled = true
-
-[node name="HitboxTip" type="Area2D" parent="."]
-collision_mask = 16
-script = ExtResource("7_ew6yt")
-knockback_force = Vector2(50, 0)
-spark_base_offset = Vector2(0, -5)
-spark_random_angle = 360.0
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="HitboxTip"]
-position = Vector2(108, -28)
-shape = SubResource("RectangleShape2D_hbtip1")
 disabled = true
 
 [node name="attack_enhanced" type="Area2D" parent="."]
@@ -89,7 +88,7 @@ spark_base_offset = Vector2(0, -5)
 spark_random_angle = 360.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="attack_enhanced"]
-position = Vector2(1.75, -28)
+position = Vector2(20, -28)
 shape = SubResource("RectangleShape2D_6kf2a")
 disabled = true
 
@@ -100,8 +99,64 @@ spark_base_offset = Vector2(0, -5)
 spark_random_angle = 360.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="AttackEnhancedTip"]
-position = Vector2(108, -28)
+position = Vector2(136, -28)
 shape = SubResource("RectangleShape2D_hbtip2")
+disabled = true
+
+[node name="attack_enhanced_2" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("7_ew6yt")
+spark_base_offset = Vector2(0, -5)
+spark_random_angle = 360.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="attack_enhanced_2"]
+visible = false
+position = Vector2(4, -44)
+shape = SubResource("RectangleShape2D_klx65")
+disabled = true
+
+[node name="AttackEnhanced2Tip" type="Area2D" parent="."]
+visible = false
+collision_mask = 16
+script = ExtResource("7_ew6yt")
+spark_base_offset = Vector2(0, -5)
+spark_random_angle = 360.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="AttackEnhanced2Tip"]
+visible = false
+position = Vector2(132, -44)
+shape = SubResource("RectangleShape2D_ngq7e")
+disabled = true
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="AttackEnhanced2Tip"]
+visible = false
+position = Vector2(-124, -44)
+shape = SubResource("RectangleShape2D_hbtip3")
+disabled = true
+
+[node name="attack_enhanced_3" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 16
+script = ExtResource("7_ew6yt")
+spark_base_offset = Vector2(0, -5)
+spark_random_angle = 360.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="attack_enhanced_3"]
+position = Vector2(20, -36)
+shape = SubResource("RectangleShape2D_e5d2s")
+disabled = true
+
+[node name="HitboxTip" type="Area2D" parent="."]
+collision_mask = 16
+script = ExtResource("7_ew6yt")
+knockback_force = Vector2(50, 0)
+spark_base_offset = Vector2(0, -5)
+spark_random_angle = 360.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="HitboxTip"]
+position = Vector2(144, -36)
+shape = SubResource("RectangleShape2D_hbtip1")
 disabled = true
 
 [node name="C2" type="Area2D" parent="."]
@@ -115,19 +170,6 @@ spark_random_angle = 360.0
 [node name="CollisionShape2D" type="CollisionShape2D" parent="C2"]
 position = Vector2(8, -63)
 shape = SubResource("RectangleShape2D_n8ie8")
-disabled = true
-
-[node name="C3" type="Area2D" parent="."]
-visible = false
-collision_layer = 0
-collision_mask = 16
-script = ExtResource("7_ew6yt")
-spark_base_offset = Vector2(0, -5)
-spark_random_angle = 360.0
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="C3"]
-position = Vector2(2, -49.5)
-shape = SubResource("RectangleShape2D_e5d2s")
 disabled = true
 
 [node name="Air_J" type="Area2D" parent="."]
