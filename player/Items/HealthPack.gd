@@ -21,7 +21,7 @@ func _on_settings_changed() -> void:
 	_apply_dev_mode_cap()
 	current_charges = max_charges if Game.config_dev_mode else min(current_charges, max_charges)
 
-func use() -> bool:
+func _do_use() -> bool:
 	if current_charges <= 0: return false
 	if not is_instance_valid(player) or not ("stats" in player): return false
 

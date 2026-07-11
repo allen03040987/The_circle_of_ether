@@ -1,4 +1,4 @@
-[gd_scene load_steps=224 format=3 uid="uid://bhfnd1l4u7ppc"]
+[gd_scene load_steps=225 format=3 uid="uid://bhfnd1l4u7ppc"]
 
 [ext_resource type="Script" path="res://player/Player.gd" id="1_6frkl"]
 [ext_resource type="PackedScene" uid="uid://8r8bfgadubf8" path="res://Explod/tscn/Dimensional Slash.tscn" id="2_64kkh"]
@@ -104,6 +104,7 @@
 [ext_resource type="Texture2D" uid="uid://5s1s443grby0" path="res://player/Spear/Sheathing the spear2.png" id="69_ffoxh"]
 [ext_resource type="Texture2D" uid="uid://bdxegyj2362kg" path="res://player/UI/spear/spear ui.png" id="71_hqjdn"]
 [ext_resource type="Texture2D" uid="uid://b1tc8se0il3w3" path="res://player/UI/talisman/talisman ui.png" id="90_rjsig"]
+[ext_resource type="Texture2D" uid="uid://cydy0i2fanv6m" path="res://player/UI/null.png" id="100_b46yx"]
 
 [sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_i43gw"]
 blend_mode = 1
@@ -13857,6 +13858,7 @@ scale = Vector2(0.8, 0.8)
 size_flags_vertical = 4
 script = ExtResource("45_pdprk")
 player = NodePath("../..")
+empty_art_icon = ExtResource("100_b46yx")
 
 [node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/CombatUI"]
 layout_mode = 1

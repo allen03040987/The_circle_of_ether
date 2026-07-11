@@ -2,6 +2,7 @@ extends Control
 ## 戰鬥 UI 監視器 (重構版)
 
 @export var player: Player
+@export var empty_art_icon: Texture2D ## 沒裝武藝的槽位統一顯示這張空圖標（不設定就沿用舊行為：直接隱藏）
 
 # --- 通用技能槽群組 ---
 @onready var skill_slots = $HBoxContainer
@@ -25,6 +26,9 @@ extends Control
 # 🌟 每個圖標各自追蹤自己目前播放中的顏色 tween，播新的之前先把舊的殺掉，
 # 不然「按著修飾鍵的呼吸燈」跟「能量不足的紅色警示」兩個效果同時搶同一個 modulate 屬性會互相打架、糊成一團
 var _art_color_tweens: Array[Tween] = [null, null, null]
+var _art_is_equipped: Array[bool] = [false, false, false] ## 這一槽現在顯示的是「真的裝備的武藝」還是純粹的空圖標——高亮/警示動畫只認前者
+var _health_item_color_tween: Tween = null
+var _cached_health_item: Node = null ## 血包節點是 Player._ready() 才動態生成的，晚於 CombatUI._ready()，所以訊號要延到抓到它的那一幀才接
 
 # --- 專屬資源面板 ---
 @onready var katana_ui = $KatanaResources
@@ -91,19 +95,34 @@ func _process(_delta: float) -> void:
 			if not is_instance_valid(art_ui): continue
 
 			var icon = current_weapon.get_dynamic_skill_icon(slot_id)
+			var cost_label = art_cost_labels[i] if i < art_cost_labels.size() else null
 
 			if icon:
+				# 🛡️ modulate 只在「剛從空槽位變成裝備武藝」那一刻重置一次——
+				# 不能每幀都強制設，不然會把高亮/警示的 tween 每幀蓋掉，兩個效果直接失效
+				if not _art_is_equipped[i]: art_ui.modulate = Color.WHITE
+				_art_is_equipped[i] = true
 				if art_ui.texture_under != icon:
 					_swap_dynamic_icon(art_ui, icon)
 				art_ui.show()
 				_update_radial_cooldown(art_ui, 0.0, 1.0)
 
 				# 🌟 圖標右下角顯示這個武藝的能量需求
-				var cost_label = art_cost_labels[i] if i < art_cost_labels.size() else null
 				if is_instance_valid(cost_label) and m_slots is Array and m_slots.size() > i and is_instance_valid(m_slots[i]):
 					var cost = m_slots[i].get("energy_cost") if "energy_cost" in m_slots[i] else 0.0
 					cost_label.text = str(roundi(cost)) if float(cost) == roundi(cost) else ("%.1f" % cost)
+			elif empty_art_icon:
+				# 🌟 沒裝武藝：統一顯示同一張空圖標，用調暗的顏色跟「真的有裝備」的圖標區分開來。
+				# 這個分支不會被高亮/警示 tween 動到，每幀強制設定沒關係，也才能保證一開場沒裝備的槽位就是暗的
+				art_ui.modulate = Color(1.0, 1.0, 1.0, 0.35)
+				_art_is_equipped[i] = false
+				if art_ui.texture_under != empty_art_icon:
+					_swap_dynamic_icon(art_ui, empty_art_icon)
+				art_ui.show()
+				_update_radial_cooldown(art_ui, 0.0, 1.0)
+				if is_instance_valid(cost_label): cost_label.text = ""
 			else:
+				_art_is_equipped[i] = false
 				art_ui.hide()
 		
 	# 5. 各武器專屬量表更新
@@ -118,14 +137,14 @@ func _process(_delta: float) -> void:
 # ==========================================
 # 📡 訊號接收：組合鍵高亮呼吸燈 / 能量不足警示
 # ==========================================
-const HIGHLIGHT_COLOR := Color(0.8, 1.0, 0.9, 1.0) ## 按著修飾鍵時的高亮色：淡藍綠色 (取代原本偏黃的配色)
+const HIGHLIGHT_COLOR := Color(0.9, 1.2, 1.0, 0.9) ## 按著修飾鍵時的高亮色：淡藍綠色 (取代原本偏黃的配色)
 const DENIED_COLOR := Color(1.8, 0.35, 0.35, 1.0)  ## 能量不足時的警示色：紅色
 
 func _on_player_martial_mode_changed(is_active: bool) -> void:
 	# 當玩家按下修改鍵(Alt/Shift)時，讓 3 個武藝圖標整體放大並變色提示，耗能數字也跟著一起淡入/淡出
 	for i in range(art_uis.size()):
 		var art_ui = art_uis[i]
-		if is_instance_valid(art_ui) and art_ui.visible:
+		if is_instance_valid(art_ui) and art_ui.visible and _art_is_equipped[i]:
 			_kill_color_tween(i)
 			var tween = create_tween().set_parallel(true)
 			_art_color_tweens[i] = tween
@@ -144,45 +163,68 @@ func _on_player_martial_mode_changed(is_active: bool) -> void:
 ## 該槽位確實有裝備武藝，但按下當下能量不夠——圖標紅色閃爍漸出 + 搖晃提示玩家
 func _on_martial_art_denied(slot_index: int) -> void:
 	var idx = slot_index - 1
-	if idx < 0 or idx >= art_uis.size(): return
-	var art_ui = art_uis[idx]
-	if not is_instance_valid(art_ui) or not art_ui.visible: return
-
+	if idx < 0 or idx >= art_uis.size() or not _art_is_equipped[idx]: return
 	_kill_color_tween(idx)
+	_art_color_tweens[idx] = _play_denied_flash(art_uis[idx])
+
+## 血包沒次數了還嘗試使用——跟武藝共用同一套紅色閃爍 + 搖晃回饋
+func _on_health_item_denied() -> void:
+	if is_instance_valid(_health_item_color_tween) and _health_item_color_tween.is_valid():
+		_health_item_color_tween.kill()
+	_health_item_color_tween = _play_denied_flash(health_item_ui)
+
+## 通用：圖標紅色閃爍漸出 + 搖晃，回傳建立的顏色 tween 讓呼叫端自己保管（各自跟自己的「高亮/afterimage」tween 互斥）
+func _play_denied_flash(target_ui: Control) -> Tween:
+	if not is_instance_valid(target_ui) or not target_ui.visible: return null
+
 	var color_tween = create_tween()
-	_art_color_tweens[idx] = color_tween
-	color_tween.tween_property(art_ui, "modulate", DENIED_COLOR, 0.05)
-	color_tween.tween_property(art_ui, "modulate", Color.WHITE, 0.35).set_trans(Tween.TRANS_SINE)
+	color_tween.tween_property(target_ui, "modulate", DENIED_COLOR, 0.05)
+	color_tween.tween_property(target_ui, "modulate", Color.WHITE, 0.35).set_trans(Tween.TRANS_SINE)
 
 	# 搖晃：以圖標當下的 position 為基準左右快速擺動幾下
-	var base_pos = art_ui.position
+	var base_pos = target_ui.position
 	var shake_tween = create_tween()
-	shake_tween.tween_property(art_ui, "position", base_pos + Vector2(-5, 0), 0.035)
-	shake_tween.tween_property(art_ui, "position", base_pos + Vector2(5, 0), 0.035)
-	shake_tween.tween_property(art_ui, "position", base_pos + Vector2(-3, 0), 0.035)
-	shake_tween.tween_property(art_ui, "position", base_pos + Vector2(3, 0), 0.035)
-	shake_tween.tween_property(art_ui, "position", base_pos, 0.03)
+	shake_tween.tween_property(target_ui, "position", base_pos + Vector2(-5, 0), 0.035)
+	shake_tween.tween_property(target_ui, "position", base_pos + Vector2(5, 0), 0.035)
+	shake_tween.tween_property(target_ui, "position", base_pos + Vector2(-3, 0), 0.035)
+	shake_tween.tween_property(target_ui, "position", base_pos + Vector2(3, 0), 0.035)
+	shake_tween.tween_property(target_ui, "position", base_pos, 0.03)
 
-const CAST_AFTERIMAGE_COLOR := Color(0.3, 2.2, 0.9, 0.9) ## 武藝施放成功的殘影色：偏亮的綠色（HDR 強度撞出發光感）
+	return color_tween
+
+const CAST_AFTERIMAGE_COLOR := Color(0.3, 2.2, 0.9, 0.9) ## 施放/使用成功的殘影色：偏亮的綠色（HDR 強度撞出發光感）
 
 ## 武藝真的成功放出來時（能量閘門通過），在圖標後方炸出一個放大淡出的綠色殘影
 func _on_weapon_martial_art_cast(slot_index: int) -> void:
 	var idx = slot_index - 1
 	if idx < 0 or idx >= art_uis.size(): return
-	var art_ui = art_uis[idx]
-	if not is_instance_valid(art_ui) or not art_ui.visible: return
+	_spawn_cast_afterimage(art_uis[idx])
 
-	# 🛡️ 掛在圖標自己底下（而不是丟給 HBoxContainer 當兄弟節點）——
+## 血包成功用掉一次——一樣是綠色殘影
+func _on_health_item_used() -> void:
+	_spawn_cast_afterimage(health_item_ui)
+
+## 通用：在圖標後方炸出一個放大淡出的綠色殘影
+func _spawn_cast_afterimage(target_ui: Control) -> void:
+	if not is_instance_valid(target_ui) or not target_ui.visible: return
+	if not target_ui.texture_under: return
+
+	# 🛡️ TextureProgressBar 預設是照貼圖「原始尺寸」從左上角畫，不是拉伸填滿整個節點的 size——
+	# 之前拿 target_ui.size（節點框的大小）當殘影尺寸，框比貼圖大時殘影會置中變成偏右下，跟實際圖標對不上。
+	# 改成直接用貼圖本身的原始尺寸，才會跟畫面上真正看到的圖標疊在一起。
+	var tex_size = target_ui.texture_under.get_size()
+
+	# 掛在圖標自己底下（而不是丟給 HBoxContainer 當兄弟節點）——
 	# HBoxContainer 是 Container，多塞一個子節點進去會觸發重新排版，把旁邊的圖標一起擠歪
 	var afterimage := TextureRect.new()
-	afterimage.texture = art_ui.texture_under
+	afterimage.texture = target_ui.texture_under
 	afterimage.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	afterimage.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	afterimage.size = art_ui.size
+	afterimage.size = tex_size
 	afterimage.position = Vector2.ZERO
-	afterimage.pivot_offset = art_ui.size / 2.0
+	afterimage.pivot_offset = tex_size / 2.0
 	afterimage.modulate = CAST_AFTERIMAGE_COLOR
-	art_ui.add_child(afterimage)
+	target_ui.add_child(afterimage)
 
 	var tween = create_tween().set_parallel(true)
 	tween.tween_property(afterimage, "scale", Vector2(1.5, 1.5), 0.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
@@ -251,6 +293,14 @@ func _update_health_item_ui() -> void:
 	if not is_instance_valid(h_item):
 		health_item_ui.hide()
 		return
+
+	# 🌟 血包是 Player._ready() 才動態生成的，第一次抓到它的當下補接「用成功/沒道具」的訊號
+	if h_item != _cached_health_item:
+		_cached_health_item = h_item
+		if h_item.has_signal("used") and not h_item.used.is_connected(_on_health_item_used):
+			h_item.used.connect(_on_health_item_used)
+		if h_item.has_signal("denied") and not h_item.denied.is_connected(_on_health_item_denied):
+			h_item.denied.connect(_on_health_item_denied)
 
 	var h_icon = h_item.get("icon")
 	if h_icon:

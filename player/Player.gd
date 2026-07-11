@@ -126,12 +126,7 @@ func _use_equipped_item(slot_index: int) -> void:
 
 ## 初始化玩家，載入裝備並根據場景更新移動模式
 func _ready() -> void:
-	# 🌟 裝備配置優先讀玩家在裝備介面上次留下的設定檔——不管有沒有存檔，一律沿用最後一次的配置。
-	# 如果是從既有存檔讀取，Game.change_scene() 之後還會呼叫 import_combat_state() 覆蓋成存檔當下的配置，這裡不用擔心衝突
-	if Game.has_saved_loadout:
-		equip_loadout_with_arts(Game.saved_equipped_weapon_ids, Game.saved_martial_arts_config)
-	else:
-		equip_loadout(equipped_weapon_ids)
+	equip_loadout(equipped_weapon_ids)
 
 	health_item = HEALTH_PACK_SCENE.instantiate()
 	add_child(health_item)

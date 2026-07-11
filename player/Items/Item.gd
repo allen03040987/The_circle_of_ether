@@ -12,12 +12,24 @@ var player: Node
 
 var current_charges: int = 0
 
+## 給 UI 播放「用成功了」的綠色殘影、「沒道具了」的紅色警示——所有道具共用同一套訊號，不用每個子類自己再接一次
+signal used()
+signal denied()
+
 func setup(p: Node) -> void:
 	player = p
 	current_charges = max_charges
 
-## 使用道具，回傳是否成功消耗（給輸入層判斷要不要顯示「沒有道具」的警示）
+## 使用道具，回傳是否成功消耗（給輸入層判斷要不要顯示「沒有道具」的警示）。
+## 子類別覆寫 _do_use()，不要直接覆寫這個——訊號要統一從這裡發送
 func use() -> bool:
+	var success = _do_use()
+	if success: used.emit()
+	else: denied.emit()
+	return success
+
+## 子類別的實際使用邏輯，回傳是否成功消耗
+func _do_use() -> bool:
 	return false
 
 func refill() -> void:

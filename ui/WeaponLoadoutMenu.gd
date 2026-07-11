@@ -188,8 +188,7 @@ func _set_opt_by_metadata(opt: OptionButton, meta_value: String) -> void:
 			opt.selected = i
 			return
 
-## 把目前的選擇立刻套用到玩家實體，並寫進設定檔——不用「確認裝備」按鈕，
-## 也不需要玩家額外存檔，下次開遊戲一樣讀得到這次的裝備配置 (見 Game.save_loadout_config())
+## 把目前的選擇立刻套用到玩家實體——不用「確認裝備」按鈕，切換完就直接生效
 func _apply_loadout_now() -> void:
 	var players = get_tree().get_nodes_in_group("Player")
 	if players.size() > 0:
@@ -203,6 +202,3 @@ func _apply_loadout_now() -> void:
 			else:
 				p.equip_loadout(selected_weapons.duplicate())
 			print("✅ 雙武器與武藝組件同步更新成功！")
-
-	if Game.has_method("save_loadout_config"):
-		Game.save_loadout_config(selected_weapons.duplicate(), selected_arts.duplicate(true))
