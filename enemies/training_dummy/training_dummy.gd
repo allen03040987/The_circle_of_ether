@@ -64,6 +64,7 @@ func _physics_process(delta: float) -> void:
 			custom_move_and_slide()
 
 func _process(delta: float) -> void:
+	super._process(delta)
 	if is_in_combat:
 		combat_time += delta
 		reset_timer -= delta

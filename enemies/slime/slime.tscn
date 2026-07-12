@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3 uid="uid://bax8iy2844w8b"]
+[gd_scene load_steps=29 format=3 uid="uid://bax8iy2844w8b"]
 
 [ext_resource type="PackedScene" uid="uid://cugg3wjm7i0qu" path="res://enemies/enemy.tscn" id="1_i4qsl"]
 [ext_resource type="Texture2D" uid="uid://cihvwc8eooawb" path="res://Slime.png" id="2_0uqpq"]
@@ -7,6 +7,16 @@
 [ext_resource type="Script" path="res://classes/Hurtbox.gd" id="4_eg2iw"]
 [ext_resource type="Texture2D" uid="uid://dvaowxahmn2kn" path="res://enemies/!.png" id="4_y2h08"]
 [ext_resource type="Resource" uid="uid://ca66rbq0qusch" path="res://enemies/slime/SlimeStats.tres" id="5_rhvjf"]
+[ext_resource type="Script" path="res://classes/StateMachine.gd" id="10_stmach"]
+[ext_resource type="Script" path="res://enemies/slime/state/Walk.gd" id="12_walk"]
+[ext_resource type="Script" path="res://enemies/slime/state/Turn.gd" id="13_turn"]
+[ext_resource type="Script" path="res://enemies/slime/state/Prepare.gd" id="14_prep"]
+[ext_resource type="Script" path="res://enemies/slime/state/Attack.gd" id="15_atk"]
+[ext_resource type="Script" path="res://enemies/slime/state/Hurt.gd" id="16_hurt"]
+[ext_resource type="Script" path="res://enemies/slime/state/Launched.gd" id="17_launch"]
+[ext_resource type="Script" path="res://enemies/slime/state/Dying.gd" id="18_dying"]
+[ext_resource type="Script" path="res://enemies/slime/state/Retreat.gd" id="19_retreat"]
+[ext_resource type="Script" path="res://enemies/slime/state/Land.gd" id="20_land"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_yv6i8"]
 resource_local_to_scene = true
@@ -225,7 +235,7 @@ tracks/0/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 0,
-"values": [Rect2(800, 0, 400, 200)]
+"values": [Rect2(1000, 0, 400, 200)]
 }
 tracks/1/type = "value"
 tracks/1/imported = false
@@ -270,10 +280,10 @@ tracks/4/path = NodePath("Graphics/Sprite2D:frame")
 tracks/4/interp = 1
 tracks/4/loop_wrap = true
 tracks/4/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
 "update": 1,
-"values": [1]
+"values": [0, 1]
 }
 tracks/5/type = "value"
 tracks/5/imported = false
@@ -282,10 +292,10 @@ tracks/5/path = NodePath("Graphics/Sprite2D:modulate")
 tracks/5/interp = 1
 tracks/5/loop_wrap = true
 tracks/5/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
+"times": PackedFloat32Array(),
+"transitions": PackedFloat32Array(),
 "update": 0,
-"values": [Color(1, 1, 1, 1)]
+"values": []
 }
 tracks/6/type = "value"
 tracks/6/imported = false
@@ -582,12 +592,19 @@ _data = {
 [node name="Slime" instance=ExtResource("1_i4qsl")]
 z_index = 10
 script = ExtResource("2_4qkmx")
-attack_dash_speed = 1100.0
-attack_dash_duration = 0.1
-attack_prepare_time = 1.5
+max_walk_distance = 150.0
+min_walk_speed = 50.0
+turn_wait_time = 1.0
+retreat_distance = 40.0
+retreat_speed = 80.0
+prepare_wait_time = 1.0
+warning_icon_lead_time = 0.5
+hop_velocity = Vector2(250, -280)
+landing_recovery_time = 0.1
 attack_cooldown_time = 3.0
 base_damage = 10
 base_knockback = Vector2(400, 0)
+hurt_recovery_time = 1.0
 
 [node name="Sprite2D" parent="Graphics" index="0"]
 material = SubResource("ShaderMaterial_yv6i8")
@@ -614,13 +631,18 @@ visible = false
 position = Vector2(11, -2)
 target_position = Vector2(0, 4)
 
-[node name="playerChecker" type="RayCast2D" parent="Graphics" index="4"]
+[node name="BackFloorChecker" type="RayCast2D" parent="Graphics" index="4"]
+visible = false
+position = Vector2(-11, -2)
+target_position = Vector2(0, 4)
+
+[node name="playerChecker" type="RayCast2D" parent="Graphics" index="5"]
 visible = false
 position = Vector2(-3, -9)
 target_position = Vector2(96, -1)
 collision_mask = 3
 
-[node name="Hitbox" parent="Graphics" index="5"]
+[node name="Hitbox" parent="Graphics" index="6"]
 visible = false
 knockback_force = Vector2(500, 0)
 spark_base_offset = Vector2(0, -5)
@@ -631,7 +653,7 @@ position = Vector2(0.5, -7.5)
 shape = SubResource("RectangleShape2D_711d0")
 disabled = true
 
-[node name="Hurtbox" type="Area2D" parent="Graphics" index="6"]
+[node name="Hurtbox" type="Area2D" parent="Graphics" index="7"]
 collision_layer = 16
 collision_mask = 0
 script = ExtResource("4_eg2iw")
@@ -656,8 +678,35 @@ libraries = {
 [node name="Stats" parent="." index="3"]
 base_stats = ExtResource("5_rhvjf")
 
-[node name="CalmDownTimer" type="Timer" parent="." index="4"]
-wait_time = 2.0
-one_shot = true
+[node name="StateMachine" type="Node" parent="." index="4" node_paths=PackedStringArray("initial_state")]
+script = ExtResource("10_stmach")
+initial_state = NodePath("Walk")
+
+[node name="Walk" type="Node2D" parent="StateMachine" index="0"]
+script = ExtResource("12_walk")
+
+[node name="Turn" type="Node2D" parent="StateMachine" index="1"]
+script = ExtResource("13_turn")
+
+[node name="Retreat" type="Node2D" parent="StateMachine" index="2"]
+script = ExtResource("19_retreat")
+
+[node name="Prepare" type="Node2D" parent="StateMachine" index="3"]
+script = ExtResource("14_prep")
+
+[node name="Attack" type="Node2D" parent="StateMachine" index="4"]
+script = ExtResource("15_atk")
+
+[node name="Land" type="Node2D" parent="StateMachine" index="5"]
+script = ExtResource("20_land")
+
+[node name="Hurt" type="Node2D" parent="StateMachine" index="6"]
+script = ExtResource("16_hurt")
+
+[node name="Launched" type="Node2D" parent="StateMachine" index="7"]
+script = ExtResource("17_launch")
+
+[node name="Dying" type="Node2D" parent="StateMachine" index="8"]
+script = ExtResource("18_dying")
 
 [connection signal="hurt" from="Graphics/Hurtbox" to="." method="_on_hurtbox_hurt"]

@@ -60,7 +60,6 @@ size = Vector2(867.564, 359.133)
 
 [node name="Katana" type="Node2D"]
 script = ExtResource("1_8dhj7")
-equipped_martial_arts = Array[String](["res://player/MartialArts/Katana/Art_Katana_4.gd", "res://player/MartialArts/Katana/Art_Katana_2.gd", "res://player/MartialArts/Katana/Art_Katana_3.gd"])
 scabbard_texture = ExtResource("2_cocv7")
 
 [node name="light" type="Area2D" parent="."]

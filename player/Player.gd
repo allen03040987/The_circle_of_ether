@@ -200,11 +200,14 @@ func _process(delta: float) -> void:
 
 	if invincible_time_left > 0:
 		invincible_time_left -= unscaled_delta
-		if not is_perfect_dodging: graphics.modulate.a = 0.8 
+		if not is_perfect_dodging: graphics.modulate.a = 0.8
 	else:
 		graphics.modulate.a = 1.0
 		is_perfect_dodging = false
-	
+
+	_update_status_outline()
+
+
 	if time_stop_left > 0:
 		time_stop_left -= unscaled_delta
 		if time_stop_left <= 0: clear_time_stop()
@@ -324,30 +327,148 @@ func custom_move_and_slide() -> void:
 	velocity.x = original_x 
 	external_force.x = move_toward(external_force.x, 0.0, 1500.0 * get_physics_process_delta_time())
 
+# ==========================================
+# 🛡️ 三層狀態：無敵 > 強霸體 > 霸體——三個互斥，各自的實際規則(減傷比例/免打斷範圍)統一定義在這裡，
+# 玩家的霸體/強霸體由目前武器回報要進哪一階(Weapon.get_armor_tier())，無敵則是既有的 invincible_time_left
+# ==========================================
+enum ArmorTier { NONE, HYPER_ARMOR, STRONG_HYPER_ARMOR }
+const HYPER_ARMOR_DAMAGE_REDUCTION: float = 0.5 ## 只有「強霸體」才有這個減傷，普通霸體沒有
+
+func get_armor_tier() -> int:
+	var tier = ArmorTier.NONE
+	if is_instance_valid(current_weapon) and current_weapon.has_method("get_armor_tier"):
+		tier = current_weapon.get_armor_tier()
+
+	# 🌟 新規則：玩家使用武藝時一律獲得霸體（至少 HYPER_ARMOR，武器自己想要更高階不會被蓋掉）
+	if is_instance_valid(current_weapon) and is_instance_valid(current_weapon.get("active_martial_art")):
+		var active_art = current_weapon.active_martial_art
+		if "is_active" in active_art and active_art.is_active:
+			tier = max(tier, ArmorTier.HYPER_ARMOR)
+
+	return tier
+
+# ==========================================
+# 🎨 狀態輪廓描邊：霸體(白)/強霸體(黃)/無敵(紅)——同一張輪廓 shader，只是套用不同顏色，漸進漸出。
+# 優先權：無敵 > 強霸體 > 霸體（三者互斥，理論上不會同時要求兩種顏色）
+# 🔧 霸體改回藍色但調低不透明度，跟敵人的一般霸體統一視覺語言但更低調，黃色專門留給「強霸體」這種更重要的訊號
+# ==========================================
+const OUTLINE_SHADER = preload("res://classes/StatusOutline.gdshader")
+const HYPER_ARMOR_OUTLINE_COLOR := Color(0.5, 0.8, 1.4, 0.7) ## 藍色，alpha 降到 0.5 降低存在感
+const STRONG_HYPER_ARMOR_OUTLINE_COLOR := Color(1.4, 1.1, 0.0, 1.0) ## 黃色（HDR強度撞出更飽和鮮明的黃）
+const INVINCIBLE_OUTLINE_COLOR := Color(1.0, 0.15, 0.15, 1.0) ## 紅色
+const OUTLINE_FADE_DURATION: float = 0.15
+
+var _outline_mat: ShaderMaterial = null
+var _outline_original_material: Material = null
+var _outline_tween: Tween = null
+var _current_outline_state: String = "" ## "" / "invincible" / "strong_hyper_armor" / "hyper_armor"——只在狀態真的改變時才重新套用材質，不用每幀硬設
+
+func _update_status_outline() -> void:
+	var desired_state := ""
+	# 🔧 純視覺開關：關掉時一律不顯示輪廓，但底下的無敵/霸體判定完全不受影響
+	if Game.config_enable_status_outline:
+		if invincible_time_left > 0 or is_in_hitstun():
+			desired_state = "invincible"
+		else:
+			match get_armor_tier():
+				ArmorTier.STRONG_HYPER_ARMOR: desired_state = "strong_hyper_armor"
+				ArmorTier.HYPER_ARMOR: desired_state = "hyper_armor"
+
+	if desired_state != _current_outline_state:
+		_current_outline_state = desired_state
+		match desired_state:
+			"invincible": _apply_outline_color(INVINCIBLE_OUTLINE_COLOR)
+			"strong_hyper_armor": _apply_outline_color(STRONG_HYPER_ARMOR_OUTLINE_COLOR)
+			"hyper_armor": _apply_outline_color(HYPER_ARMOR_OUTLINE_COLOR)
+			_: _clear_outline()
+
+	# 🛡️ 角色貼圖是多格 spritesheet (hframes/vframes)，每幀都要重新告訴 shader「現在這一格」的 UV 範圍，
+	# 不然採樣鄰居像素時會採到隔壁格的內容，畫面上/下冒出不該有的描邊雜點
+	if is_instance_valid(_outline_mat) and _current_outline_state != "":
+		_sync_outline_frame_bounds()
+
+func _apply_outline_color(color: Color) -> void:
+	if _outline_mat == null:
+		_outline_mat = ShaderMaterial.new()
+		_outline_mat.shader = OUTLINE_SHADER
+	_outline_mat.set_shader_parameter("line_color", color)
+	_outline_mat.set_shader_parameter("outline_alpha", 0.0)
+	_apply_outline_material()
+
+	if is_instance_valid(_outline_tween) and _outline_tween.is_valid(): _outline_tween.kill()
+	_outline_tween = create_tween()
+	_outline_tween.tween_property(_outline_mat, "shader_parameter/outline_alpha", 1.0, OUTLINE_FADE_DURATION)
+
+func _clear_outline() -> void:
+	if not is_instance_valid(_outline_mat): return
+	if is_instance_valid(_outline_tween) and _outline_tween.is_valid(): _outline_tween.kill()
+	_outline_tween = create_tween()
+	_outline_tween.tween_property(_outline_mat, "shader_parameter/outline_alpha", 0.0, OUTLINE_FADE_DURATION)
+	_outline_tween.tween_callback(_restore_outline_material)
+
+func _sync_outline_frame_bounds() -> void:
+	var sprite = graphics.get_node_or_null("Sprite2D")
+	if not is_instance_valid(sprite) or not (sprite is Sprite2D): return
+
+	var h = maxi(sprite.hframes, 1)
+	var v = maxi(sprite.vframes, 1)
+	if h <= 1 and v <= 1:
+		_outline_mat.set_shader_parameter("frame_uv_min", Vector2.ZERO)
+		_outline_mat.set_shader_parameter("frame_uv_max", Vector2.ONE)
+		return
+
+	var col = sprite.frame % h
+	var row = int(sprite.frame / h)
+	var uv_min = Vector2(float(col) / h, float(row) / v)
+	var uv_max = uv_min + Vector2(1.0 / h, 1.0 / v)
+	_outline_mat.set_shader_parameter("frame_uv_min", uv_min)
+	_outline_mat.set_shader_parameter("frame_uv_max", uv_max)
+
+## 🛡️ 只套用在本體 Sprite2D，不遞迴掃 graphics 底下所有節點——武器、特效 VFX 這些輔助貼圖不是「角色本體」，
+## spritesheet 佈局跟本體完全不同，套上去會被 _sync_outline_frame_bounds() 算出來的格數範圍搞爛（圓形破碎雜點就是這樣來的）
+func _apply_outline_material() -> void:
+	var sprite = graphics.get_node_or_null("Sprite2D")
+	if not is_instance_valid(sprite): return
+	_outline_original_material = sprite.material
+	sprite.material = _outline_mat
+
+func _restore_outline_material() -> void:
+	var sprite = graphics.get_node_or_null("Sprite2D")
+	if is_instance_valid(sprite): sprite.material = _outline_original_material
+	_outline_original_material = null
+
+## 硬直動畫本身(Hurt/Launched)期間一律算無敵——不再用固定秒數硬凹，時間長短完全交給動畫/落地判斷自己決定
+func is_in_hitstun() -> bool:
+	var s = state_machine.current_state.name.to_lower()
+	return s == "hurt" or s == "launched"
+
 ## 實際計算傷害、擊退力並分發受擊狀態
 func take_damage(temp_damage: Damage) -> void:
 	if is_dead or state_machine.current_state.name.to_lower() == "dying": return
-	if invincible_time_left > 0 or invincible_timer.time_left > 0: return
-	
+	if invincible_time_left > 0 or invincible_timer.time_left > 0 or is_in_hitstun(): return
+
 	is_combo_requested = false; is_heavy_requested = false
 	combo_buffer_time = 0.0; heavy_buffer_time = 0.0
-	
+
 	stats.health -= temp_damage.amount
-	velocity = Vector2.ZERO 
-	
-	match temp_damage.type:
-		Damage.Type.NO_STUN: pending_damage = null
-		Damage.Type.HEAVY:
-			grant_invincibility(0.6) 
-			state_machine.call_deferred("transition_to", "Launched") 
-		Damage.Type.THROW: pending_damage = null
-		_: 
-			grant_invincibility(0.35) 
-			state_machine.call_deferred("transition_to", "Hurt")
-			
+
+	if temp_damage.blocks_stagger:
+		# 一定要清掉 pending_damage，不然 custom_move_and_slide() 每幀看到它非 null 就會整個卡住不動
+		pending_damage = null
+	else:
+		velocity = Vector2.ZERO
+		match temp_damage.type:
+			Damage.Type.NO_STUN: pending_damage = null
+			Damage.Type.HEAVY:
+				state_machine.call_deferred("transition_to", "Launched")
+			Damage.Type.THROW: pending_damage = null
+			_:
+				state_machine.call_deferred("transition_to", "Hurt")
+
 	if stats.health <= 0: state_machine.call_deferred("transition_to", "Dying")
 
-## 給予玩家絕對無敵時間
+## 給予玩家絕對無敵時間——現在主要用在 Hurt/Launched 離開的那一刻，多給一段緩衝，
+## 而不是進場時就先估一個固定秒數
 func grant_invincibility(duration: float) -> void:
 	invincible_time_left = duration
 	invincible_timer.start(duration)
@@ -359,7 +480,21 @@ func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
 	var final_amount: int = hitbox.get("damage_amount") if "damage_amount" in hitbox else 1
 	var final_type: int = hitbox.get("attack_type") if "attack_type" in hitbox else Damage.Type.LIGHT
 	var final_source_type: int = hitbox.get("source_type") if "source_type" in hitbox else Damage.SourceType.MELEE
-	
+
+	# ⚠️ 「黃圈技」的攻擊會標記 requires_countermeasure：無視玩家目前的霸體/強霸體，正常造成傷害/硬直/擊飛
+	var is_yellow_circle_attack = ("requires_countermeasure" in hitbox) and hitbox.requires_countermeasure
+
+	# 🛡️ 霸體/強霸體：目前裝備的武器回報要進哪一階，減傷比例/免打斷範圍統一由這裡定義（不是武器自己決定）。
+	# 強霸體擋 LIGHT+HEAVY 並額外減傷 50%；普通霸體只擋 LIGHT，不減傷
+	var blocks_stagger = false
+	if not is_yellow_circle_attack:
+		var armor_tier = get_armor_tier()
+		if armor_tier == ArmorTier.STRONG_HYPER_ARMOR and final_type in [Damage.Type.LIGHT, Damage.Type.HEAVY]:
+			blocks_stagger = true
+			final_amount = roundi(final_amount * HYPER_ARMOR_DAMAGE_REDUCTION)
+		elif armor_tier == ArmorTier.HYPER_ARMOR and final_type == Damage.Type.LIGHT:
+			blocks_stagger = true
+
 	var final_knockback := Vector2.ZERO
 	if "absolute_knockback" in hitbox and hitbox.absolute_knockback != Vector2.ZERO:
 		final_knockback = hitbox.absolute_knockback
@@ -377,9 +512,7 @@ func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
 		
 	if final_amount <= 0:
 		external_force = final_knockback
-		return 
-
-	if invincible_time_left > 0 or invincible_timer.time_left > 0: return
+		return
 
 	if state_machine.current_state.name.to_lower() == "slide":
 		if state_machine.current_state.has_method("trigger_perfect_dodge"):
@@ -397,8 +530,7 @@ func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
 			return
 
 	# 🌟 武藝卡帶的格擋反擊接口（例如逆鱗返這類「彈反型招式」）：只有武藝自己回報「接住了」才完全格擋這一下
-	# ⚠️ 「黃圈技」的攻擊會標記 requires_countermeasure，只有專屬的「對策技」能破解，通用彈反型招式對它無效
-	var is_yellow_circle_attack = ("requires_countermeasure" in hitbox) and hitbox.requires_countermeasure
+	# ⚠️ 「黃圈技」的攻擊只有專屬的「對策技」能破解，通用彈反型招式對它無效（is_yellow_circle_attack 已在上面算過）
 	if not is_yellow_circle_attack and is_instance_valid(current_weapon) and is_instance_valid(current_weapon.get("active_martial_art")):
 		var active_art = current_weapon.active_martial_art
 		if active_art.is_active and active_art.has_method("trigger_counter") and active_art.trigger_counter():
@@ -406,18 +538,24 @@ func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
 				hitbox.suppress_feedback()
 			return
 
+	# 🛡️ 無敵：刻意排在完美閃避/格擋/彈反之後才判斷——這樣就算玩家已經無敵，這幾個判定還是有機會先接住，
+	# 附加效果（削韌、魔女時間等）才不會因為「反正已經無敵」而被跳過。無敵免疫一切，連黃圈技也擋得住。
+	# 硬直動畫(Hurt/Launched)期間也算無敵，不會被同一波攻擊的其他 hitbox 重複打到
+	if invincible_time_left > 0 or invincible_timer.time_left > 0 or is_in_hitstun(): return
+
 	pending_damage = {
 		"source": hitbox, "amount": final_amount, "type": final_type,
 		"source_type": final_source_type, "knockback_force": final_knockback
 	}
-	
+
 	var temp_damage = Damage.new()
 	temp_damage.amount = final_amount
 	temp_damage.type = final_type
 	temp_damage.source_type = final_source_type
 	temp_damage.knockback_force = final_knockback
 	temp_damage.source = hitbox.owner if is_instance_valid(hitbox.owner) else hitbox
-	
+	temp_damage.blocks_stagger = blocks_stagger
+
 	take_damage(temp_damage)
 
 ## 觸發死亡序列

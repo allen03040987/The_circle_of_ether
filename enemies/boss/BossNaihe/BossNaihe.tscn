@@ -1,4 +1,4 @@
-[gd_scene load_steps=69 format=3 uid="uid://ckdh77mixmkpo"]
+[gd_scene load_steps=68 format=3 uid="uid://ckdh77mixmkpo"]
 
 [ext_resource type="Script" path="res://enemies/boss/BossNaihe/BossNaihe.gd" id="1_yd66y"]
 [ext_resource type="PackedScene" uid="uid://c1s06onyotqf3" path="res://Explod/tscn/cut.tscn" id="2_hpj24"]
@@ -8,9 +8,9 @@
 [ext_resource type="Script" path="res://classes/Hitbox.gd" id="4_lbp7r"]
 [ext_resource type="PackedScene" uid="uid://dhxdpgje0esqh" path="res://enemies/boss/BossNaihe/A3.tscn" id="4_t32b8"]
 [ext_resource type="Texture2D" uid="uid://5h2uwvdsh6k5" path="res://enemies/boss/BossNaihe/A1.png" id="5_f00du"]
-[ext_resource type="Script" path="res://classes/BaseStats.gd" id="5_l8wow"]
 [ext_resource type="Script" path="res://classes/StateMachine.gd" id="5_p2ur3"]
 [ext_resource type="PackedScene" uid="uid://bnxo3v1t67xfj" path="res://Explod/tscn/Circular cut.tscn" id="5_u4grm"]
+[ext_resource type="Resource" uid="uid://c4qh8t2n1sxha" path="res://enemies/boss/BossNaihe/BossNaiheStats.tres" id="6_bnstat"]
 [ext_resource type="PackedScene" uid="uid://ejwp3sdtv1s3" path="res://Explod/tscn/whirlwind.tscn" id="6_fptfq"]
 [ext_resource type="Texture2D" uid="uid://08ww515mlicw" path="res://enemies/boss/BossNaihe/idle.png" id="6_oe7dt"]
 [ext_resource type="Script" path="res://enemies/boss/BossNaihe/BossChase.gd" id="7_2kliv"]
@@ -35,6 +35,7 @@
 [ext_resource type="Script" path="res://enemies/boss/BossNaihe/DashAttack.gd" id="20_t01ef"]
 [ext_resource type="Texture2D" uid="uid://fel12vu7oft1" path="res://enemies/boss/BossNaihe/hurt2.png" id="21_dthtv"]
 [ext_resource type="Script" path="res://enemies/boss/BossNaihe/Hurt.gd" id="22_hurt1"]
+[ext_resource type="Texture2D" uid="uid://dvaowxahmn2kn" path="res://enemies/!.png" id="23_warnicon"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_2yxwy"]
 size = Vector2(29, 61.5)
@@ -1081,8 +1082,8 @@ tracks/6/keys = {
 
 [sub_resource type="Animation" id="Animation_1d63r"]
 resource_name = "die"
-length = 0.8
-step = 0.2
+length = 0.4
+step = 0.05
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -1105,7 +1106,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [ExtResource("6_oe7dt")]
+"values": [ExtResource("20_idtdk")]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -1117,7 +1118,7 @@ tracks/2/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [4]
+"values": [3]
 }
 tracks/3/type = "value"
 tracks/3/imported = false
@@ -1126,10 +1127,10 @@ tracks/3/path = NodePath("Graphics/Sprite2D:frame")
 tracks/3/interp = 1
 tracks/3/loop_wrap = true
 tracks/3/keys = {
-"times": PackedFloat32Array(0, 0.2, 0.4, 0.6),
-"transitions": PackedFloat32Array(1, 1, 1, 1),
+"times": PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1),
 "update": 1,
-"values": [0, 1, 2, 3]
+"values": [0, 1, 2, 3, 4, 5, 6, 7]
 }
 tracks/4/type = "value"
 tracks/4/imported = false
@@ -1141,7 +1142,7 @@ tracks/4/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 0,
-"values": [Rect2(0, 0, 400, 200)]
+"values": [Rect2(0, 0, 210, 210)]
 }
 
 [sub_resource type="Animation" id="Animation_1re1i"]
@@ -1728,13 +1729,6 @@ _data = {
 "walk": SubResource("Animation_4jx3t")
 }
 
-[sub_resource type="Resource" id="Resource_7m4m8"]
-script = ExtResource("5_l8wow")
-max_health = 50000
-max_poise = 100.0
-max_energy = 9.0
-energy_regen = 2.0
-
 [sub_resource type="AtlasTexture" id="AtlasTexture_fiv63"]
 atlas = ExtResource("16_ea470")
 region = Rect2(307, 21, 58, 6)
@@ -1758,6 +1752,7 @@ region = Rect2(308, 39, 56, 2)
 z_index = 10
 collision_layer = 4
 script = ExtResource("1_yd66y")
+tier = 2
 max_speed = 200.0
 anim_vfx_library = {
 "A3": ExtResource("4_t32b8"),
@@ -1781,6 +1776,11 @@ vframes = 3
 region_enabled = true
 region_rect = Rect2(0, 0, 210, 210)
 
+[node name="WarningIcon" type="Sprite2D" parent="Graphics"]
+visible = false
+position = Vector2(6, -105)
+texture = ExtResource("23_warnicon")
+
 [node name="Hurtbox" type="Area2D" parent="Graphics"]
 position = Vector2(0, -30)
 collision_layer = 16
@@ -1799,6 +1799,8 @@ collision_layer = 0
 collision_mask = 8
 script = ExtResource("4_lbp7r")
 damage_amount = 10
+attack_type = 2
+knockback_force = Vector2(500, -200)
 spark_base_offset = Vector2(0, -30)
 spark_random_angle = 360.0
 spark_scale = 0.4
@@ -1826,7 +1828,7 @@ shape = SubResource("RectangleShape2D_2thd3")
 disabled = true
 
 [node name="CollisionShape2D5" type="CollisionShape2D" parent="Graphics/WeaponHitbox"]
-position = Vector2(366.5, -63.5)
+position = Vector2(50, -212)
 shape = SubResource("RectangleShape2D_8u3li")
 disabled = true
 
@@ -1838,7 +1840,7 @@ libraries = {
 
 [node name="Stats" type="Node" parent="."]
 script = ExtResource("4_0cnex")
-base_stats = SubResource("Resource_7m4m8")
+base_stats = ExtResource("6_bnstat")
 
 [node name="StateMachine" type="Node" parent="." node_paths=PackedStringArray("initial_state")]
 script = ExtResource("5_p2ur3")

@@ -52,6 +52,29 @@ layout_mode = 2
 focus_mode = 0
 text = "顯示傷害飄字"
 
+[node name="OutlineToggle" type="CheckButton" parent="Panel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+focus_mode = 0
+text = "顯示狀態輪廓"
+
+[node name="WarningIconSizeLabel" type="Label" parent="Panel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+text = "敵人出招警示大小"
+
+[node name="WarningIconSizeOption" type="OptionButton" parent="Panel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+focus_mode = 0
+item_count = 4
+selected = 2
+popup/item_0/text = "小"
+popup/item_0/id = 0
+popup/item_1/text = "中"
+popup/item_1/id = 1
+popup/item_2/text = "大"
+popup/item_2/id = 2
+popup/item_3/text = "無"
+popup/item_3/id = 3
+
 [node name="MusicVolumeLabel" type="Label" parent="Panel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 text = "音樂音量"

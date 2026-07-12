@@ -60,6 +60,10 @@ func _apply_hurt_physics(delta: float) -> void:
 	player.custom_move_and_slide()
 
 func exit() -> void:
+	# 🛡️ 硬直動畫本身的無敵已經交給 Player.is_in_hitstun() 判斷，這裡離場時再補一段緩衝，
+	# 讓「動畫播完到真的能再次被打」中間留一口喘息空間，不用再靠一開始估的固定秒數
+	player.grant_invincibility(0.2)
+
 	var hurtbox = player.get_node_or_null("Graphics/Hurtbox")
 	if hurtbox:
 		hurtbox.set_deferred("monitorable", true)

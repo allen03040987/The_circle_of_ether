@@ -43,10 +43,12 @@ func _make_decision() -> void:
 		var far_roll = randf()
 		if far_roll < 0.30:
 			last_attack = "A5"
+			boss.show_attack_warning(boss.warning_icon, 0.0, 0.5) # 🎨 純特效：出招瞬間亮 0.5 秒驚嘆號，不影響任何時序
 			state_machine.transition_to("DashAttack")
 		elif far_roll < 0.60:
 			last_attack = "A6"
 			boss.set_meta("next_melee", "A6")
+			boss.show_attack_warning(boss.warning_icon, 0.0, 0.5)
 			state_machine.transition_to("MeleeAttack")
 		else:
 			state_machine.transition_to("Chase")
@@ -82,5 +84,6 @@ func _make_decision() -> void:
 	if next_melee != "":
 		last_attack = next_melee
 		boss.set_meta("next_melee", next_melee)
-		
+
+	boss.show_attack_warning(boss.warning_icon, 0.0, 0.5) # 🎨 純特效：出招瞬間亮 0.5 秒驚嘆號，不影響任何時序
 	state_machine.transition_to(next_state)

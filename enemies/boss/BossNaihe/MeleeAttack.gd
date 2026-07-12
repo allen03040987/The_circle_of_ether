@@ -7,9 +7,11 @@ var combo_count: int = 1
 # 🎬 狀態初始化
 # ==========================================
 func enter() -> void:
+	boss.enter_attack_state() # 🛡️ HIGH 階整段近戰連段(A1~A9 不管怎麼派生)期間都算攻擊中，自動開白色霸體
+
 	# 讀取大腦傳來的指令，如果沒有就預設打 A1
 	var next_move = boss.get_meta("next_melee", "A1")
-	
+
 	if next_move == "A1":
 		combo_count = 1
 		_play_attack_anim("attack_1")
@@ -88,6 +90,7 @@ func physics_update(delta: float) -> void:
 # 🛡️ 狀態離開防呆
 # ==========================================
 func exit() -> void:
+	boss.exit_attack_state()
 	boss.disable_hitbox()
 	# 🔧 離開時清掉黃圈技標記，避免殘留影響下一招
 	var weapon_hb = boss.get_node_or_null("Graphics/WeaponHitbox") as Hitbox

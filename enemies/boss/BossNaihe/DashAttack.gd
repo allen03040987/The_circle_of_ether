@@ -7,6 +7,8 @@ var locked_facing_dir: int = 1
 # 🎬 狀態初始化
 # ==========================================
 func enter() -> void:
+	boss.enter_attack_state() # 🛡️ 突進中不能被打斷，整段都算攻擊中，自動開白色霸體
+
 	# 1. 🌟 進入狀態時：對準玩家，並將面向存入變數鎖死！
 	boss.face_player()
 	locked_facing_dir = boss.direction
@@ -37,4 +39,5 @@ func physics_update(delta: float) -> void:
 # 🛡️ 狀態離開防呆
 # ==========================================
 func exit() -> void:
+	boss.exit_attack_state()
 	boss.disable_hitbox()

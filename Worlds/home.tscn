@@ -44,6 +44,9 @@ direction = -1
 [node name="SaveStone" parent="TileMap" instance=ExtResource("6_wcl05")]
 position = Vector2(688, 224)
 
+[node name="SaveStone2" parent="TileMap" instance=ExtResource("6_wcl05")]
+position = Vector2(1776, -256)
+
 [node name="Player" parent="." instance=ExtResource("7_mjb3c")]
 position = Vector2(400, 160)
 
@@ -120,30 +123,40 @@ destination_path = NodePath("../Elevator_1F")
 
 [node name="Slime" parent="." instance=ExtResource("14_6cn5d")]
 position = Vector2(3112, 0)
+min_walk_speed = 50.0
 
 [node name="Slime2" parent="." instance=ExtResource("14_6cn5d")]
 position = Vector2(2896, 64)
+min_walk_speed = 50.0
 
 [node name="Slime3" parent="." instance=ExtResource("14_6cn5d")]
 position = Vector2(2472, 136)
+min_walk_speed = 50.0
 
 [node name="Slime4" parent="." instance=ExtResource("14_6cn5d")]
 position = Vector2(2624, 144)
+min_walk_speed = 50.0
 
 [node name="Slime5" parent="." instance=ExtResource("14_6cn5d")]
-position = Vector2(2344, 80)
+position = Vector2(1960, 120)
+min_walk_speed = 50.0
 
 [node name="Slime6" parent="." instance=ExtResource("14_6cn5d")]
 position = Vector2(2824, 168)
+min_walk_speed = 50.0
 
 [node name="Slime7" parent="." instance=ExtResource("14_6cn5d")]
 position = Vector2(2352, -96)
+min_walk_speed = 50.0
 
 [node name="Slime8" parent="." instance=ExtResource("14_6cn5d")]
 position = Vector2(2712, -72)
+min_walk_speed = 50.0
 
 [node name="Slime9" parent="." instance=ExtResource("14_6cn5d")]
 position = Vector2(2520, 16)
+min_walk_speed = 50.0
 
 [node name="Slime10" parent="." instance=ExtResource("14_6cn5d")]
 position = Vector2(2704, 8)
+min_walk_speed = 50.0

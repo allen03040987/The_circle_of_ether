@@ -30,6 +30,11 @@ func get_weapon_default_spark() -> Dictionary:
 func get_speed_multiplier() -> float:
 	return 1.0
 
+## 這把武器現在要不要讓玩家進入霸體/強霸體——回傳 Player.ArmorTier 的值，實際的減傷比例/免打斷規則
+## 統一由 Player.gd 定義，武器不用也不該各自決定比例。基底預設 NONE，武器自己覆寫。
+func get_armor_tier() -> int:
+	return Player.ArmorTier.NONE
+
 @export_group("外觀設定")
 @export var scabbard_texture: Texture2D
 

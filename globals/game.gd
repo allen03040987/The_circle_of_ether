@@ -18,6 +18,8 @@ var config_auto_run: bool = false
 var config_enable_screen_shake: bool = true
 var config_enable_hit_flash: bool = true
 var config_enable_damage_numbers: bool = true
+var config_enable_status_outline: bool = true ## 霸體/強霸體/無敵的角色輪廓特效開關
+var config_warning_icon_size: int = 2 ## 敵人出招前驚嘆號大小：0=小 1=中 2=大 3=無（預設大，維持現況不變）
 var config_fullscreen: bool = false
 var config_music_volume: float = 1.0
 var config_sfx_volume: float = 1.0
@@ -58,6 +60,8 @@ func save_settings() -> void:
 	config.set_value("Visuals", "enable_screen_shake", config_enable_screen_shake)
 	config.set_value("Visuals", "enable_hit_flash", config_enable_hit_flash)
 	config.set_value("Visuals", "enable_damage_numbers", config_enable_damage_numbers)
+	config.set_value("Visuals", "enable_status_outline", config_enable_status_outline)
+	config.set_value("Visuals", "warning_icon_size", config_warning_icon_size)
 	config.set_value("Visuals", "fullscreen", config_fullscreen)
 	config.set_value("Audio", "music_volume", config_music_volume)
 	config.set_value("Audio", "sfx_volume", config_sfx_volume)
@@ -73,6 +77,8 @@ func load_settings() -> void:
 		config_enable_screen_shake = config.get_value("Visuals", "enable_screen_shake", true)
 		config_enable_hit_flash = config.get_value("Visuals", "enable_hit_flash", true)
 		config_enable_damage_numbers = config.get_value("Visuals", "enable_damage_numbers", true)
+		config_enable_status_outline = config.get_value("Visuals", "enable_status_outline", true)
+		config_warning_icon_size = config.get_value("Visuals", "warning_icon_size", 2)
 		config_fullscreen = config.get_value("Visuals", "fullscreen", false)
 		config_music_volume = config.get_value("Audio", "music_volume", 1.0)
 		config_sfx_volume = config.get_value("Audio", "sfx_volume", 1.0)

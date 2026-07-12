@@ -32,5 +32,6 @@ func physics_update(delta: float) -> void:
 		boss.velocity.x = 0.0
 		# 🔧 明確指定招式：避免 next_melee 殘留 RetreatAttack 專屬的 "A4"，導致 MeleeAttack 啞火站定原地
 		boss.set_meta("next_melee", "A1")
+		boss.show_attack_warning(boss.warning_icon, 0.0, 0.5) # 🎨 純特效，不影響「無縫出刀」的即時感
 		state_machine.transition_to("MeleeAttack")
 		boss.custom_move_and_slide()

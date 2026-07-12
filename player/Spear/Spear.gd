@@ -107,12 +107,22 @@ const BOOMERANG_SCENE = preload("res://player/Spear/SpearBoomerang.tscn")
 const CATCH_HOLD_THRESHOLD: float = 0.20 ## 短按/長按的判定門檻
 const DAMAGE_BUFF_DURATION: float = 12.0
 @export var damage_buff_mult: float = 1.25 ## 增傷 buff 期間的傷害倍率
+const BLEED_DAMAGE_PER_TICK: int = 100 ## 佔位數值，之後再調
+const BLEED_TICKS: int = 4
+const BLEED_TICK_INTERVAL: float = 0.5
+
+## 收槍強化技「真正出招」的 combo_step（跟前搖 44 分開算）——強化技執行中免打斷、減傷都靠這個判斷
+const ENHANCED_SKILL_STEPS := [40, 41, 42, 43]
 
 var spear_is_deployed: bool = false ## 槍丟出去、還沒收回來的這段時間，全程 true
 var catch_speed_boost_time_left: float = 0.0
 var catch_skill_43_timer: float = 0.0 ## 增傷技還沒畫動畫，先用固定時間頂著這個「出招」步驟
 const CATCH_SKILL_43_DURATION: float = 0.4
 var damage_buff_time_left: float = 0.0
+
+## 強化技執行中（40~43）要進入強霸體——實際的減傷比例/免打斷規則統一交給 Player.gd 判斷
+func get_armor_tier() -> int:
+	return Player.ArmorTier.STRONG_HYPER_ARMOR if combo_step in ENHANCED_SKILL_STEPS else Player.ArmorTier.NONE
 
 # ==========================================
 # 🌀 「轉身收槍」前搖
@@ -675,6 +685,10 @@ func _on_hitbox_hit(hurtbox: Node) -> void:
 		if not _current_step_is_martial_art:
 			if player.has_method("gain_martial_energy"):
 				player.gain_martial_energy(NORMAL_HIT_MARTIAL_ENERGY)
+
+		# 🩸 43 號增傷技的差異化：buff 期間打中的目標額外附加流血 DOT，跟太刀的「瞬間爆發傷害」燃燒劍意做出區隔
+		if damage_buff_time_left > 0 and is_instance_valid(hurtbox.owner) and hurtbox.owner.has_method("apply_bleed"):
+			hurtbox.owner.apply_bleed(BLEED_DAMAGE_PER_TICK, BLEED_TICKS, BLEED_TICK_INTERVAL)
 
 		_has_granted_resources_this_step = true
 

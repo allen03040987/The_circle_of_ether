@@ -6,10 +6,11 @@ extends Enemy
 signal died ## 死亡動畫播完、屍體真正消失前廣播——Worlds/BossArenaTrigger.gd 靠這個訊號開門
 
 @onready var state_machine: StateMachine = $StateMachine
-@onready var player_target: Player = get_tree().get_first_node_in_group("Player") 
+@onready var player_target: Player = get_tree().get_first_node_in_group("Player")
 @onready var hurtbox: Hurtbox = $Graphics/Hurtbox
+@onready var warning_icon: Sprite2D = $Graphics/WarningIcon
 
-const CANNON_SCENE = preload("res://enemies/boss/BossNaihe/NaiheCannon.tscn")
+const CANNON_SCENE = preload("res://player/Katana/c_3_wave.tscn")
 # 在最上面的 const 區塊加入這行：
 const SPIKE_SPAWNER_SCENE = preload("res://enemies/boss/BossNaihe/NaiheSpikeSpawner.tscn")
 # --- 戰鬥階段與招式 ---
@@ -38,7 +39,6 @@ var current_attack_anim: String = ""
 func _ready() -> void:
 	super._ready() # 🔧 補上：之前漏了呼叫，導致 Enemy 基底的破防紅閃沒接上（Slime/TrainingDummy 都有呼叫這行）
 	can_be_launched = true
-	has_full_super_armor = false
 
 	# 🌟 記下面板設定
 	var hb = get_node_or_null("Graphics/WeaponHitbox")
@@ -95,9 +95,16 @@ func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
 		# 確保不會在已經癱瘓或死亡時重複觸發
 		if current_state != "paralyzed" and current_state != "death":
 			state_machine.transition_to("Paralyzed")
+		elif current_state == "paralyzed":
+			# 🌟 統一規則：沒有霸體就該正常吃擊退——癱瘓中沒開霸體，一樣要被打到位移，
+			# 只是不轉場出 Paralyzed（讓 Paralyzed.gd 自己播完跪下/喘息/起身的既定流程，不被硬凹去 Hurt）
+			if pending_damage != null:
+				var kb: Vector2 = pending_damage["knockback_force"]
+				velocity = kb
+				pending_damage = null
 
-	# 🌟 3. 招式空窗期（Decision 播 idle）或正在 Hurt 時被打到
-	elif current_state == "decision" or current_state == "hurt":
+	# 🌟 3. 已經在 Hurt 時被打到：重新套用擊退力 + 重播動畫
+	elif current_state == "hurt":
 		# 🌟 不論是不是第一下，都要重新套用這次的擊退力（含垂直）
 		# 這樣連續打的空中連段每一下都會重新墊高，不會只吃第一下初速就被重力拉回地面
 		if pending_damage != null:
@@ -105,14 +112,20 @@ func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
 			velocity = kb
 			pending_damage = null
 
-		if current_state == "decision":
-			state_machine.transition_to("Hurt")
-		else:
-			# 已經在 Hurt：transition_to 會被「同狀態不重入」防呆擋掉，直接強制重播動畫，
-			# 確保空中被連續打時每一下都有視覺回饋（閘門到期判定完全交給 Hurt.gd 每幀自己檢查）
-			var anim_name = "hurt_1" if randf() < 0.5 else "hurt_2"
-			if animation_player.has_animation(anim_name):
-				animation_player.play(anim_name, -1, action_speed_mult)
+		# transition_to 會被「同狀態不重入」防呆擋掉，直接強制重播動畫，
+		# 確保空中被連續打時每一下都有視覺回饋（閘門到期判定完全交給 Hurt.gd 每幀自己檢查）
+		var anim_name = "hurt_1" if randf() < 0.5 else "hurt_2"
+		if animation_player.has_animation(anim_name):
+			animation_player.play(anim_name, -1, action_speed_mult)
+
+	# 🌟 4. 統一判準：只要現在沒有霸體，不管在哪個狀態都真的能被打斷進 Hurt
+	# （Paralyzed/Death 明確排除在外，不能被硬凹回 Hurt）
+	elif current_state != "paralyzed" and current_state != "death" and not is_hyper_armored:
+		if pending_damage != null:
+			var kb: Vector2 = pending_damage["knockback_force"]
+			velocity = kb
+			pending_damage = null
+		state_machine.transition_to("Hurt")
 
 ## 供不是透過 take_damage()/_on_hurtbox_hurt() 造成韌性歸零的來源呼叫（例如 GuardState 格擋成功的削韌）。
 ## _on_hurtbox_hurt() 裡的 Paralyzed 轉換只有在「真的挨了一下攻擊」時才會被檢查到，

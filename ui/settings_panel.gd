@@ -7,6 +7,8 @@ signal back_requested
 @onready var shake_toggle: CheckButton = $Panel/ScrollContainer/VBoxContainer/ShakeToggle
 @onready var flash_toggle: CheckButton = $Panel/ScrollContainer/VBoxContainer/FlashToggle
 @onready var damage_number_toggle: CheckButton = $Panel/ScrollContainer/VBoxContainer/DamageNumberToggle
+@onready var outline_toggle: CheckButton = $Panel/ScrollContainer/VBoxContainer/OutlineToggle
+@onready var warning_icon_size_option: OptionButton = $Panel/ScrollContainer/VBoxContainer/WarningIconSizeOption
 @onready var music_volume_slider: HSlider = $Panel/ScrollContainer/VBoxContainer/MusicVolumeSlider
 @onready var sfx_volume_slider: HSlider = $Panel/ScrollContainer/VBoxContainer/SfxVolumeSlider
 @onready var fullscreen_toggle: CheckButton = $Panel/ScrollContainer/VBoxContainer/CheckButton
@@ -29,6 +31,8 @@ func _ready() -> void:
 	shake_toggle.toggled.connect(_on_shake_toggled)
 	flash_toggle.toggled.connect(_on_flash_toggled) # 🌟 2. 綁定白光開關的點擊事件
 	damage_number_toggle.toggled.connect(_on_damage_number_toggled)
+	outline_toggle.toggled.connect(_on_outline_toggled)
+	warning_icon_size_option.item_selected.connect(_on_warning_icon_size_selected)
 	music_volume_slider.value_changed.connect(_on_music_volume_changed)
 	sfx_volume_slider.value_changed.connect(_on_sfx_volume_changed)
 
@@ -67,6 +71,8 @@ func _refresh_ui_state() -> void:
 	shake_toggle.set_pressed_no_signal(Game.config_enable_screen_shake)
 	flash_toggle.set_pressed_no_signal(Game.config_enable_hit_flash) # 🌟 3. 同步白光開關的畫面狀態
 	damage_number_toggle.set_pressed_no_signal(Game.config_enable_damage_numbers)
+	outline_toggle.set_pressed_no_signal(Game.config_enable_status_outline)
+	warning_icon_size_option.select(Game.config_warning_icon_size)
 	music_volume_slider.set_value_no_signal(Game.config_music_volume)
 	sfx_volume_slider.set_value_no_signal(Game.config_sfx_volume)
 
@@ -105,6 +111,18 @@ func _on_damage_number_toggled(toggled_on: bool) -> void:
 	Game.config_enable_damage_numbers = toggled_on
 	Game.save_settings()
 	print("⚙️ 面板設定已儲存：顯示傷害飄字 = ", toggled_on)
+	Game.settings_changed.emit()
+
+func _on_outline_toggled(toggled_on: bool) -> void:
+	Game.config_enable_status_outline = toggled_on
+	Game.save_settings()
+	print("⚙️ 面板設定已儲存：顯示霸體/無敵輪廓特效 = ", toggled_on)
+	Game.settings_changed.emit()
+
+func _on_warning_icon_size_selected(index: int) -> void:
+	Game.config_warning_icon_size = index
+	Game.save_settings()
+	print("⚙️ 面板設定已儲存：驚嘆號大小 = ", index)
 	Game.settings_changed.emit()
 
 func _on_music_volume_changed(value: float) -> void:

@@ -61,6 +61,9 @@ func physics_update(delta: float) -> void:
 
 # 🌟 離開時記得把判定框開回來
 func exit() -> void:
+	# 🛡️ 浮空整段(up/down/slide)已經交給 Player.is_in_hitstun() 判斷無敵，這裡落地站穩要離場時再補一段緩衝
+	player.grant_invincibility(0.2)
+
 	var hurtbox = player.get_node_or_null("Graphics/Hurtbox")
 	if hurtbox:
 		hurtbox.set_deferred("monitorable", true)
