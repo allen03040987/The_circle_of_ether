@@ -76,10 +76,7 @@ func physics_update(delta: float) -> void:
 			state_machine.transition_to("Slide")
 			return
 
-	# 預輸入：格擋
-	if player.guard_request_timer.time_left > 0:
-		state_machine.transition_to("Guard")
-		return
+	# 🌟 空中不可格擋：格擋預輸入留著不清，等落地後交給 Idle/Run/RunStop 接手判斷
 
 	# 🧱 邊緣判定：滑牆
 	if player.can_wall_slide():

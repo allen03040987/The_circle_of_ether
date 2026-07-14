@@ -84,7 +84,7 @@ var current_weapon: Weapon = null
 # 🔋 武藝能量 (Martial Art Energy)
 # ==========================================
 ## 全域資源(不分武器)：非武藝招式命中、完美閃避都能獲得，施放武藝依各招 energy_cost 扣除
-const MAX_MARTIAL_ENERGY: float = 10.0
+const MAX_MARTIAL_ENERGY: float = 10.0 
 var martial_energy: float = 0.0
 
 func gain_martial_energy(amount: float) -> void:
@@ -244,15 +244,22 @@ func _process(delta: float) -> void:
 ## 攔截被鎖定時的無效操作
 func _input(event: InputEvent) -> void:
 	if is_input_locked:
-		if event.is_action("ui_cancel") or event.is_action("ui_accept"): return 
+		if event.is_action("ui_cancel") or event.is_action("ui_accept"): return
+		# 🌟 閃避是最高打斷權限：輸入鎖不能連閃避鍵都吞掉，不然事件根本傳不到 _unhandled_input
+		if event.is_action("slide"): return
 		if event is InputEventKey or event is InputEventMouseButton or event is InputEventJoypadButton:
-			get_viewport().set_input_as_handled() 
+			get_viewport().set_input_as_handled()
 		return
 
 ## 處理玩家主動操作的輸入緩衝 (跳躍、攻擊、閃避)
 func _unhandled_input(event: InputEvent) -> void:
-	if is_input_locked: return 
-		
+	# 🌟 閃避最高權限：即使輸入被鎖（例如長槍收槍強化技/大招）也要能啟動閃避預輸入，
+	# 其餘一般操作照舊被 is_input_locked 擋下
+	if event.is_action_pressed("slide"):
+		slide_request_timer.start()
+
+	if is_input_locked: return
+
 	if event.is_action_pressed("toggle_walk"): toggle_walk_mode()
 		
 	var is_mod_held = Input.is_action_pressed("martial_modifier")
@@ -305,7 +312,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		jump_request_timer.stop()
 		if velocity.y < JUMP_VELOCITY / 2: velocity.y = JUMP_VELOCITY / 2
 
-	if event.is_action_pressed("slide"): slide_request_timer.start()
 	if event.is_action_pressed("interact") and not interacting_with.is_empty():
 		interacting_with.back().interact()
 
@@ -511,7 +517,14 @@ func _on_hurtbox_hurt(hitbox: Hitbox) -> void:
 		final_knockback = Vector2(raw_force.x * dir_x, raw_force.y)
 		
 	if final_amount <= 0:
-		external_force = final_knockback
+		# 🛡️ 純位移型效果（例如 BossNaihe A8 的吸引）沒有傷害可言，走的是這條 early return，
+		# 不會碰到底下的無敵判斷——霸體/強霸體/無敵理應也能抵禦這種純擊退，這裡補上同一套判斷。
+		# 黃圈技一樣無視這些防禦（跟下面正常傷害流程的規則一致）
+		var resists_pull = not is_yellow_circle_attack and (
+			invincible_time_left > 0 or invincible_timer.time_left > 0 or is_in_hitstun() or get_armor_tier() != ArmorTier.NONE
+		)
+		if not resists_pull:
+			external_force = final_knockback
 		return
 
 	if state_machine.current_state.name.to_lower() == "slide":

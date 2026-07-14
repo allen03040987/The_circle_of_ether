@@ -48,6 +48,10 @@ func enter() -> void:
 	player.stats.energy -= 3
 	player.slide_cooldown_timer.start()
 
+	# 🌟 空中衝刺：刷新太刀(11/25)、長槍(61/62)這類「一次跳躍限一次」空中招式的施放機會
+	if not player.is_on_floor() and is_instance_valid(player.current_weapon) and player.current_weapon.has_method("refresh_air_skill_on_dash"):
+		player.current_weapon.refresh_air_skill_on_dash()
+
 func physics_update(delta: float) -> void:
 	# 只要狀態被切換，physics_update 就會停止執行，絕不會有幽靈音效跑出來！
 	if not has_played_sfx and not has_perfect_dodged:

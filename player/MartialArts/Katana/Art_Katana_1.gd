@@ -24,7 +24,6 @@ var current_stage: Stage = Stage.START
 var channel_timer: float = 0.0
 var has_countered: bool = false
 var wave_fired: bool = false
-var has_turned: bool = false # 站樁期間只能轉向一次
 
 func _ready() -> void:
 	energy_cost = 1.0
@@ -39,11 +38,6 @@ func enter() -> void:
 	current_stage = Stage.START
 	channel_timer = CHANNEL_DURATION
 	has_countered = false
-	has_turned = false
-
-	var input_dir = Input.get_axis("move_left", "move_right")
-	if input_dir != 0 and player is Player:
-		player.direction = 1 if input_dir > 0 else -1
 
 	weapon.combo_step = 11
 
@@ -121,25 +115,13 @@ func get_current_velocity(delta: float) -> Vector2:
 			current_stage = Stage.END
 			player.play_safe_anim(ANIM_END)
 
+	# 🌟 站樁期間方向鎖死，不開放任何轉向（自動或手動皆無）
 	if current_stage == Stage.COUNTER and not wave_fired:
 		if player.animation_player.current_animation_position >= WAVE_FIRE_TIME:
 			wave_fired = true
 			_spawn_sword_wave()
 			if CombatManager.has_method("apply_camera_shake"):
 				CombatManager.apply_camera_shake(20.0, 0.15)
-
-	# 🌟 Loop 階段可以無限轉向；其餘階段（START/COUNTER/END）只有一次轉向權限
-	if current_stage == Stage.LOOP:
-		var turn_input = Input.get_axis("move_left", "move_right")
-		if not is_zero_approx(turn_input):
-			player.direction = 1 if turn_input > 0 else -1
-	elif not has_turned and is_active:
-		var turn_input = Input.get_axis("move_left", "move_right")
-		if not is_zero_approx(turn_input):
-			var new_dir = 1 if turn_input > 0 else -1
-			if new_dir != player.direction:
-				player.direction = new_dir
-				has_turned = true
 
 	var new_x = player.velocity.x
 	var new_y = player.velocity.y

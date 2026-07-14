@@ -1828,7 +1828,7 @@ shape = SubResource("RectangleShape2D_2thd3")
 disabled = true
 
 [node name="CollisionShape2D5" type="CollisionShape2D" parent="Graphics/WeaponHitbox"]
-position = Vector2(50, -212)
+position = Vector2(50, -61)
 shape = SubResource("RectangleShape2D_8u3li")
 disabled = true
 

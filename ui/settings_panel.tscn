@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://8lf6qf5bw1gn"]
+[gd_scene load_steps=4 format=3 uid="uid://8lf6qf5bw1gn"]
 
 [ext_resource type="Script" path="res://ui/settings_panel.gd" id="1_x2eau"]
 [ext_resource type="PackedScene" uid="uid://b2n8xjgkpo3s1" path="res://ui/KeybindMenu.tscn" id="2_oowmq"]
+[ext_resource type="PackedScene" uid="uid://c7n3xk1p2j5r8" path="res://ui/PixelOptionButton.tscn" id="3_pxopt"]
 
 [node name="SettingsPanel" type="Control"]
 layout_mode = 3
@@ -61,19 +62,8 @@ text = "顯示狀態輪廓"
 layout_mode = 2
 text = "敵人出招警示大小"
 
-[node name="WarningIconSizeOption" type="OptionButton" parent="Panel/ScrollContainer/VBoxContainer"]
+[node name="WarningIconSizeOption" parent="Panel/ScrollContainer/VBoxContainer" instance=ExtResource("3_pxopt")]
 layout_mode = 2
-focus_mode = 0
-item_count = 4
-selected = 2
-popup/item_0/text = "小"
-popup/item_0/id = 0
-popup/item_1/text = "中"
-popup/item_1/id = 1
-popup/item_2/text = "大"
-popup/item_2/id = 2
-popup/item_3/text = "無"
-popup/item_3/id = 3
 
 [node name="MusicVolumeLabel" type="Label" parent="Panel/ScrollContainer/VBoxContainer"]
 layout_mode = 2

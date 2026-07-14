@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://dy5pocw7jg8tw"]
+[gd_scene load_steps=3 format=3 uid="uid://dy5pocw7jg8tw"]
 
 [ext_resource type="Script" path="res://ui/WeaponLoadoutMenu.gd" id="1_2wcys"]
+[ext_resource type="PackedScene" uid="uid://c7n3xk1p2j5r8" path="res://ui/PixelOptionButton.tscn" id="2_pxopt"]
 
 [node name="LoadoutPanel" type="Panel"]
 offset_right = 385.0
@@ -23,31 +24,31 @@ offset_bottom = 116.0
 [node name="WeaponSlot1" type="VBoxContainer" parent="HBoxContainer"]
 layout_mode = 2
 
-[node name="WeaponOpt" type="OptionButton" parent="HBoxContainer/WeaponSlot1"]
+[node name="WeaponOpt" parent="HBoxContainer/WeaponSlot1" instance=ExtResource("2_pxopt")]
 layout_mode = 2
 
-[node name="ArtOpt1" type="OptionButton" parent="HBoxContainer/WeaponSlot1"]
+[node name="ArtOpt1" parent="HBoxContainer/WeaponSlot1" instance=ExtResource("2_pxopt")]
 layout_mode = 2
 
-[node name="ArtOpt2" type="OptionButton" parent="HBoxContainer/WeaponSlot1"]
+[node name="ArtOpt2" parent="HBoxContainer/WeaponSlot1" instance=ExtResource("2_pxopt")]
 layout_mode = 2
 
-[node name="ArtOpt3" type="OptionButton" parent="HBoxContainer/WeaponSlot1"]
+[node name="ArtOpt3" parent="HBoxContainer/WeaponSlot1" instance=ExtResource("2_pxopt")]
 layout_mode = 2
 
 [node name="WeaponSlot2" type="VBoxContainer" parent="HBoxContainer"]
 layout_mode = 2
 
-[node name="WeaponOpt" type="OptionButton" parent="HBoxContainer/WeaponSlot2"]
+[node name="WeaponOpt" parent="HBoxContainer/WeaponSlot2" instance=ExtResource("2_pxopt")]
 layout_mode = 2
 
-[node name="ArtOpt1" type="OptionButton" parent="HBoxContainer/WeaponSlot2"]
+[node name="ArtOpt1" parent="HBoxContainer/WeaponSlot2" instance=ExtResource("2_pxopt")]
 layout_mode = 2
 
-[node name="ArtOpt2" type="OptionButton" parent="HBoxContainer/WeaponSlot2"]
+[node name="ArtOpt2" parent="HBoxContainer/WeaponSlot2" instance=ExtResource("2_pxopt")]
 layout_mode = 2
 
-[node name="ArtOpt3" type="OptionButton" parent="HBoxContainer/WeaponSlot2"]
+[node name="ArtOpt3" parent="HBoxContainer/WeaponSlot2" instance=ExtResource("2_pxopt")]
 layout_mode = 2
 
 [node name="BackButton" type="Button" parent="."]
@@ -58,4 +59,3 @@ offset_right = 48.0
 offset_bottom = 207.0
 text = "返回
 "
-

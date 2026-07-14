@@ -8,7 +8,7 @@ signal back_requested
 @onready var flash_toggle: CheckButton = $Panel/ScrollContainer/VBoxContainer/FlashToggle
 @onready var damage_number_toggle: CheckButton = $Panel/ScrollContainer/VBoxContainer/DamageNumberToggle
 @onready var outline_toggle: CheckButton = $Panel/ScrollContainer/VBoxContainer/OutlineToggle
-@onready var warning_icon_size_option: OptionButton = $Panel/ScrollContainer/VBoxContainer/WarningIconSizeOption
+@onready var warning_icon_size_option: PixelOptionButton = $Panel/ScrollContainer/VBoxContainer/WarningIconSizeOption
 @onready var music_volume_slider: HSlider = $Panel/ScrollContainer/VBoxContainer/MusicVolumeSlider
 @onready var sfx_volume_slider: HSlider = $Panel/ScrollContainer/VBoxContainer/SfxVolumeSlider
 @onready var fullscreen_toggle: CheckButton = $Panel/ScrollContainer/VBoxContainer/CheckButton
@@ -23,9 +23,14 @@ signal back_requested
 # ⚙️ 初始化 (Initialization)
 # ==========================================
 func _ready() -> void:
+	# 0. 驚嘆號大小選單的選項是固定的 4 個，直接在這裡填，不用另外存進場景檔
+	warning_icon_size_option.clear()
+	for label in ["小", "中", "大", "無"]:
+		warning_icon_size_option.add_item(label)
+
 	# 1. 綁定可視狀態改變的訊號
 	visibility_changed.connect(_on_visibility_changed)
-	
+
 	# 2. 綁定按鈕點擊訊號
 	walk_toggle.toggled.connect(_on_walk_toggled)
 	shake_toggle.toggled.connect(_on_shake_toggled)

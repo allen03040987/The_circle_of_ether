@@ -195,7 +195,9 @@ var is_attacking: bool = false
 var step_cooldown: float = 0.0
 var _last_action_was_martial_art: bool = false  # 🔧 標記上一招是否為武藝卡帶，避免 combo_step 殘留誤觸連段
 
-var air_attack_locked: bool = false             
+var air_attack_locked: bool = false ## 空中普攻連段 (11→12→13) 這次跳躍是否已經用掉施放機會
+var air_heavy_locked: bool = false ## 空中下墜戰技 (25) 這次跳躍是否已經用掉施放機會
+var _last_air_skill: String = "" ## "light" 或 "heavy"：記錄最近一次用掉的是哪個空中招式，供衝刺 (Slide) 刷新使用
 
 var is_time_stop_triggered: bool = false 
 var _camera_tween: Tween 
@@ -238,15 +240,18 @@ func start_light_attack() -> void:
 
 	# --- 🦅 空戰邏輯 ---
 	if not player.is_on_floor():
-		if air_attack_locked or _get_ground_distance() < min_air_attack_height:
+		if _get_ground_distance() < min_air_attack_height:
 			return
 		if combo_step == 11:
 			combo_step = 12
-		elif combo_step == 12: # 🌟 核心修改：12 之後接 13，並在此上鎖空戰權限
+		elif combo_step == 12:
 			combo_step = 13
-			air_attack_locked = true 
 		else:
+			# 🌟 一次跳躍只有一次施放機會（衝刺可刷新），不是接續連段就要先過這道鎖
+			if air_attack_locked: return
 			combo_step = 11
+			air_attack_locked = true
+			_last_air_skill = "light"
 		is_attacking = true
 		_play_air_step(combo_step)
 		return
@@ -284,12 +289,11 @@ func start_heavy_attack() -> void:
 		return
 	
 	step_cooldown = 0.15
-	air_attack_locked = false
-	
+
 	if is_instance_valid(active_martial_art):
 		active_martial_art.cancel()
 		active_martial_art = null
-		
+
 	if not is_attacking:
 		var current_time = Time.get_ticks_msec() / 1000.0
 		if current_time - last_attack_time > combo_timeout or _last_action_was_martial_art:
@@ -298,16 +302,22 @@ func start_heavy_attack() -> void:
 
 	is_attacking = true
 	is_time_stop_triggered = false
-	
-	# 🌟 空戰邏輯：進入第 1 階段「下墜前準備」
+
+	# 🌟 空戰邏輯：進入第 1 階段「下墜前準備」——一次跳躍只有一次施放機會（衝刺可刷新）
 	if not player.is_on_floor():
+		if air_heavy_locked or _get_ground_distance() < min_air_attack_height:
+			is_attacking = false
+			return
+
 		combo_step = 25
 		heavy_hold_timer = 0.0
-		
+		air_heavy_locked = true
+		_last_air_skill = "heavy"
+
 		var input_dir = Input.get_axis("move_left", "move_right")
 		if input_dir != 0 and player is Player:
 			player.direction = 1 if input_dir > 0 else -1
-			
+
 		player.velocity.y = air_thrust_force * 2.0
 		_play_heavy_ult_step(25)
 		print("🦅 空中重擊：躍起並進入下墜前準備 (25)")
@@ -371,7 +381,8 @@ func update_timers_only(delta: float) -> void:
 			print("🔽 劍意見底！BUFF 結束！(殘影消失，傷害與移速恢復正常)")
 			
 	if player.is_on_floor():
-		air_attack_locked = false 
+		air_attack_locked = false
+		air_heavy_locked = false
 		if not is_attacking and combo_step in [11, 12, 13, 25, 26, 27]:
 			combo_step = 0
 
@@ -382,7 +393,9 @@ func get_current_velocity(delta: float) -> Vector2:
 	if not is_attacking:
 		return player.velocity
 
-	if player.is_on_floor(): air_attack_locked = false
+	if player.is_on_floor():
+		air_attack_locked = false
+		air_heavy_locked = false
 
 	# ==========================================
 	# 🌟 普攻長按偵測：劍意爆發 (需滿一半方可啟動，隨後持續燃燒)
@@ -794,15 +807,23 @@ func _apply_charge_zoom(target_zoom: Vector2, duration: float = 0.2) -> void:
 			_camera_tween.tween_property(camera, "zoom", target_zoom, duration)
 
 func can_air_light() -> bool:
-	if air_attack_locked or _get_ground_distance() < min_air_attack_height: return false
-	return true
+	if _get_ground_distance() < min_air_attack_height: return false
+	if player.is_on_floor(): return true
+	if combo_step in [11, 12]: return true # 連段進行中，繼續往下段不受一次性限制
+	return not air_attack_locked
 
 func can_use_heavy() -> bool:
-	if not player.is_on_floor(): 
-		if _get_ground_distance() < min_air_attack_height: return false
-		return true 
-	if combo_step in [21, 27]: return true 
+	if not player.is_on_floor():
+		if air_heavy_locked or _get_ground_distance() < min_air_attack_height: return false
+		return true
+	if combo_step in [21, 27]: return true
 	return true
+
+## 供 Slide.gd 在空中衝刺時呼叫：刷新「最近一次用掉」的那個空中招式的施放機會
+func refresh_air_skill_on_dash() -> void:
+	match _last_air_skill:
+		"light": air_attack_locked = false
+		"heavy": air_heavy_locked = false
 
 func export_weapon_data() -> Dictionary:
 	return { "current_iai": current_iai }

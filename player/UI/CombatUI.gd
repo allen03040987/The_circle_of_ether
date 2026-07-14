@@ -42,8 +42,21 @@ var _cached_health_item: Node = null ## 血包節點是 Player._ready() 才動�
 @onready var talisman_enhanced_bar = $TalismanResources/EnhancedBar
 
 # --- 武藝能量（全域資源，不分武器，一直顯示） ---
-@onready var martial_energy_bar: ProgressBar = $MartialEnergyBar
-@onready var martial_energy_label: Label = $MartialEnergyLabel
+## 🌟 改用「一點能量一個圖標」橫排顯示，不用數字：圖標數量 = 上限，之後升級上限變動時會自動增減，
+## 不用像進度條那樣預設寫死一個固定寬度
+@onready var martial_energy_frame: Control = $MartialEnergyFrame
+@onready var martial_energy_icons: HBoxContainer = $MartialEnergyFrame/MartialEnergyIcons
+const ENERGY_ICON := preload("res://ui/icons/Energy icon.png")
+const ENERGY_ICON_EMPTY_ALPHA: float = 0.25 ## 還沒集滿的點維持這個底色，象徵「這裡還有一格」
+## 🌟 滿一點就跑動態變色，不然單純白色的圖標很難一眼看出「這格到底有沒有能量」
+## 顏色刻意跟白色混過（不是純飽和色），彩虹感淡一點；且全部圖標共用同一個時間軸，
+## 不是每顆各自跑自己的 tween——不然會變成每格各自閃各自的、看起來很亂
+const ENERGY_ICON_CHARGE_COLORS := [
+	Color(1.0, 0.55, 0.55), Color(1.0, 0.92, 0.55), Color(0.6, 1.0, 0.65),
+	Color(0.6, 0.9, 1.0), Color(0.8, 0.7, 1.0),
+]
+const ENERGY_ICON_CHARGE_CYCLE_TIME: float = 0.35 ## 每個顏色停留多久才轉下一個
+var _charge_shimmer_time: float = 0.0 ## 所有已集滿的能量圖標共用的同一條時間軸，確保全部一起變色
 
 # --- 內部快取變數 ---
 var cached_weapon: Node = null 
@@ -65,8 +78,10 @@ func _ready() -> void:
 		if player.has_signal("martial_art_denied") and not player.martial_art_denied.is_connected(_on_martial_art_denied):
 			player.martial_art_denied.connect(_on_martial_art_denied)
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not is_instance_valid(player): return
+
+	_charge_shimmer_time += delta
 
 	# 0. 血包圖標與剩餘次數（跟武器無關，永遠顯示）
 	_update_health_item_ui()
@@ -132,12 +147,12 @@ func _process(_delta: float) -> void:
 		"talisman": _update_talisman_values(current_weapon)
 
 	# 6. 武藝能量（跟武器無關，永遠顯示）
-	_update_martial_energy_bar()
+	_update_martial_energy_icons()
 
 # ==========================================
 # 📡 訊號接收：組合鍵高亮呼吸燈 / 能量不足警示
 # ==========================================
-const HIGHLIGHT_COLOR := Color(0.9, 1.2, 1.0, 0.9) ## 按著修飾鍵時的高亮色：淡藍綠色 (取代原本偏黃的配色)
+const HIGHLIGHT_COLOR := Color(1.0, 1.0, 1.0, 1.0) ## 按著修飾鍵時的高亮色
 const DENIED_COLOR := Color(1.8, 0.35, 0.35, 1.0)  ## 能量不足時的警示色：紅色
 
 func _on_player_martial_mode_changed(is_active: bool) -> void:
@@ -194,30 +209,58 @@ func _play_denied_flash(target_ui: Control) -> Tween:
 
 const CAST_AFTERIMAGE_COLOR := Color(0.3, 2.2, 0.9, 0.9) ## 施放/使用成功的殘影色：偏亮的綠色（HDR 強度撞出發光感）
 
-## 武藝真的成功放出來時（能量閘門通過），在圖標後方炸出一個放大淡出的綠色殘影
+## 武藝真的成功放出來時（能量閘門通過），在圖標後方炸出一個放大淡出的綠色殘影，
+## 同時在剛好被扣掉的那幾格武藝能量圖標上也各炸一個一樣的殘影
 func _on_weapon_martial_art_cast(slot_index: int) -> void:
 	var idx = slot_index - 1
 	if idx < 0 or idx >= art_uis.size(): return
 	_spawn_cast_afterimage(art_uis[idx])
+	_spawn_energy_cast_afterimage(slot_index)
 
 ## 血包成功用掉一次——一樣是綠色殘影
 func _on_health_item_used() -> void:
 	_spawn_cast_afterimage(health_item_ui)
 
+## 武藝能量被扣掉的當下：因為呼叫這裡時 martial_energy 已經扣完了，
+## 只能用「扣完後的能量值 + 這招花費」回推被扣的到底是哪幾格，在那些圖標上各炸一個殘影
+func _spawn_energy_cast_afterimage(slot_index: int) -> void:
+	if not is_instance_valid(player) or not is_instance_valid(martial_energy_icons): return
+	var weapon = player.get("current_weapon")
+	if not is_instance_valid(weapon): return
+	var m_slots = weapon.get("martial_slots")
+	var idx = slot_index - 1
+	if not (m_slots is Array) or idx < 0 or idx >= m_slots.size(): return
+	var art = m_slots[idx]
+	if not is_instance_valid(art): return
+	var cost = art.get("energy_cost") if "energy_cost" in art else 0.0
+	if cost <= 0: return
+
+	# 🌟 只有「花費前是滿的、花費後變不滿」的圖標才算被消耗——不是單純看扣掉的數字區間，
+	# 不然像 1.2 點只扣 1 點這種情況，會連本來就還沒集滿的那一格（0.2 那格）也一起算進去，變成炸兩個殘影
+	var new_energy = float(player.get("martial_energy"))
+	var old_energy = new_energy + cost
+	var charged_before = floori(old_energy) # 花費前，完整點滿的圖標有幾個
+	var charged_after = floori(new_energy)  # 花費後，完整點滿的圖標剩幾個
+	for i in range(charged_after, charged_before):
+		if i >= 0 and i < martial_energy_icons.get_child_count():
+			_spawn_cast_afterimage(martial_energy_icons.get_child(i), ENERGY_ICON)
+
 ## 通用：在圖標後方炸出一個放大淡出的綠色殘影
-func _spawn_cast_afterimage(target_ui: Control) -> void:
+## override_texture：給不是 TextureProgressBar 的目標用（例如武藝能量圖標是純 TextureRect，沒有 texture_under）
+func _spawn_cast_afterimage(target_ui: Control, override_texture: Texture2D = null) -> void:
 	if not is_instance_valid(target_ui) or not target_ui.visible: return
-	if not target_ui.texture_under: return
+	var tex: Texture2D = override_texture if override_texture else target_ui.get("texture_under")
+	if not tex: return
 
 	# 🛡️ TextureProgressBar 預設是照貼圖「原始尺寸」從左上角畫，不是拉伸填滿整個節點的 size——
 	# 之前拿 target_ui.size（節點框的大小）當殘影尺寸，框比貼圖大時殘影會置中變成偏右下，跟實際圖標對不上。
 	# 改成直接用貼圖本身的原始尺寸，才會跟畫面上真正看到的圖標疊在一起。
-	var tex_size = target_ui.texture_under.get_size()
+	var tex_size = tex.get_size()
 
 	# 掛在圖標自己底下（而不是丟給 HBoxContainer 當兄弟節點）——
 	# HBoxContainer 是 Container，多塞一個子節點進去會觸發重新排版，把旁邊的圖標一起擠歪
 	var afterimage := TextureRect.new()
-	afterimage.texture = target_ui.texture_under
+	afterimage.texture = tex
 	afterimage.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	afterimage.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	afterimage.size = tex_size
@@ -321,8 +364,10 @@ func _update_spear_values(weapon: Node) -> void:
 		pozhen_bar.value = (float(pozhen) / float(max_pozhen)) * 100.0
 			
 ## 武藝能量：全域資源，不分武器，跟太刀劍意值(current_iai)是兩回事
-func _update_martial_energy_bar() -> void:
-	if not is_instance_valid(martial_energy_bar): return
+## 一點能量一個圖標橫排顯示：滿的圖標不透明，還沒集滿的維持暗淡的底色，
+## 正在累積中的那一格再依小數部分內插透明度，不用數字也看得出「還差多少」
+func _update_martial_energy_icons() -> void:
+	if not is_instance_valid(martial_energy_icons): return
 
 	var current_energy = player.get("martial_energy")
 	var max_energy = player.get("MAX_MARTIAL_ENERGY")
@@ -333,11 +378,51 @@ func _update_martial_energy_bar() -> void:
 	if current_energy == null:
 		current_energy = 0.0
 
-	martial_energy_bar.value = (float(current_energy) / float(max_energy)) * 100.0
+	var point_count = roundi(max_energy)
 
-	if is_instance_valid(martial_energy_label):
-		# 🔧 能量都是 0.2/1.0 這種小數增量，四捨五入成整數顯示會誤導（例如打3下明明才 0.6，卻顯示成 1）
-		martial_energy_label.text = "武藝能量 %.1f/%d" % [current_energy, roundi(max_energy)]
+	# 🌟 上限只有升級時才會變動，數量對不上才重建圖標列表，平常每幀只更新透明度
+	if martial_energy_icons.get_child_count() != point_count:
+		# 🌟 用立即 free() 不用 queue_free()：queue_free 要等到這一幀結束才真的移除，
+		# 下面緊接著就要用 get_child_count() 重新算亮度，用 queue_free 會暫時撈到一批多餘的舊節點
+		for child in martial_energy_icons.get_children():
+			child.free()
+		for i in range(point_count):
+			var icon := TextureRect.new()
+			icon.texture = ENERGY_ICON
+			# 🌟 維持原始像素尺寸，不要被 HBoxContainer 拉伸：關掉水平/垂直的 fill，
+			# 並用 EXPAND_KEEP_SIZE 讓最小尺寸永遠等於貼圖本身大小
+			icon.expand_mode = TextureRect.EXPAND_KEEP_SIZE
+			icon.stretch_mode = TextureRect.STRETCH_KEEP
+			icon.size_flags_horizontal = 0
+			icon.size_flags_vertical = 0
+			icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			martial_energy_icons.add_child(icon)
+
+		# 🌟 外框 MartialEnergyFrame 是用 anchors+offset 定位的 PanelContainer，不是被別的 Container 排版——
+		# 這種情況下 PanelContainer 本身不會自動跟著子節點內容縮放，size 完全照 offset 走，
+		# 不手動呼叫 reset_size() 的話，上限變小時外框會維持原本（較大）的寬度，右邊留一大塊空的
+		if is_instance_valid(martial_energy_frame):
+			martial_energy_frame.reset_size()
+
+	var shimmer_color = _get_charge_shimmer_color()
+	for i in range(martial_energy_icons.get_child_count()):
+		var icon = martial_energy_icons.get_child(i)
+		var fill = clampf(float(current_energy) - i, 0.0, 1.0)
+		if fill >= 1.0:
+			icon.modulate = shimmer_color
+		else:
+			icon.modulate = Color(1.0, 1.0, 1.0, lerpf(ENERGY_ICON_EMPTY_ALPHA, 1.0, fill))
+
+## 所有集滿的能量圖標「這一幀」該顯示的共用顏色——用同一條時間軸內插色票，
+## 而不是每顆圖標各自跑一個 tween，這樣才能保證全部圖標永遠同步變色
+func _get_charge_shimmer_color() -> Color:
+	var n = ENERGY_ICON_CHARGE_COLORS.size()
+	var total_cycle = ENERGY_ICON_CHARGE_CYCLE_TIME * n
+	var t = fmod(_charge_shimmer_time, total_cycle)
+	var idx = int(t / ENERGY_ICON_CHARGE_CYCLE_TIME)
+	var next_idx = (idx + 1) % n
+	var local_t = fmod(t, ENERGY_ICON_CHARGE_CYCLE_TIME) / ENERGY_ICON_CHARGE_CYCLE_TIME
+	return ENERGY_ICON_CHARGE_COLORS[idx].lerp(ENERGY_ICON_CHARGE_COLORS[next_idx], local_t)
 
 func _update_katana_values(weapon: Node) -> void:
 	# 抓取太刀本體的劍意值 (Iai)

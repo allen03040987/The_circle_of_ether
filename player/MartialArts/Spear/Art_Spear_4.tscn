@@ -1,6 +1,8 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3 uid="uid://ccosuk0egpx0u"]
 
 [ext_resource type="Script" path="res://player/MartialArts/Spear/Art_Spear_4.gd" id="1_art"]
+[ext_resource type="Texture2D" uid="uid://did3nlobgrhvq" path="res://player/UI/spear/Untitled 04-18-2026 12-09-12 (2).png" id="2_1tdpr"]
 
 [node name="Art_Spear_4" type="Node"]
 script = ExtResource("1_art")
+icon = ExtResource("2_1tdpr")

@@ -40,6 +40,10 @@ window/stretch/mode="canvas_items"
 
 enabled=PackedStringArray("res://addons/AsepriteWizard/plugin.cfg", "res://addons/com.timothyqiu.animation-resetter/plugin.cfg")
 
+[gui]
+
+theme/custom="res://ui/PixelTheme.tres"
+
 [input]
 
 move_left={

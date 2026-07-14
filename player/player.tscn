@@ -1,4 +1,4 @@
-[gd_scene load_steps=225 format=3 uid="uid://bhfnd1l4u7ppc"]
+[gd_scene load_steps=226 format=3 uid="uid://bhfnd1l4u7ppc"]
 
 [ext_resource type="Script" path="res://player/Player.gd" id="1_6frkl"]
 [ext_resource type="PackedScene" uid="uid://8r8bfgadubf8" path="res://Explod/tscn/Dimensional Slash.tscn" id="2_64kkh"]
@@ -1930,9 +1930,9 @@ tracks/8/use_blend = true
 
 [sub_resource type="Animation" id="Animation_e421a"]
 resource_name = "wall_jump"
-length = 0.2
+length = 0.16
 loop_mode = 1
-step = 0.05
+step = 0.04
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -1988,7 +1988,7 @@ tracks/4/path = NodePath("Graphics/Sprite2D:frame")
 tracks/4/interp = 1
 tracks/4/loop_wrap = true
 tracks/4/keys = {
-"times": PackedFloat32Array(0, 0.05, 0.1, 0.15),
+"times": PackedFloat32Array(0, 0.04, 0.08, 0.12),
 "transitions": PackedFloat32Array(1, 1, 1, 1),
 "update": 1,
 "values": [3, 4, 5, 6]
@@ -9348,7 +9348,7 @@ tracks/10/keys = {
 
 [sub_resource type="Animation" id="Animation_6ck75"]
 resource_name = "attack_enhanced_2"
-length = 0.4
+length = 0.6
 step = 0.01
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -9405,10 +9405,10 @@ tracks/4/path = NodePath(".:can_combo")
 tracks/4/interp = 1
 tracks/4/loop_wrap = true
 tracks/4/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
+"times": PackedFloat32Array(0, 0.55, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1),
 "update": 1,
-"values": [false]
+"values": [false, true, false]
 }
 tracks/5/type = "method"
 tracks/5/imported = false
@@ -9470,7 +9470,7 @@ tracks/8/path = NodePath("Graphics/Sprite2D:frame")
 tracks/8/interp = 1
 tracks/8/loop_wrap = true
 tracks/8/keys = {
-"times": PackedFloat32Array(0, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, 0.24, 0.27, 0.3, 0.33),
+"times": PackedFloat32Array(0, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, 0.24, 0.27, 0.32, 0.37),
 "transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
 "update": 1,
 "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 6, 10, 11]
@@ -13629,6 +13629,19 @@ region = Rect2(37, 64, 45, 2)
 atlas = ExtResource("90_rjsig")
 region = Rect2(38, 62, 44, 1)
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_energy_frame"]
+content_margin_left = 2.0
+content_margin_top = 1.0
+content_margin_right = 2.0
+content_margin_bottom = 1.0
+bg_color = Color(0, 0, 0, 0.5)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 1)
+anti_aliasing = false
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_k5mlo"]
 atlas = ExtResource("10_2a2b1")
 region = Rect2(112, 64, 16, 16)
@@ -14068,30 +14081,20 @@ value = 100.0
 texture_progress = SubResource("AtlasTexture_w5pi0")
 texture_progress_offset = Vector2(-1, 19)
 
-[node name="MartialEnergyLabel" type="Label" parent="CanvasLayer/CombatUI"]
+[node name="MartialEnergyFrame" type="PanelContainer" parent="CanvasLayer/CombatUI"]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_left = 248.75
-offset_top = 132.5
-offset_right = 385.75
-offset_bottom = 144.5
+offset_left = 205.0
+offset_top = 135.0
+offset_right = 298.0
+offset_bottom = 148.0
 grow_horizontal = 2
-theme_override_font_sizes/font_size = 8
-text = "武藝能量 0/10"
-horizontal_alignment = 1
+theme_override_styles/panel = SubResource("StyleBoxFlat_energy_frame")
 
-[node name="MartialEnergyBar" type="ProgressBar" parent="CanvasLayer/CombatUI"]
-modulate = Color(0.3, 0.85, 1, 1)
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 301.25
-offset_top = 144.0
-offset_right = 329.25
-offset_bottom = 154.0
-grow_horizontal = 2
-show_percentage = false
+[node name="MartialEnergyIcons" type="HBoxContainer" parent="CanvasLayer/CombatUI/MartialEnergyFrame"]
+layout_mode = 2
+theme_override_constants/separation = 1
 
 [node name="InteractionIcon" type="AnimatedSprite2D" parent="."]
 position = Vector2(0, -88)

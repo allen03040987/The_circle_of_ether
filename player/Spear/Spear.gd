@@ -2,10 +2,16 @@ class_name Spear
 extends Weapon
 ## 武器腳本：長槍 (Spear) - 收槍強化技重製版
 
+# ==========================================
+# 🎛️ 1. 武器核心參數
+# ==========================================
+@export_group("武器核心參數")
+@export var combo_timeout: float = 0.3
+@export var no_sheath_steps: Array[int] = [20, 42]
+
 const WEAPON_ID: String = "spear"
-@export var no_sheath_steps: Array[int] = [20 ,42]
 const SPEAR_WAVE_SCENE = preload("res://player/Spear/ult_wave.tscn")
-const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.05, 1.05), 2: Vector2(1.1, 1.1), 3: Vector2(1.15, 1.15) }
+const BOOMERANG_SCENE = preload("res://player/Spear/SpearBoomerang.tscn")
 
 # 🎨 長槍專屬的火花預設外觀：招式資料裡沒寫 "spark" 對應欄位時，優先套用這裡（比 Hitbox.gd 的通用預設優先）
 func get_weapon_default_spark() -> Dictionary:
@@ -29,43 +35,103 @@ func _ready() -> void:
 func _delayed_load_arts() -> void:
 	load_martial_arts(equipped_martial_arts)
 
+const ZOOM_LEVELS = { 0: Vector2(1.0, 1.0), 1: Vector2(1.05, 1.05), 2: Vector2(1.1, 1.1), 3: Vector2(1.15, 1.15) }
+
 # ==========================================
-# 📖 招式數據庫 (Data-Driven Combat Config)
+# 📖 2. 招式數據庫 (Data-Driven Combat Config)
 # ==========================================
 
 # 🗡️ [地面普攻字典] (代號: 1~4)
 const DICT_LIGHT_GROUND = {
-	1: {"anim": "spear/light_1", "hitbox_name": "light", "max_hits": 1, "interval": 0.0, "knockback": Vector2(50.0, 0.0), "base_dmg": 300, "energy": 500, "action_type": Weapon.ActionType.NORMAL,"hit_sfx_type": "hit"},
-	2: {"anim": "spear/light_2", "hitbox_name": "light", "max_hits": 2, "interval": 0.1, "knockback": Vector2(50.0, 0.0), "base_dmg": 350, "energy": 5, "action_type": Weapon.ActionType.NORMAL,"hit_sfx_type": "hit"},
-	3: {"anim": "spear/light_3", "hitbox_name": "light", "max_hits": 3, "interval": 0.1, "knockback": Vector2(20.0, 0.0), "base_dmg": 150, "energy": 5, "action_type": Weapon.ActionType.NORMAL,"hit_sfx_type": "hit"},
-	4: {"anim": "spear/light_4", "hitbox_name": "light", "max_hits": 1, "interval": 0.0, "knockback": Vector2(600.0, 0.0), "shake": 20.0, "base_dmg": 600, "energy": 10, "action_type": Weapon.ActionType.NORMAL,"hit_sfx_type": "hit"}
+	1: {
+		"anim": "spear/light_1", "hitbox_name": "light",
+		"type": Damage.Type.LIGHT, "base_dmg": 300, "max_hits": 1, "interval": 0.0, "sticky": false,
+		"knockback": Vector2(50.0, 0.0), "shake": 2.5, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"energy": 500, "action_type": Weapon.ActionType.NORMAL,
+	},
+	2: {
+		"anim": "spear/light_2", "hitbox_name": "light",
+		"type": Damage.Type.LIGHT, "base_dmg": 350, "max_hits": 2, "interval": 0.1, "sticky": false,
+		"knockback": Vector2(50.0, 0.0), "shake": 2.5, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"energy": 5, "action_type": Weapon.ActionType.NORMAL,
+	},
+	3: {
+		"anim": "spear/light_3", "hitbox_name": "light",
+		"type": Damage.Type.LIGHT, "base_dmg": 150, "max_hits": 3, "interval": 0.1, "sticky": false,
+		"knockback": Vector2(20.0, 0.0), "shake": 2.5, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"energy": 5, "action_type": Weapon.ActionType.NORMAL,
+	},
+	4: {
+		"anim": "spear/light_4", "hitbox_name": "light",
+		"type": Damage.Type.LIGHT, "base_dmg": 600, "max_hits": 1, "interval": 0.0, "sticky": false,
+		"knockback": Vector2(600.0, 0.0), "shake": 20.0, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"energy": 10, "action_type": Weapon.ActionType.NORMAL,
+	},
 }
 
 # 💥 [戰技與大招字典] (代號: 20 丟槍, 80/81 大招前後段)
 # 🌟 21 (AOE 拉扯) 不屬於這裡——那是武藝卡帶 Art_Spear_4.gd 自己的招式，設定資料就近放在它自己的檔案裡，
 # 跟太刀的武藝 (Art_Katana_2/3) 一樣不佔用武器本體的字典，呼叫 weapon._play_martial_art_attack(CONFIG) 出招
 const DICT_HEAVY_ULT = {
-	20: {"anim": "spear/heavy", "hitbox_name": "None", "max_hits": 1, "interval": 0.0, "knockback": Vector2.ZERO, "base_dmg": 0, "energy": 0, "hit_sfx_type": "hit"},
-	80: {"anim": "spear/attack_ult", "hitbox_name": "None", "max_hits": 1, "interval": 0.0, "knockback": Vector2.ZERO, "base_dmg": 0, "energy": 0},
-	81: {"anim": "spear/attack_ult_end", "hitbox_name": "None", "max_hits": 1, "interval": 0.0, "knockback": Vector2.ZERO, "base_dmg": 0, "energy": 0}
+	# 丟槍/大招都沒有本體判定框 (hitbox_name "None")：真正的傷害另外由 spawn_boomerang()/spawn_spear_wave() 直接灌到生成出來的投射物上
+	20: {
+		"anim": "spear/heavy", "hitbox_name": "None",
+		"base_dmg": 0,
+	},
+	80: {
+		"anim": "spear/attack_ult", "hitbox_name": "None",
+		"base_dmg": 0,
+	},
+	81: {
+		"anim": "spear/attack_ult_end", "hitbox_name": "None",
+		"base_dmg": 0,
+	},
 }
 
 # 🦅 [空中連段字典] (代號: 61~62)
 const DICT_LIGHT_AIR = {
-	61: { "anim": "spear/air_attack_1", "hitbox_name": "Air_J", "max_hits": 4, "interval": 0.15, "shake": 10.0, "type": Damage.Type.LIGHT, "knockback": Vector2(10.0, -150.0), "base_dmg": 50, "energy": 1, "action_type": Weapon.ActionType.NORMAL, "sticky": true,"hit_sfx_type": "hit"},
-	62: { "anim": "spear/air_attack_2", "hitbox_name": "Air_J", "max_hits": 1, "interval": 0.0, "shake": 50.0, "type": Damage.Type.HEAVY, "knockback": Vector2(300.0, 600.0), "base_dmg": 300, "energy": 2, "action_type": Weapon.ActionType.NORMAL,"hit_sfx_type": "hit"},
+	61: {
+		"anim": "spear/air_attack_1", "hitbox_name": "Air_J",
+		"type": Damage.Type.LIGHT, "base_dmg": 50, "max_hits": 4, "interval": 0.15, "sticky": true,
+		"knockback": Vector2(10.0, -150.0), "shake": 10.0, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"energy": 1, "action_type": Weapon.ActionType.NORMAL,
+	},
+	62: {
+		"anim": "spear/air_attack_2", "hitbox_name": "Air_J",
+		"type": Damage.Type.HEAVY, "base_dmg": 300, "max_hits": 1, "interval": 0.0, "sticky": false,
+		"knockback": Vector2(300.0, 600.0), "shake": 50.0, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"energy": 2, "action_type": Weapon.ActionType.NORMAL,
+	},
 }
 
 # 🪃 [收槍強化技字典] (代號 40~43)
 # 40 = 長按普攻：爆發三連刺 (末端傷害更高)
 # 41 = 短按普攻：突進 (位移/音效沿用舊「強化普攻」，末端傷害更高)
 # 42 = 短按戰技：擊飛 (移植自舊武藝 Art_Spear_22)
-# 43 = 長按戰技：增傷 (12秒攻擊附加增傷 buff，動畫尚未提供)
+# 43 = 長按戰技：增傷 (12秒內攻擊附加流血 DOT)
 const DICT_CATCH_SKILL = {
-	40: {"anim": "spear/attack_enhanced_3", "hitbox_name": "attack_enhanced_3", "type": Damage.Type.LIGHT, "max_hits": 3, "interval": 0.2, "knockback": Vector2(20.0, 0.0), "shake": 30.0, "base_dmg": 1500, "sticky": true, "action_type": Weapon.ActionType.SKILL, "hit_sfx_type": "hit"},
-	41: {"anim": "spear/attack_enhanced", "hitbox_name": "attack_enhanced", "type": Damage.Type.HEAVY, "max_hits": 4, "interval": 0.1, "knockback": Vector2(100.0, -100.0), "shake": 15.0, "base_dmg": 800, "sticky": true, "action_type": Weapon.ActionType.SKILL, "hit_sfx_type": "hit"},
-	42: {"anim": "spear/attack_enhanced_2", "hitbox_name": "attack_enhanced_2", "type": Damage.Type.HEAVY, "max_hits": 1, "interval": 0.0, "knockback": Vector2(0.0, -600.0), "shake": 60.0, "base_dmg": 500, "action_type": Weapon.ActionType.SKILL, "hit_sfx_type": "hit_2"},
-	43: {"anim": "spear/attack_enhanced_4", "hitbox_name": "None", "max_hits": 1, "interval": 0.0, "knockback": Vector2.ZERO, "base_dmg": 0, "action_type": Weapon.ActionType.SKILL},
+	40: {
+		"anim": "spear/attack_enhanced_3", "hitbox_name": "attack_enhanced_3",
+		"type": Damage.Type.LIGHT, "base_dmg": 1500, "max_hits": 3, "interval": 0.2, "sticky": true,
+		"knockback": Vector2(20.0, 0.0), "shake": 30.0, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"action_type": Weapon.ActionType.SKILL,
+	},
+	41: {
+		"anim": "spear/attack_enhanced", "hitbox_name": "attack_enhanced",
+		"type": Damage.Type.HEAVY, "base_dmg": 800, "max_hits": 4, "interval": 0.1, "sticky": true,
+		"knockback": Vector2(100.0, -100.0), "shake": 15.0, "shake_on_hit_only": true, "hit_sfx_type": "hit",
+		"action_type": Weapon.ActionType.SKILL,
+	},
+	42: {
+		"anim": "spear/attack_enhanced_2", "hitbox_name": "attack_enhanced_2",
+		"type": Damage.Type.HEAVY, "base_dmg": 500, "max_hits": 1, "interval": 0.0, "sticky": false,
+		"knockback": Vector2(0.0, -600.0), "shake": 60.0, "shake_on_hit_only": true, "hit_sfx_type": "hit_2",
+		"action_type": Weapon.ActionType.SKILL,
+	},
+	43: {
+		"anim": "spear/attack_enhanced_4", "hitbox_name": "None",
+		"base_dmg": 0, "action_type": Weapon.ActionType.SKILL,
+	},
 }
 
 # 🌟 收槍強化技 1/2/3 的「末端更痛」：獨立的第二個判定框 (HitboxTip / AttackEnhancedTip / AttackEnhanced2Tip)。
@@ -90,35 +156,58 @@ const POZHEN_GAIN_PER_ENHANCED_SKILL: float = 60.0
 var current_pozhen: float = 0.0
 
 # ==========================================
-# 🎛️ 內部狀態變數
+# 🚀 3. 物理運算與手感參數
 # ==========================================
 @export_group("空戰設定 (Air Combat)")
 @export var min_air_attack_height: float = 40.0
 @export var air_thrust_force: float = -150.0
-var air_attack_locked: bool = false
-
-var is_spear_thrown: bool = false
-const BOOMERANG_SCENE = preload("res://player/Spear/SpearBoomerang.tscn")
 
 @export_group("收槍強化技設定")
 @export var thrown_speed_mult: float = 1.2 ## 槍還沒收回來的這段時間，移速倍率
 @export var catch_speed_boost_peak_speed: float = 600.0 ## 真的接槍瞬間的爆發移速峰值，會在 catch_speed_boost_duration 秒內線性衰減到 0
 @export var catch_speed_boost_duration: float = 0.5 ## 跟轉身動畫等長；衰減完後如果還按著方向鍵，就自然交還給正常跑動加速
-const CATCH_HOLD_THRESHOLD: float = 0.20 ## 短按/長按的判定門檻
-const DAMAGE_BUFF_DURATION: float = 12.0
-@export var damage_buff_mult: float = 1.25 ## 增傷 buff 期間的傷害倍率
-const BLEED_DAMAGE_PER_TICK: int = 100 ## 佔位數值，之後再調
-const BLEED_TICKS: int = 4
-const BLEED_TICK_INTERVAL: float = 0.5
+@export var catch_recovery_invincible: bool = true ## 真的接槍成功的轉身期間是否給無敵
+
+# --- 內部狀態 ---
+var air_attack_locked: bool = false ## 空中普攻 (61) 這次跳躍是否已經用掉施放機會
+var air_heavy_locked: bool = false ## 空中戰技 (62) 這次跳躍是否已經用掉施放機會
+var _last_air_skill: String = "" ## "light" 或 "heavy"：記錄最近一次用掉的是哪個空中招式，供衝刺 (Slide) 刷新使用
+var is_spear_thrown: bool = false
+var spear_is_deployed: bool = false ## 槍丟出去、還沒收回來的這段時間，全程 true
+var current_active_hitbox: Hitbox = null
+var _is_hitbox_locked: bool = false
+
+const NORMAL_HIT_MARTIAL_ENERGY: float = 0.2 ## 非武藝招式每次命中給的武藝能量，跟太刀一樣的數值
+var _current_energy_reward: float = 0.0
+var _multi_hit_energy: bool = false
+var _has_granted_resources_this_step: bool = false
+## 🌟 這一步的 hitbox 是不是武藝出的——在 _apply_hitbox_config() 當下就把它「拍照」記下來，
+## 之後判斷要不要發武藝能量一律看這個，不要看當下的 active_martial_art（sticky 連段可能拖到武藝已經 is_active=false/被清空之後才補完最後幾下命中）
+var _current_step_is_martial_art: bool = false
+
+var combo_step: int = 0
+var is_attacking: bool = false
+var step_cooldown: float = 0.0
+var last_attack_time: float = 0.0
+
+var is_time_stop_triggered: bool = false
+var _ult_zoom_phase: int = 0
+var _camera_tween: Tween
+var is_wave_fired: bool = false
+
+# 🌟 收槍強化技 3 (擊飛) 的挑飛狀態——沿用原本 Art_Spear_22 武藝「先短暫爆發衝力、再放手讓重力自然接管」的節奏
+var is_launch_triggered: bool = false
+var launch_timer: float = 0.0
+
+@export var ult_energy_cost: float = 100.0
+const ULT_DURATION: float = 30.0
+const MAX_ULT_ATTACKS: int = 24
+var is_ult_active: bool = false
+var ult_buff_timer: float = 0.0
+var ult_attack_count: int = 0
 
 ## 收槍強化技「真正出招」的 combo_step（跟前搖 44 分開算）——強化技執行中免打斷、減傷都靠這個判斷
 const ENHANCED_SKILL_STEPS := [40, 41, 42, 43]
-
-var spear_is_deployed: bool = false ## 槍丟出去、還沒收回來的這段時間，全程 true
-var catch_speed_boost_time_left: float = 0.0
-var catch_skill_43_timer: float = 0.0 ## 增傷技還沒畫動畫，先用固定時間頂著這個「出招」步驟
-const CATCH_SKILL_43_DURATION: float = 0.4
-var damage_buff_time_left: float = 0.0
 
 ## 強化技執行中（40~43）要進入強霸體——實際的減傷比例/免打斷規則統一交給 Player.gd 判斷
 func get_armor_tier() -> int:
@@ -129,6 +218,14 @@ func get_armor_tier() -> int:
 # 真的接槍 → 一觸碰到玩家就自動播放，播放期間是輸入緩衝區，短按/長按普攻或戰技 → 播完自動出強化技
 # 槍還沒飛回來就先誤按攻擊/戰技/武藝 → 強制把槍拉回來，一樣播這段前搖，但播完不出任何招
 # ==========================================
+const CATCH_HOLD_THRESHOLD: float = 0.20 ## 短按/長按的判定門檻
+const DAMAGE_BUFF_DURATION: float = 12.0
+const BLEED_DAMAGE_PER_TICK: int = 100 ## 佔位數值，之後再調
+const BLEED_TICKS: int = 4
+const BLEED_TICK_INTERVAL: float = 0.5
+var bleed_buff_time_left: float = 0.0 ## 43 號增傷技開啟的「流血附加」時間窗，跟傷害倍率無關，純粹決定命中是否附加流血 DOT
+var catch_speed_boost_time_left: float = 0.0
+
 var is_catch_recovery: bool = false
 var catch_recovery_bonus_eligible: bool = false ## true=真接槍，前搖期間可以緩衝強化技；false=提早誤按，前搖播完不出招
 var catch_recovery_input_captured: bool = false ## 前搖期間有沒有偵測到攻擊/戰技鍵按下
@@ -140,7 +237,6 @@ const CATCH_RECOVERY_INTERRUPT_ANIM: String = "spear/attack_enhanced_interrupt" 
 const CATCH_RECOVERY_BLOCKED_STATES := ["hurt", "dying", "weaponattack", "swapweapon"]
 ## 閃避 (含魔女時間) 跟格擋都是短暫的「反射型」狀態，不硬打斷，改成記著等它們真正結束再補觸發轉身
 const CATCH_RECOVERY_DEFERRED_STATES := ["slide", "guard"]
-@export var catch_recovery_invincible: bool = true ## 真的接槍成功的轉身期間是否給無敵
 var active_boomerang: SpearBoomerang = null ## 目前飛在外面的槍，誤按時需要強制把它拉回來
 var pending_catch_recovery: bool = false ## 閃避/格擋期間槍飛回來了，先記著，等狀態真正結束再補觸發，避免虧損強化技
 
@@ -148,44 +244,9 @@ var pending_catch_recovery: bool = false ## 閃避/格擋期間槍飛回來了�
 @onready var attack_enhanced_tip: Hitbox = $AttackEnhancedTip
 @onready var attack_enhanced_2_tip: Hitbox = $AttackEnhanced2Tip
 
-# 🌟 收槍強化技 3 (擊飛) 的挑飛狀態——沿用原本 Art_Spear_22 武藝「先短暫爆發衝力、再放手讓重力自然接管」的節奏
-var is_launch_triggered: bool = false
-var launch_timer: float = 0.0
-
-var is_time_stop_triggered: bool = false
-var _ult_zoom_phase: int = 0
-var _camera_tween: Tween
-var is_wave_fired: bool = false
-
-var _current_energy_reward: float = 0.0
-var _multi_hit_energy: bool = false
-var _has_granted_resources_this_step: bool = false
-
-const NORMAL_HIT_MARTIAL_ENERGY: float = 0.2 ## 非武藝招式每次命中給的武藝能量，跟太刀一樣的數值
-## 🌟 這一步的 hitbox 是不是武藝出的——在 _apply_hitbox_config() 當下就把它「拍照」記下來，
-## 之後判斷要不要發武藝能量一律看這個，不要看當下的 active_martial_art（sticky 連段可能拖到武藝已經 is_active=false/被清空之後才補完最後幾下命中）
-var _current_step_is_martial_art: bool = false
-
-@export var ult_energy_cost: float = 100.0
-const ULT_DURATION: float = 30.0
-const MAX_ULT_ATTACKS: int = 24
-
-var is_ult_active: bool = false
-var ult_buff_timer: float = 0.0
-var ult_attack_count: int = 0
-
-
-
-var combo_step: int = 0
-var is_attacking: bool = false
-var step_cooldown: float = 0.0
-
-@export var combo_timeout: float = 0.3
-var last_attack_time: float = 0.0
-
-var current_active_hitbox: Hitbox = null
-var _is_hitbox_locked: bool = false
-
+# ==========================================
+# 🎬 實作 Weapon.gd 合約接口
+# ==========================================
 func start_light_attack() -> void:
 	if is_catch_recovery: return
 
@@ -193,18 +254,16 @@ func start_light_attack() -> void:
 		_begin_catch_recovery(false)
 		return
 	if step_cooldown > 0: return
-	air_attack_locked = false
 
 	if not player.is_on_floor():
+		# 🌟 一次跳躍只有一次施放機會（衝刺可刷新），62 改由戰技鍵施放（見 start_heavy_attack）
 		if air_attack_locked or _get_ground_distance() < min_air_attack_height:
 			is_attacking = false
 			return
 
-		if combo_step == 61:
-			combo_step = 62
-			air_attack_locked = true
-		else:
-			combo_step = 61
+		combo_step = 61
+		air_attack_locked = true
+		_last_air_skill = "light"
 
 		step_cooldown = 0.15
 		is_attacking = true
@@ -247,11 +306,26 @@ func start_heavy_attack() -> void:
 	if step_cooldown > 0: return
 
 	if not player.is_on_floor():
-		is_attacking = false
-		combo_step = 0
-		# 🔧 同樣要補回 WeaponAttackState.enter() 提早觸發的 scabbard.fade_out()，理由見下方註解
-		if player.get("scabbard"):
-			player.scabbard.fade_in()
+		# 🌟 62（空中重擊）改為戰技鍵直接施放：一次跳躍只有一次施放機會（衝刺可刷新）
+		if air_heavy_locked or _get_ground_distance() < min_air_attack_height:
+			is_attacking = false
+			combo_step = 0
+			# 🔧 同樣要補回 WeaponAttackState.enter() 提早觸發的 scabbard.fade_out()，理由見下方註解
+			if player.get("scabbard"):
+				player.scabbard.fade_in()
+			return
+
+		combo_step = 62
+		air_heavy_locked = true
+		_last_air_skill = "heavy"
+		step_cooldown = 0.15
+		is_attacking = true
+
+		var input_dir = Input.get_axis("move_left", "move_right")
+		if not is_zero_approx(input_dir) and player is Player:
+			player.direction = 1 if input_dir > 0 else -1
+
+		_play_air_step(combo_step)
 		return
 
 	# 🌟 丟槍需要破陣值全滿才能發動——沒滿的話什麼事都不該發生，
@@ -319,26 +393,6 @@ func can_use_ultimate() -> bool:
 			return false
 	return true
 
-# ==========================================
-# 💾 武器狀態保存與繼承
-# ==========================================
-func export_weapon_data() -> Dictionary:
-	return {
-		"is_ult_active": is_ult_active,
-		"ult_buff_timer": ult_buff_timer,
-		"ult_attack_count": ult_attack_count,
-		"current_pozhen": current_pozhen,
-	}
-
-func import_weapon_data(data: Dictionary) -> void:
-	is_ult_active = data.get("is_ult_active", false)
-	ult_buff_timer = data.get("ult_buff_timer", 0.0)
-	ult_attack_count = data.get("ult_attack_count", 0)
-	current_pozhen = data.get("current_pozhen", 0.0)
-
-# ==========================================
-# ⏱️ 物理與系統計時器
-# ==========================================
 func update_timers_only(delta: float) -> void:
 	current_pozhen = minf(current_pozhen + POZHEN_REGEN_PER_SECOND * delta, MAX_POZHEN)
 
@@ -350,8 +404,8 @@ func update_timers_only(delta: float) -> void:
 		if ult_buff_timer <= 0 and is_ult_active:
 			is_ult_active = false
 
-	if damage_buff_time_left > 0:
-		damage_buff_time_left -= delta
+	if bleed_buff_time_left > 0:
+		bleed_buff_time_left -= delta
 
 	if catch_speed_boost_time_left > 0:
 		catch_speed_boost_time_left -= delta
@@ -370,6 +424,7 @@ func update_timers_only(delta: float) -> void:
 
 	if player.is_on_floor():
 		air_attack_locked = false
+		air_heavy_locked = false
 		if not is_attacking and combo_step in [61, 62]:
 			combo_step = 0
 
@@ -382,7 +437,9 @@ func get_current_velocity(delta: float) -> Vector2:
 		return active_martial_art.get_current_velocity(delta)
 
 	if not is_attacking: return player.velocity
-	if player.is_on_floor(): air_attack_locked = false
+	if player.is_on_floor():
+		air_attack_locked = false
+		air_heavy_locked = false
 
 	var new_x = player.velocity.x
 	var new_y = player.velocity.y
@@ -462,14 +519,8 @@ func get_current_velocity(delta: float) -> Vector2:
 					new_y += player.default_gravity * delta
 			return Vector2(new_x, new_y)
 
-	# 🌟 收槍強化技 4 (增傷) 沒有動畫，用固定時間頂著這一步驟
-	if combo_step == 43:
-		catch_skill_43_timer -= delta
-		new_x = move_toward(new_x, 0.0, base_friction)
-		return Vector2(new_x, new_y)
-
 	# --- 摩擦力減速邏輯 ---
-	if combo_step in [1, 2, 3, 4, 40, 41]:
+	if combo_step in [1, 2, 3, 4, 40, 41, 43]:
 		new_x = move_toward(new_x, 0.0, base_friction)
 
 	# 🌟 空戰慣性滑行與微浮空
@@ -544,10 +595,104 @@ func is_handling_gravity() -> bool:
 	if combo_step in [80, 81]: return true
 	return false
 
+# ==========================================
+# 🎬 招式結束判定
+# ==========================================
+func is_attack_finished() -> bool:
+	if not is_attacking: return true
+	if is_catch_recovery: return false
+
+	if not player.animation_player.is_playing():
+		if combo_step == 80:
+			combo_step = 81
+			if player.has_method("clear_time_stop"):
+				player.clear_time_stop()
+			_apply_charge_zoom(ZOOM_LEVELS[0], 0.15)
+			_ult_zoom_phase = 0
+			is_time_stop_triggered = false
+			player.invincible_time_left = 1.0
+			_play_heavy_ult_step(81)
+			return false
+
+		player.is_input_locked = false
+		if combo_step == 61: air_attack_locked = true
+		elif combo_step == 62: air_heavy_locked = true
+
+		if combo_step == 81 or _ult_zoom_phase > 0:
+			_ult_zoom_phase = 0
+			_apply_charge_zoom(ZOOM_LEVELS[0], 0.4)
+			if player.has_method("clear_time_stop"): player.clear_time_stop()
+
+		step_cooldown = 0.0
+		last_attack_time = Time.get_ticks_msec() / 1000.0
+
+		_is_hitbox_locked = true
+		disable_hitbox()
+		_set_tip_shape_active(hitbox_tip, false)
+		_set_tip_shape_active(attack_enhanced_tip, false)
+		_set_tip_shape_active(attack_enhanced_2_tip, false)
+
+		if is_instance_valid(active_martial_art):
+			active_martial_art.is_active = false
+			active_martial_art = null
+
+		if not requires_sheath() and player.get("scabbard"):
+			player.scabbard.fade_in()
+		return true
+
+	return false
+
+func cancel_attack() -> void:
+	if is_instance_valid(active_martial_art):
+		active_martial_art.cancel()
+		active_martial_art = null
+
+	if not player.is_on_floor():
+		if combo_step == 61: air_attack_locked = true
+		elif combo_step == 62: air_heavy_locked = true
+	player.is_input_locked = false
+	is_attacking = false
+	combo_step = 0
+	step_cooldown = 0.0
+
+	# 🌟 spear_is_deployed 故意不在這裡解除：cancel_attack() 在「攻擊正常播完」跟「真的被打斷」
+	# 兩種情況都會被 WeaponAttackState.exit() 呼叫，槍還沒收回來的話本來就該繼續鎖著——
+	# 真正的解鎖只有兩條路：SpearBoomerang 正常接住 (notify_spear_caught)，或是失蹤保底 (notify_spear_lost)
+
+	is_catch_recovery = false
+	catch_recovery_bonus_eligible = false
+	catch_recovery_input_captured = false
+	catch_recovery_is_heavy = false
+	catch_recovery_is_hold = false
+	catch_recovery_hold_timer = 0.0
+	is_launch_triggered = false
+	launch_timer = 0.0
+
+	_is_hitbox_locked = true
+	disable_hitbox()
+	_set_tip_shape_active(hitbox_tip, false)
+	_set_tip_shape_active(attack_enhanced_tip, false)
+	_set_tip_shape_active(attack_enhanced_2_tip, false)
+
+	is_wave_fired = false
+	_ult_zoom_phase = 0
+
+	if is_time_stop_triggered:
+		is_time_stop_triggered = false
+		if player.has_method("clear_time_stop"): player.clear_time_stop()
+
+	if player.get("scabbard"):
+		player.scabbard.fade_in()
+
+	_apply_charge_zoom(ZOOM_LEVELS[0])
+
 func requires_sheath() -> bool:
 	if combo_step == 0: return false
 	return combo_step not in no_sheath_steps
 
+# ==========================================
+# ⚙️ 內部實作與接口
+# ==========================================
 ## 太刀式的三段出招入口：各自挑好對應字典、播動畫，實際套用判定框設定都交給共用的 _apply_hitbox_config()
 func _play_light_step(step: int) -> void:
 	disable_hitbox()
@@ -572,6 +717,14 @@ func _play_catch_skill_step(skill_id: int) -> void:
 	if player.animation_player.current_animation == config["anim"]: player.animation_player.stop()
 	player.play_safe_anim(config["anim"])
 
+func _play_air_step(step: int) -> void:
+	disable_hitbox()
+	var config: Dictionary = DICT_LIGHT_AIR[step]
+	_apply_hitbox_config(config)
+	player.velocity.y = air_thrust_force
+	if player.animation_player.current_animation == config["anim"]: player.animation_player.stop()
+	player.play_safe_anim(config["anim"])
+
 ## 武藝卡帶專用出招入口：config 是武藝自己那個檔案裡的 CONFIG，不屬於武器本體的任何字典——
 ## combo_step 由武藝自己設定 (見 Art_Spear_4.gd)，這裡只負責套判定框跟播動畫
 func _play_martial_art_attack(config: Dictionary) -> void:
@@ -591,8 +744,6 @@ func _apply_hitbox_config(config: Dictionary) -> void:
 
 	if hitbox:
 		var final_dmg = float(config.get("base_dmg", 100))
-		if damage_buff_time_left > 0:
-			final_dmg *= damage_buff_mult
 		hitbox.damage_amount = max(1, roundi(final_dmg))
 		hitbox.max_hits = config.get("max_hits", 1)
 		hitbox.hit_sfx_type = config.get("hit_sfx_type", "")
@@ -687,18 +838,10 @@ func _on_hitbox_hit(hurtbox: Node) -> void:
 				player.gain_martial_energy(NORMAL_HIT_MARTIAL_ENERGY)
 
 		# 🩸 43 號增傷技的差異化：buff 期間打中的目標額外附加流血 DOT，跟太刀的「瞬間爆發傷害」燃燒劍意做出區隔
-		if damage_buff_time_left > 0 and is_instance_valid(hurtbox.owner) and hurtbox.owner.has_method("apply_bleed"):
+		if bleed_buff_time_left > 0 and is_instance_valid(hurtbox.owner) and hurtbox.owner.has_method("apply_bleed"):
 			hurtbox.owner.apply_bleed(BLEED_DAMAGE_PER_TICK, BLEED_TICKS, BLEED_TICK_INTERVAL)
 
 		_has_granted_resources_this_step = true
-
-func _play_air_step(step: int) -> void:
-	disable_hitbox()
-	var config: Dictionary = DICT_LIGHT_AIR[step]
-	_apply_hitbox_config(config)
-	player.velocity.y = air_thrust_force
-	if player.animation_player.current_animation == config["anim"]: player.animation_player.stop()
-	player.play_safe_anim(config["anim"])
 
 func _get_ground_distance() -> float:
 	var space_state = player.get_world_2d().direct_space_state
@@ -707,6 +850,67 @@ func _get_ground_distance() -> float:
 	var result = space_state.intersect_ray(query)
 	if result: return player.global_position.distance_to(result.position)
 	return 1000.0
+
+func _apply_charge_zoom(target_zoom: Vector2, duration: float = 0.2) -> void:
+	if not (player is Player): return
+	var camera = get_viewport().get_camera_2d()
+	if camera:
+		if _camera_tween and _camera_tween.is_valid(): _camera_tween.kill()
+		_camera_tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
+		_camera_tween.set_speed_scale(speed_mult)
+
+		if target_zoom == ZOOM_LEVELS[0]:
+			var final_zoom = CombatManager.base_zoom if CombatManager.get("base_zoom") != null else Vector2(1.0, 1.0)
+			_camera_tween.tween_property(camera, "zoom", final_zoom, duration)
+			_camera_tween.tween_callback(func():
+				if CombatManager.get("is_close_up_active") != null:
+					CombatManager.is_close_up_active = false
+			)
+		else:
+			if CombatManager.get("is_close_up_active") != null:
+				CombatManager.is_close_up_active = true
+			_camera_tween.tween_property(camera, "zoom", target_zoom, duration)
+
+func can_air_light() -> bool:
+	if air_attack_locked or _get_ground_distance() < min_air_attack_height:
+		return false
+	return true
+
+func can_air_skill() -> bool: return false
+
+func can_use_heavy() -> bool:
+	if not player.is_on_floor():
+		# 🌟 62（空中重擊）改由戰技鍵觸發：跟 can_air_light() 一樣看鎖定/離地高度，
+		# 真正的出招邏輯在 start_heavy_attack() 裡
+		return not (air_heavy_locked or _get_ground_distance() < min_air_attack_height)
+	# 🌟 spear_is_deployed 故意不擋在這裡：槍還沒飛回來時按戰技鍵要能觸發「提早轉身」，
+	# 真正的判斷交給 start_heavy_attack() 自己內部處理。
+	# 但如果槍已經在手上、這一下按下去是要丟槍，破陣值沒滿就直接在這裡擋掉——
+	# 讓輸入根本不會被緩衝、不會觸發 WeaponAttackState 進場，從源頭避免任何進場副作用 (例如刀鞘淡出) 空跑一次
+	if not spear_is_deployed and current_pozhen < MAX_POZHEN: return false
+	return true
+
+## 供 Slide.gd 在空中衝刺時呼叫：刷新「最近一次用掉」的那個空中招式的施放機會
+func refresh_air_skill_on_dash() -> void:
+	match _last_air_skill:
+		"light": air_attack_locked = false
+		"heavy": air_heavy_locked = false
+
+func export_weapon_data() -> Dictionary:
+	return {
+		"is_ult_active": is_ult_active,
+		"ult_buff_timer": ult_buff_timer,
+		"ult_attack_count": ult_attack_count,
+		"current_pozhen": current_pozhen,
+	}
+
+func import_weapon_data(data: Dictionary) -> void:
+	is_ult_active = data.get("is_ult_active", false)
+	ult_buff_timer = data.get("ult_buff_timer", 0.0)
+	ult_attack_count = data.get("ult_attack_count", 0)
+	current_pozhen = data.get("current_pozhen", 0.0)
 
 func enable_hitbox(shape_name: String = "") -> void:
 	if _is_hitbox_locked: return
@@ -730,97 +934,6 @@ func disable_hitbox(shape_name: String = "") -> void:
 	# 🌟 收槍強化技 1/2/3 的末端判定框，跟原本動畫呼叫 disable_weapon_hitbox 的時間點同步關
 	if combo_step in [40, 41, 42]:
 		_set_tip_shape_active(_get_tip_hitbox(combo_step), false)
-
-func is_attack_finished() -> bool:
-	if not is_attacking: return true
-	if is_catch_recovery: return false
-
-	if combo_step == 43 and catch_skill_43_timer > 0:
-		return false
-
-	if not player.animation_player.is_playing() or combo_step == 43:
-		if combo_step == 80:
-			combo_step = 81
-			if player.has_method("clear_time_stop"):
-				player.clear_time_stop()
-			_apply_charge_zoom(ZOOM_LEVELS[0], 0.15)
-			_ult_zoom_phase = 0
-			is_time_stop_triggered = false
-			player.invincible_time_left = 1.0
-			_play_heavy_ult_step(81)
-			return false
-
-		player.is_input_locked = false
-		if combo_step in [61, 62]:
-			air_attack_locked = true
-
-		if combo_step == 81 or _ult_zoom_phase > 0:
-			_ult_zoom_phase = 0
-			_apply_charge_zoom(ZOOM_LEVELS[0], 0.4)
-			if player.has_method("clear_time_stop"): player.clear_time_stop()
-
-		step_cooldown = 0.0
-		last_attack_time = Time.get_ticks_msec() / 1000.0
-
-		_is_hitbox_locked = true
-		disable_hitbox()
-		_set_tip_shape_active(hitbox_tip, false)
-		_set_tip_shape_active(attack_enhanced_tip, false)
-		_set_tip_shape_active(attack_enhanced_2_tip, false)
-
-		if is_instance_valid(active_martial_art):
-			active_martial_art.is_active = false
-			active_martial_art = null
-
-		if not requires_sheath() and player.get("scabbard"):
-			player.scabbard.fade_in()
-		return true
-
-	return false
-
-func cancel_attack() -> void:
-	if is_instance_valid(active_martial_art):
-		active_martial_art.cancel()
-		active_martial_art = null
-
-	if not player.is_on_floor() and combo_step in [61, 62]:
-		air_attack_locked = true
-	player.is_input_locked = false
-	is_attacking = false
-	combo_step = 0
-	step_cooldown = 0.0
-
-	# 🌟 spear_is_deployed 故意不在這裡解除：cancel_attack() 在「攻擊正常播完」跟「真的被打斷」
-	# 兩種情況都會被 WeaponAttackState.exit() 呼叫，槍還沒收回來的話本來就該繼續鎖著——
-	# 真正的解鎖只有兩條路：SpearBoomerang 正常接住 (notify_spear_caught)，或是失蹤保底 (notify_spear_lost)
-
-	is_catch_recovery = false
-	catch_recovery_bonus_eligible = false
-	catch_recovery_input_captured = false
-	catch_recovery_is_heavy = false
-	catch_recovery_is_hold = false
-	catch_recovery_hold_timer = 0.0
-	catch_skill_43_timer = 0.0
-	is_launch_triggered = false
-	launch_timer = 0.0
-
-	_is_hitbox_locked = true
-	disable_hitbox()
-	_set_tip_shape_active(hitbox_tip, false)
-	_set_tip_shape_active(attack_enhanced_tip, false)
-	_set_tip_shape_active(attack_enhanced_2_tip, false)
-
-	is_wave_fired = false
-	_ult_zoom_phase = 0
-
-	if is_time_stop_triggered:
-		is_time_stop_triggered = false
-		if player.has_method("clear_time_stop"): player.clear_time_stop()
-
-	if player.get("scabbard"):
-		player.scabbard.fade_in()
-
-	_apply_charge_zoom(ZOOM_LEVELS[0])
 
 # ==========================================
 # 🪃 收槍強化技系統
@@ -929,9 +1042,8 @@ func _fire_catch_skill_now(skill_id: int) -> void:
 		_setup_tip_hitbox(skill_id)
 
 	if skill_id == 43:
-		catch_skill_43_timer = CATCH_SKILL_43_DURATION
-		damage_buff_time_left = DAMAGE_BUFF_DURATION
-		print("💪 長槍增傷！接下來 ", DAMAGE_BUFF_DURATION, " 秒攻擊傷害 x", damage_buff_mult)
+		bleed_buff_time_left = DAMAGE_BUFF_DURATION
+		print("🩸 長槍增傷！接下來 ", DAMAGE_BUFF_DURATION, " 秒攻擊附加流血")
 
 ## 收槍強化技 1/2/3 的「末端」判定框設定：獨立傷害值，不依賴命中次數或時間點猜測
 func _get_tip_hitbox(skill_id: int) -> Hitbox:
@@ -946,8 +1058,6 @@ func _setup_tip_hitbox(skill_id: int) -> void:
 
 	var cfg: Dictionary = DICT_CATCH_SKILL[skill_id]
 	var final_dmg = float(cfg.get("base_dmg", 100)) * CATCH_SKILL_TIP_MULT[skill_id]
-	if damage_buff_time_left > 0:
-		final_dmg *= damage_buff_mult
 
 	# 🌟 除了傷害數值以外，其餘打擊屬性（連擊數、間隔、黏著、拉扯、擊退、震動）都要跟本體判定框完全一致——
 	# 末端判定框只是「同一招換個更高的傷害」，架構不能自己搞一套，不然連段手感會跟本體不一樣
@@ -983,28 +1093,9 @@ func _set_tip_shape_active(tip: Hitbox, active: bool) -> void:
 		if child is CollisionShape2D:
 			child.set_deferred("disabled", not active)
 
-func _apply_charge_zoom(target_zoom: Vector2, duration: float = 0.2) -> void:
-	if not (player is Player): return
-	var camera = get_viewport().get_camera_2d()
-	if camera:
-		if _camera_tween and _camera_tween.is_valid(): _camera_tween.kill()
-		_camera_tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-
-		var speed_mult = 1.0 / Engine.time_scale if Engine.time_scale > 0 else 1.0
-		_camera_tween.set_speed_scale(speed_mult)
-
-		if target_zoom == ZOOM_LEVELS[0]:
-			var final_zoom = CombatManager.base_zoom if CombatManager.get("base_zoom") != null else Vector2(1.0, 1.0)
-			_camera_tween.tween_property(camera, "zoom", final_zoom, duration)
-			_camera_tween.tween_callback(func():
-				if CombatManager.get("is_close_up_active") != null:
-					CombatManager.is_close_up_active = false
-			)
-		else:
-			if CombatManager.get("is_close_up_active") != null:
-				CombatManager.is_close_up_active = true
-			_camera_tween.tween_property(camera, "zoom", target_zoom, duration)
-
+# ==========================================
+# ✨ VFX / 投射物生成
+# ==========================================
 func spawn_spear_wave(wave_type: String) -> void:
 	if not SPEAR_WAVE_SCENE: return
 	var wave = SPEAR_WAVE_SCENE.instantiate()
@@ -1076,19 +1167,3 @@ func spawn_boomerang() -> void:
 	boomerang.hitbox.spark_scale = 0.4
 	boomerang.hitbox.spark_color = Color(1.2, 1.5, 0.5, 1.0)
 	boomerang.hitbox.aura_color = Color(0.8, 0.5, 0.2, 1.0)
-
-func can_air_light() -> bool:
-	if air_attack_locked or _get_ground_distance() < min_air_attack_height:
-		return false
-	return true
-
-func can_air_skill() -> bool: return false
-
-func can_use_heavy() -> bool:
-	if not player.is_on_floor(): return false
-	# 🌟 spear_is_deployed 故意不擋在這裡：槍還沒飛回來時按戰技鍵要能觸發「提早轉身」，
-	# 真正的判斷交給 start_heavy_attack() 自己內部處理。
-	# 但如果槍已經在手上、這一下按下去是要丟槍，破陣值沒滿就直接在這裡擋掉——
-	# 讓輸入根本不會被緩衝、不會觸發 WeaponAttackState 進場，從源頭避免任何進場副作用 (例如刀鞘淡出) 空跑一次
-	if not spear_is_deployed and current_pozhen < MAX_POZHEN: return false
-	return true

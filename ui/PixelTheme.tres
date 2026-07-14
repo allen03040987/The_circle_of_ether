@@ -1,0 +1,182 @@
+[gd_resource type="Theme" load_steps=18 format=3 uid="uid://c8k2rq4vxbg1n"]
+
+[ext_resource type="FontFile" uid="uid://d101og7k4q6ku" path="res://pixel.ttf" id="1_font"]
+[ext_resource type="Texture2D" uid="uid://c22yubgs4tpv7" path="res://ui/icons/checkbox_unchecked.png" id="2_cbu"]
+[ext_resource type="Texture2D" uid="uid://cfiem8h5cfpps" path="res://ui/icons/checkbox_checked.png" id="3_cbc"]
+[ext_resource type="Texture2D" uid="uid://dvwnafl11rynf" path="res://ui/icons/dropdown_arrow.png" id="4_arrow"]
+[ext_resource type="Texture2D" uid="uid://ccvc6i2e1h1ci" path="res://ui/icons/slider_grabber.png" id="5_grab"]
+
+[sub_resource type="StyleBoxFlat" id="sb_button_disabled"]
+content_margin_left = 6.0
+content_margin_top = 4.0
+content_margin_right = 6.0
+content_margin_bottom = 4.0
+bg_color = Color(0, 0, 0, 0)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.45, 0.45, 0.45, 1)
+anti_aliasing = false
+
+[sub_resource type="StyleBoxEmpty" id="sb_empty"]
+content_margin_left = 6.0
+content_margin_top = 4.0
+content_margin_right = 6.0
+content_margin_bottom = 4.0
+
+[sub_resource type="StyleBoxFlat" id="sb_button_hover"]
+content_margin_left = 6.0
+content_margin_top = 4.0
+content_margin_right = 6.0
+content_margin_bottom = 4.0
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 1)
+anti_aliasing = false
+
+[sub_resource type="StyleBoxFlat" id="sb_button_normal"]
+content_margin_left = 6.0
+content_margin_top = 4.0
+content_margin_right = 6.0
+content_margin_bottom = 4.0
+bg_color = Color(0, 0, 0, 0)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 1)
+anti_aliasing = false
+
+[sub_resource type="StyleBoxEmpty" id="sb_empty_check"]
+content_margin_left = 3.0
+content_margin_top = 3.0
+content_margin_right = 3.0
+content_margin_bottom = 3.0
+
+[sub_resource type="StyleBoxFlat" id="sb_scroll_grabber"]
+bg_color = Color(1, 1, 1, 1)
+anti_aliasing = false
+
+[sub_resource type="StyleBoxFlat" id="sb_scroll_track"]
+bg_color = Color(1, 1, 1, 0.15)
+anti_aliasing = false
+
+[sub_resource type="StyleBoxFlat" id="sb_slider_fill"]
+bg_color = Color(1, 1, 1, 0.6)
+anti_aliasing = false
+
+[sub_resource type="StyleBoxFlat" id="sb_slider_groove"]
+bg_color = Color(1, 1, 1, 0.15)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 1)
+anti_aliasing = false
+
+[sub_resource type="StyleBoxFlat" id="sb_panel"]
+content_margin_left = 6.0
+content_margin_top = 6.0
+content_margin_right = 6.0
+content_margin_bottom = 6.0
+bg_color = Color(0, 0, 0, 0.75)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 1)
+anti_aliasing = false
+
+[sub_resource type="StyleBoxFlat" id="sb_panel_opaque"]
+content_margin_left = 6.0
+content_margin_top = 6.0
+content_margin_right = 6.0
+content_margin_bottom = 6.0
+bg_color = Color(0, 0, 0, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 1)
+anti_aliasing = false
+
+[sub_resource type="StyleBoxFlat" id="sb_popup_hover"]
+bg_color = Color(1, 1, 1, 1)
+anti_aliasing = false
+
+[resource]
+default_font = ExtResource("1_font")
+default_font_size = 14
+Button/colors/font_color = Color(1, 1, 1, 1)
+Button/colors/font_disabled_color = Color(0.45, 0.45, 0.45, 1)
+Button/colors/font_focus_color = Color(1, 1, 1, 1)
+Button/colors/font_hover_color = Color(0, 0, 0, 1)
+Button/colors/font_pressed_color = Color(0, 0, 0, 1)
+Button/font_sizes/font_size = 14
+Button/styles/disabled = SubResource("sb_button_disabled")
+Button/styles/focus = SubResource("sb_empty")
+Button/styles/hover = SubResource("sb_button_hover")
+Button/styles/normal = SubResource("sb_button_normal")
+Button/styles/pressed = SubResource("sb_button_hover")
+CheckButton/colors/font_color = Color(1, 1, 1, 1)
+CheckButton/colors/font_disabled_color = Color(0.45, 0.45, 0.45, 1)
+CheckButton/colors/font_hover_color = Color(1, 1, 1, 1)
+CheckButton/colors/font_pressed_color = Color(1, 1, 1, 1)
+CheckButton/font_sizes/font_size = 14
+CheckButton/icons/checked = ExtResource("3_cbc")
+CheckButton/icons/checked_disabled = ExtResource("3_cbc")
+CheckButton/icons/off = ExtResource("2_cbu")
+CheckButton/icons/on = ExtResource("3_cbc")
+CheckButton/icons/unchecked = ExtResource("2_cbu")
+CheckButton/icons/unchecked_disabled = ExtResource("2_cbu")
+CheckButton/styles/disabled = SubResource("sb_empty_check")
+CheckButton/styles/focus = SubResource("sb_empty_check")
+CheckButton/styles/hover = SubResource("sb_empty_check")
+CheckButton/styles/normal = SubResource("sb_empty_check")
+CheckButton/styles/pressed = SubResource("sb_empty_check")
+HScrollBar/styles/grabber = SubResource("sb_scroll_grabber")
+HScrollBar/styles/grabber_highlight = SubResource("sb_scroll_grabber")
+HScrollBar/styles/grabber_pressed = SubResource("sb_scroll_grabber")
+HScrollBar/styles/scroll = SubResource("sb_scroll_track")
+HSlider/icons/grabber = ExtResource("5_grab")
+HSlider/icons/grabber_disabled = ExtResource("5_grab")
+HSlider/icons/grabber_highlight = ExtResource("5_grab")
+HSlider/styles/grabber_area = SubResource("sb_slider_fill")
+HSlider/styles/grabber_area_highlight = SubResource("sb_slider_fill")
+HSlider/styles/slider = SubResource("sb_slider_groove")
+Label/colors/font_color = Color(1, 1, 1, 1)
+Label/font_sizes/font_size = 14
+OptionButton/colors/font_color = Color(1, 1, 1, 1)
+OptionButton/colors/font_disabled_color = Color(0.45, 0.45, 0.45, 1)
+OptionButton/colors/font_hover_color = Color(0, 0, 0, 1)
+OptionButton/colors/font_pressed_color = Color(0, 0, 0, 1)
+OptionButton/font_sizes/font_size = 14
+OptionButton/icons/arrow = ExtResource("4_arrow")
+OptionButton/styles/disabled = SubResource("sb_button_disabled")
+OptionButton/styles/focus = SubResource("sb_empty")
+OptionButton/styles/hover = SubResource("sb_button_hover")
+OptionButton/styles/normal = SubResource("sb_button_normal")
+OptionButton/styles/pressed = SubResource("sb_button_hover")
+Panel/styles/panel = SubResource("sb_panel")
+PanelContainer/styles/panel = SubResource("sb_panel_opaque")
+PopupMenu/colors/font_color = Color(1, 1, 1, 1)
+PopupMenu/colors/font_disabled_color = Color(0.45, 0.45, 0.45, 1)
+PopupMenu/colors/font_hover_color = Color(0, 0, 0, 1)
+PopupMenu/colors/font_separator_color = Color(0.45, 0.45, 0.45, 1)
+PopupMenu/font_sizes/font_size = 14
+PopupMenu/styles/hover = SubResource("sb_popup_hover")
+PopupMenu/styles/panel = SubResource("sb_panel")
+VScrollBar/styles/grabber = SubResource("sb_scroll_grabber")
+VScrollBar/styles/grabber_highlight = SubResource("sb_scroll_grabber")
+VScrollBar/styles/grabber_pressed = SubResource("sb_scroll_grabber")
+VScrollBar/styles/scroll = SubResource("sb_scroll_track")
+VSlider/icons/grabber = ExtResource("5_grab")
+VSlider/icons/grabber_disabled = ExtResource("5_grab")
+VSlider/icons/grabber_highlight = ExtResource("5_grab")
+VSlider/styles/grabber_area = SubResource("sb_slider_fill")
+VSlider/styles/grabber_area_highlight = SubResource("sb_slider_fill")
+VSlider/styles/slider = SubResource("sb_slider_groove")

@@ -205,6 +205,12 @@ func _start_firing() -> void:
 	print("💥 斷空釋放！蓄力時間: ", snapped(charge_timer, 0.1), " 秒 ➔ 擊發數量: ", waves_to_fire)
 	
 func cancel() -> void:
+	# 🌟 蓄力期間（START/LOOP，還沒放出任何一發劍氣）被強制打斷：退還部分武藝能量，不讓玩家血本無歸
+	if current_stage == Stage.START or current_stage == Stage.LOOP:
+		if is_instance_valid(player) and player.has_method("gain_martial_energy"):
+			player.gain_martial_energy(2.0)
+			print("↩️ 斷空劍氣蓄力中被打斷，返還 2 點武藝能量")
+
 	_finish_art()
 	super.cancel()
 

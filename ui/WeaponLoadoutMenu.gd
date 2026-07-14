@@ -9,16 +9,16 @@ signal menu_closed # 通知暫停選單「配置介面已關閉」
 # ==========================================
 @onready var status_label: Label = $StatusLabel
 
-@onready var weapon_opt_1: OptionButton = $HBoxContainer/WeaponSlot1/WeaponOpt
-@onready var weapon_opt_2: OptionButton = $HBoxContainer/WeaponSlot2/WeaponOpt
+@onready var weapon_opt_1: PixelOptionButton = $HBoxContainer/WeaponSlot1/WeaponOpt
+@onready var weapon_opt_2: PixelOptionButton = $HBoxContainer/WeaponSlot2/WeaponOpt
 
-@onready var slot1_arts: Array[OptionButton] = [
+@onready var slot1_arts: Array[PixelOptionButton] = [
 	$HBoxContainer/WeaponSlot1/ArtOpt1,
 	$HBoxContainer/WeaponSlot1/ArtOpt2,
 	$HBoxContainer/WeaponSlot1/ArtOpt3
 ]
 
-@onready var slot2_arts: Array[OptionButton] = [
+@onready var slot2_arts: Array[PixelOptionButton] = [
 	$HBoxContainer/WeaponSlot2/ArtOpt1,
 	$HBoxContainer/WeaponSlot2/ArtOpt2,
 	$HBoxContainer/WeaponSlot2/ArtOpt3
@@ -65,7 +65,6 @@ var selected_arts: Dictionary = {
 ## 初始化 UI 綁定與下拉選單事件
 func _ready() -> void:
 	if is_instance_valid(weapon_opt_1):
-		_setup_ui_styles()
 		_populate_weapon_dropdowns()
 		
 		weapon_opt_1.item_selected.connect(_on_weapon_selected.bind(0))
@@ -97,13 +96,6 @@ func _input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):
 		accept_event()
 		close_menu()
-
-## 覆寫基礎字型設定
-func _setup_ui_styles() -> void:
-	var all_opts = [weapon_opt_1, weapon_opt_2] + slot1_arts + slot2_arts
-	for opt in all_opts:
-		if is_instance_valid(opt):
-			opt.add_theme_font_size_override("font_size", 16) 
 
 ## 根據資料庫載入可選武器清單
 func _populate_weapon_dropdowns() -> void:
@@ -181,8 +173,8 @@ func _refresh_art_dropdowns(main_slot_index: int) -> void:
 			if art_data["path"] == saved_path: select_target_id = item_id
 		opt_btn.selected = select_target_id
 
-## 輔助函數：透過 metadata 尋找並設定 OptionButton 的選取項目
-func _set_opt_by_metadata(opt: OptionButton, meta_value: String) -> void:
+## 輔助函數：透過 metadata 尋找並設定下拉選單的選取項目
+func _set_opt_by_metadata(opt: PixelOptionButton, meta_value: String) -> void:
 	for i in range(opt.item_count):
 		if opt.get_item_metadata(i) == meta_value:
 			opt.selected = i

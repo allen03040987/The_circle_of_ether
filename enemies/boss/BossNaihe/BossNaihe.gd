@@ -240,23 +240,23 @@ func enable_hitbox(shape_name: String = "") -> void:
 		
 		if is_pull_attack:
 			hb.sticky_multi_hit = true
-			hb.max_hits = 1         
-			hb.hit_interval = 0.1     
-			hb.damage_amount = 0      
+			hb.max_hits = 1
+			hb.hit_interval = 0.1
+			hb.damage_amount = 0
 			hb.attack_type = Damage.Type.NO_STUN
-			
-			# 🌟 核心修復：直接改本體的擊退力！讓 Player.gd 完美的數學公式接管吸力！
-			hb.knockback_force = Vector2(-600.0, 0.0) 
-			
-			# 把 absolute_knockback 清空，防止它蓋過我們漂亮的相對數學
-			if "absolute_knockback" in hb:
-				hb.absolute_knockback = Vector2.ZERO
-			
-			hb.spark_type = Hitbox.SparkType.OTHER 
+
+			# 🌟 核心修復：改用 Hitbox.gd 本來就有的 pull_towards_owner 機制——它在命中「當下」才即時算
+			# 玩家跟 boss 的相對位置，不像之前手動清 absolute_knockback 那樣，其實會被 _execute_hit()
+			# 每次命中無條件覆寫掉、變成用「攻擊前搖開始時」就鎖死的舊朝向，玩家繞到 boss 背後時方向會算反
+			hb.pull_towards_owner = true
+			hb.knockback_force = Vector2(600.0, 0.0)
+
+			hb.spark_type = Hitbox.SparkType.OTHER
 			hb.custom_spark_scene = null
-			
+
 		else:
 			# 🔄 普通招式：還原所有的面板設定
+			hb.pull_towards_owner = false # 🔧 確保 A8 用過後不會殘留吸力模式
 			if not _hb_defaults.is_empty():
 				hb.sticky_multi_hit = _hb_defaults["sticky_multi_hit"]
 				hb.max_hits = _hb_defaults["max_hits"]
@@ -268,8 +268,8 @@ func enable_hitbox(shape_name: String = "") -> void:
 				hb.custom_spark_scene = _hb_defaults["custom_spark_scene"]
 
 			# 普通招式維持原有的強制定向擊退邏輯
-			var base_kb_x = abs(hb.knockback_force.x) 
-			var base_kb_y = hb.knockback_force.y      
+			var base_kb_x = abs(hb.knockback_force.x)
+			var base_kb_y = hb.knockback_force.y
 			if "absolute_knockback" in hb:
 				hb.absolute_knockback = Vector2(base_kb_x * direction, base_kb_y)
 		

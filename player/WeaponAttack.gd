@@ -101,10 +101,29 @@ func physics_update(delta: float) -> void:
 	if not is_instance_valid(player.current_weapon): return
 	_frames_in_state += 1
 
+	# 3. 偵測閃避取消 (Dodge Cancel)：閃避是最高打斷權限，不受 is_input_locked 限制——
+	# 長槍收槍強化技(40~43)/轉身收槍前搖等狀態會把 is_input_locked 設 true 鎖住方向/連段輸入，
+	# 但那個鎖不該連閃避都鎖住，所以獨立拉到最前面、優先於 is_input_locked 判斷
+	if player.slide_request_timer.time_left > 0 and player.stats.energy >= 3:
+		if player.current_weapon.can_be_canceled_by_dodge():
+			# 🔧 改成位元旗標檢查：招式可能同時掛著「普攻＋空戰」這種複合標籤，用 == 精準比對會漏掉
+			var action_type: int = player.current_weapon.get("current_action_type")
+			if (action_type & Weapon.ActionType.NORMAL) != 0:
+				player.set_meta("saved_combo_step", player.current_weapon.combo_step)
+			else:
+				if player.has_meta("saved_combo_step"): player.remove_meta("saved_combo_step")
+
+			if player.has_method("_flash_character"):
+				player._flash_character()
+
+			state_machine.transition_to("Slide")
+			return
+
 	if not player.is_input_locked:
 		
 		# 1. 偵測格擋強制打斷：跟 Slide 同性質的反射型狀態，能直接打斷正在進行的任何招式
-		if player.guard_request_timer.time_left > 0:
+		# 🌟 空中不可格擋：在空中的攻擊（例如太刀/長槍的空中連段）不受格擋預輸入打斷
+		if player.guard_request_timer.time_left > 0 and player.is_on_floor():
 			_frames_in_state = 0
 			player.can_combo = false
 			player.combo_buffer_time = 0.0
@@ -158,22 +177,6 @@ func physics_update(delta: float) -> void:
 				
 				_update_facing()
 				player.current_weapon.start_light_attack()
-				
-		# 3. 偵測閃避取消 (Dodge Cancel)
-		if player.slide_request_timer.time_left > 0 and player.stats.energy >= 3:
-			if player.current_weapon.can_be_canceled_by_dodge():
-				# 🔧 改成位元旗標檢查：招式可能同時掛著「普攻＋空戰」這種複合標籤，用 == 精準比對會漏掉
-				var action_type: int = player.current_weapon.get("current_action_type")
-				if (action_type & Weapon.ActionType.NORMAL) != 0:
-					player.set_meta("saved_combo_step", player.current_weapon.combo_step)
-				else:
-					if player.has_meta("saved_combo_step"): player.remove_meta("saved_combo_step")
-				
-				if player.has_method("_flash_character"):
-					player._flash_character()
-				
-				state_machine.transition_to("Slide")
-				return
 
 	# ==========================================
 	# 🏃 物理移動委託
