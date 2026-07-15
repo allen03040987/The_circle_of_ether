@@ -21,9 +21,12 @@ var _p2_art_btns:  Array = []
 var _p1_slot_btns: Array = []
 var _p2_slot_btns: Array = []
 
-var _status_label: Label   # 線上模式等待提示
-var _is_online: bool = false
-var _local_pid:  int  = 1   # 線上模式本機是哪個玩家
+var _status_label:      Label
+var _is_online:         bool = false
+var _local_pid:         int  = 1
+var _local_confirmed:   bool = false   # 本機已按確認
+var _remote_arts_ready: bool = false   # 已收到對方武藝
+var _received_arts:     Array = []
 
 func _ready() -> void:
 	_is_online = VsNetworkManager.mode != VsNetworkManager.Mode.OFFLINE
@@ -159,14 +162,15 @@ func _on_slot_clicked(pid: int, slot_idx: int) -> void:
 
 func _on_start() -> void:
 	if _is_online:
-		# 線上模式：把本機選擇存到對應槽，傳給對方，等對方的選擇
 		var my_arts := _pad_slots(_p1_sel if _local_pid == 1 else _p2_sel)
 		if _local_pid == 1:
 			VsGameManager.p1_arts = my_arts
 		else:
 			VsGameManager.p2_arts = my_arts
 		VsNetworkManager.send_arts(my_arts)
+		_local_confirmed = true
 		_status_label.text = "等待對方確認..."
+		_try_enter_game()
 	else:
 		VsGameManager.p1_arts = _pad_slots(_p1_sel)
 		VsGameManager.p2_arts = _pad_slots(_p2_sel)
@@ -174,11 +178,18 @@ func _on_start() -> void:
 		get_tree().change_scene_to_file("res://VsMods/vs_world.tscn")
 
 func _on_remote_arts(arts: Array) -> void:
-	# 對方的選擇到了，存到對方的槽位並進遊戲
+	_received_arts     = arts
+	_remote_arts_ready = true
+	_try_enter_game()
+
+func _try_enter_game() -> void:
+	if not (_local_confirmed and _remote_arts_ready):
+		return
+	# 雙方都確認了，把對方武藝存好並進遊戲
 	if _local_pid == 1:
-		VsGameManager.p2_arts = arts  # 對方是 P2
+		VsGameManager.p2_arts = _received_arts
 	else:
-		VsGameManager.p1_arts = arts  # 對方是 P1
+		VsGameManager.p1_arts = _received_arts
 	VsGameManager.selection_confirmed = true
 	get_tree().change_scene_to_file("res://VsMods/vs_world.tscn")
 
