@@ -1048,7 +1048,3 @@ callback_mode_process = 0
 libraries = {
 "": SubResource("AnimLib")
 }
-
-[node name="OutOfCombatTimer" type="Timer" parent="."]
-wait_time = 2.0
-one_shot = true

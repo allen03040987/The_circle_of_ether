@@ -20,6 +20,7 @@ signal connected()                    # 雙方資料通道開啟，可以開始�
 signal disconnected()
 signal connection_error(msg: String)
 signal remote_arts_received(arts: Array)  # 收到對方的武藝選擇
+signal desync_detected(frame: int)   # 兩端 checksum 不符（確定性 bug）
 
 # ── 設定 ─────────────────────────────────────────────────────────────────────
 ## 本機測試時用 ws://127.0.0.1:8765，部署後換成 wss://你的伺服器
@@ -42,7 +43,12 @@ var _local_inputs:    Dictionary = {}  # frame → PackedByteArray(2 bytes)
 var _remote_inputs:   Dictionary = {}  # frame → confirmed remote input
 var _predicted_remote: Dictionary = {} # frame → predicted bytes（等候確認）
 var _last_remote_input: PackedByteArray = PackedByteArray([0, 0])
+var _last_confirmed_remote_frame: int = -1  # 已收到確認輸入的最新幀號
 var _pending_rollback_frame: int = -1  # -1 = 無需 rollback
+
+# ── Checksum 驗證（確定性偵測）───────────────────────────────────────────────
+var _local_checksums:  Dictionary = {}  # frame → int（本機算出的狀態雜湊）
+var _remote_checksums: Dictionary = {}  # frame → int（對方傳來、尚未比對的雜湊）
 
 var _ws               := WebSocketPeer.new()
 var _rtc:    Object   = null   # WebRTCPeerConnection（plugin 才有）
@@ -97,14 +103,14 @@ func join_game(code: String) -> void:
 	_ws_connect()
 
 ## 每個物理幀呼叫一次，永不 stall。
-## 線上模式：對方輸入未到則用上一幀預測，稍後確認到後由 vs_world 執行 rollback。
-func tick(local_input: InputState) -> Array:
+## checksum：vs_world 在模擬本幀前算好的狀態雜湊，用於確定性偵測。
+func tick(local_input: InputState, checksum: int = 0) -> Array:
+	var exec  := _game_frame
 	var bytes := local_input.to_bytes()
 	_local_inputs[_send_frame] = bytes
-	_send_packet(_send_frame, bytes)
+	_send_packet(_send_frame, bytes, checksum)
 	_send_frame += 1
 
-	var exec  := _game_frame
 	var EMPTY := PackedByteArray([0, 0])
 	var li    := InputState.from_bytes(_local_inputs.get(exec, EMPTY))
 	var ri:   InputState
@@ -112,6 +118,12 @@ func tick(local_input: InputState) -> Array:
 	if mode == Mode.OFFLINE:
 		ri = InputState.from_input(2 if local_player_id == 1 else 1)
 	else:
+		# Checksum：存本幀雜湊，若對方的已先到就比對
+		_local_checksums[exec] = checksum
+		if _remote_checksums.has(exec):
+			_compare_checksums(exec, checksum, _remote_checksums[exec])
+			_remote_checksums.erase(exec)
+
 		if exec in _remote_inputs:
 			_last_remote_input = _remote_inputs[exec]
 		else:
@@ -123,6 +135,7 @@ func tick(local_input: InputState) -> Array:
 	# 清除超出 rollback 視窗的舊紀錄
 	var prune := exec - MAX_ROLLBACK_FRAMES
 	_predicted_remote.erase(prune)
+	_local_checksums.erase(prune)
 
 	return [li, ri] if local_player_id == 1 else [ri, li]
 
@@ -156,30 +169,46 @@ func _reset() -> void:
 	_ws_connect_timer    = 0.0
 	_error_emitted       = false
 	_predicted_remote.clear()
-	_last_remote_input   = PackedByteArray([0, 0])
-	_pending_rollback_frame = -1
+	_last_remote_input           = PackedByteArray([0, 0])
+	_last_confirmed_remote_frame = -1
+	_pending_rollback_frame      = -1
+	_local_checksums.clear()
+	_remote_checksums.clear()
 	_rtc     = null
 	_channel = null
 	_ws.close()
 	_ws = WebSocketPeer.new()
 
 # ── 內部：封包 ────────────────────────────────────────────────────────────────
-func _send_packet(frame: int, bytes: PackedByteArray) -> void:
+## 封包格式：[u32 frame][u8 in0][u8 in1][u32 checksum] = 10 bytes
+func _send_packet(frame: int, bytes: PackedByteArray, checksum: int) -> void:
 	if not _channel or _channel.get_ready_state() != 1:   # 1 = STATE_OPEN
 		return
 	var pkt := PackedByteArray()
-	pkt.resize(6)
+	pkt.resize(10)
 	pkt.encode_u32(0, frame)
 	pkt[4] = bytes[0]
 	pkt[5] = bytes[1]
+	pkt.encode_u32(6, checksum & 0xFFFFFFFF)
 	_channel.put_packet(pkt)
 
 func _recv_packet(pkt: PackedByteArray) -> void:
-	if pkt.size() < 6:
+	if pkt.size() < 10:
 		return
-	var frame := pkt.decode_u32(0)
+	var frame      := pkt.decode_u32(0)
 	var confirmed: PackedByteArray = pkt.slice(4, 6)
+	var remote_cs  := pkt.decode_u32(6)
+
 	_remote_inputs[frame] = confirmed
+	# 更新預測基準：只往前推，舊封包不蓋掉較新的已知狀態
+	if frame > _last_confirmed_remote_frame:
+		_last_confirmed_remote_frame = frame
+		_last_remote_input = confirmed
+	# Checksum 比對：本機已算出才能比，否則暫存等 tick() 來比
+	if _local_checksums.has(frame):
+		_compare_checksums(frame, _local_checksums[frame], remote_cs)
+	else:
+		_remote_checksums[frame] = remote_cs
 	# Rollback 偵測：若此幀曾用預測值模擬，且確認值不同 → 需要回溯
 	if frame in _predicted_remote:
 		var predicted: PackedByteArray = _predicted_remote[frame]
@@ -187,6 +216,11 @@ func _recv_packet(pkt: PackedByteArray) -> void:
 		if predicted != confirmed:
 			if _pending_rollback_frame < 0 or frame < _pending_rollback_frame:
 				_pending_rollback_frame = frame
+
+func _compare_checksums(frame: int, local_cs: int, remote_cs: int) -> void:
+	if local_cs != remote_cs:
+		push_warning("⚠ DESYNC frame %d | local=0x%08X remote=0x%08X" % [frame, local_cs, remote_cs])
+		desync_detected.emit(frame)
 
 # ── 內部：WebSocket 信令 ──────────────────────────────────────────────────────
 func _ws_connect() -> void:

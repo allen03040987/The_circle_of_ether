@@ -8,8 +8,10 @@ const VIEW_H := 216
 
 var _status_label:  Label
 var _code_edit:     LineEdit
+var _copy_btn:      Button
 var _connect_timer: float = 0.0   # 連線等待計時，用於顯示進度
 var _connecting:    bool  = false
+var _room_code:     String = ""
 
 func _ready() -> void:
 	_build_ui()
@@ -58,13 +60,19 @@ func _build_ui() -> void:
 	# 狀態文字
 	_status_label = _label("", 0, by, VIEW_W, 14, HORIZONTAL_ALIGNMENT_CENTER)
 	_status_label.modulate = Color(0.75, 0.75, 0.75)
+	by += 20
+
+	# 複製代碼按鈕（初始隱藏，Host 拿到代碼後才顯示）
+	_copy_btn = _btn("複製代碼", Vector2((VIEW_W - 80) / 2, by), Vector2(80, 16))
+	_copy_btn.visible = false
+	_copy_btn.pressed.connect(_on_copy_code)
 
 	# 返回
 	_btn("← 返回", Vector2(6, VIEW_H - 24), Vector2(56, 16)).pressed.connect(_on_back)
 
 	# 開發提示
 	_label("（此為開發測試版，出現BUG請回報）",
-		0, VIEW_H - 12, VIEW_W, 10, HORIZONTAL_ALIGNMENT_CENTER).modulate = Color(0.4, 0.4, 0.4)
+		0, VIEW_H - 20, VIEW_W, 10, HORIZONTAL_ALIGNMENT_CENTER).modulate = Color(0.4, 0.4, 0.4)
 
 # ── 按鈕動作 ──────────────────────────────────────────────────────────────────
 func _on_offline() -> void:
@@ -94,7 +102,14 @@ func _on_back() -> void:
 # ── VsNetworkManager 信號 ─────────────────────────────────────────────────────
 func _on_room_created(code: String) -> void:
 	_connecting = false
+	_room_code = code
+	_copy_btn.visible = true
 	_status("房間代碼：%s\n把這串代碼傳給對方，等待加入..." % code)
+
+func _on_copy_code() -> void:
+	DisplayServer.clipboard_set(_room_code)
+	_copy_btn.text = "已複製！"
+	get_tree().create_timer(1.5).timeout.connect(func(): _copy_btn.text = "複製代碼")
 
 func _on_connected() -> void:
 	_connecting = false

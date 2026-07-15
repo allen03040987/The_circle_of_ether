@@ -10,6 +10,10 @@ var p2:            VsPlayer
 var hud:           BattleHud
 var round_manager: VsRoundManager
 
+# ── VsMods 暫停 ───────────────────────────────────────────────────────────────
+var _vs_paused:     bool         = false
+var _pause_overlay: CanvasLayer
+
 # ── Rollback ──────────────────────────────────────────────────────────────────
 const MAX_ROLLBACK_FRAMES := 10
 const PHYS_DELTA          := 1.0 / 60.0
@@ -26,9 +30,18 @@ func _ready() -> void:
 		return
 	if VsNetworkManager.mode == VsNetworkManager.Mode.OFFLINE:
 		VsNetworkManager.start_offline()
+	# 停用主遊戲 PauseMenu，改用 VsMods 自己的暫停
+	PauseMenu.process_mode = Node.PROCESS_MODE_DISABLED
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_spawn_players()
 	_spawn_hud()
 	_spawn_round_manager()
+	_build_pause_overlay()
+	VsNetworkManager.desync_detected.connect(_on_desync_detected)
+
+func _exit_tree() -> void:
+	PauseMenu.process_mode = Node.PROCESS_MODE_INHERIT
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _spawn_players() -> void:
 	var scene := preload("res://VsMods/player/VsPlayer.tscn")
@@ -65,8 +78,10 @@ func _spawn_round_manager() -> void:
 
 # ── 主循環 ────────────────────────────────────────────────────────────────────
 func _physics_process(delta: float) -> void:
+	if _vs_paused:
+		return
 	var local_input := InputState.from_input(1)
-	var result      := VsNetworkManager.tick(local_input)
+	var result      := VsNetworkManager.tick(local_input, _compute_checksum())
 	# result 永不為空（rollback 模式永不 stall），但保險起見
 	if result.is_empty():
 		return
@@ -79,9 +94,9 @@ func _physics_process(delta: float) -> void:
 		_do_rollback(from_frame, cur_frame, result)
 		return  # _do_rollback 已把當幀模擬完了
 
-	# 正常幀：先存快照（含當幀輸入），再模擬
+	# 正常幀：先存快照（含當幀輸入），再模擬（固定 delta 保證兩端算出相同結果）
 	_save_snapshot(cur_frame, result[0], result[1])
-	_simulate_frame(delta, result[0], result[1])
+	_simulate_frame(PHYS_DELTA, result[0], result[1])
 
 # ── Rollback 執行 ─────────────────────────────────────────────────────────────
 func _do_rollback(from_frame: int, cur_frame: int, cur_inputs: Array) -> void:
@@ -90,10 +105,16 @@ func _do_rollback(from_frame: int, cur_frame: int, cur_inputs: Array) -> void:
 	while restore_frame > 0 and not _frame_states.has(restore_frame):
 		restore_frame -= 1
 
-	if _frame_states.has(restore_frame):
-		_restore_snapshot(restore_frame)
+	if not _frame_states.has(restore_frame):
+		# 快照全部失效（封包遺失超過視窗）→ 無法修復，踢回大廳
+		_on_hard_desync()
+		return
+
+	_restore_snapshot(restore_frame)
 
 	# 重模擬 restore_frame … cur_frame-1，以確認輸入覆蓋遠端預測
+	# 順序必須：先 save_snapshot（存幀 f 開始時的狀態）再 simulate（推進到幀 f 結束）
+	# 與正常幀的儲存語意一致，避免每次 rollback 多跑一幀導致位置累積飄移
 	is_resimulating = true
 	var f := restore_frame
 	while f < cur_frame:
@@ -108,8 +129,10 @@ func _do_rollback(from_frame: int, cur_frame: int, cur_inputs: Array) -> void:
 					i2 = conf   # P2 是遠端
 				else:
 					i1 = conf   # P1 是遠端
-			_simulate_frame(PHYS_DELTA, i1, i2)
-			_save_snapshot(f, i1, i2)
+			_save_snapshot(f, i1, i2)           # ← 先存：幀 f 開始時的狀態
+			_simulate_frame(PHYS_DELTA, i1, i2) # ← 再推進
+			# rollback 中間幀 Area2D 訊號不會觸發，手動補偵測打擊
+			_check_manual_hits()
 		f += 1
 	is_resimulating = false
 
@@ -161,8 +184,126 @@ func _on_match_ended(winner_id: int) -> void:
 	if is_resimulating: return
 	hud.show_game_over(winner_id)
 
+# ── 手動打擊偵測（補足 rollback 中間幀 Area2D 訊號不觸發的缺口）────────────────
+func _check_manual_hits() -> void:
+	_manual_check(p1.hitbox, p2.hurtbox)
+	_manual_check(p2.hitbox, p1.hurtbox)
+
+func _manual_check(hb: VsHitbox, hrb: VsHurtbox) -> void:
+	if not hb.monitoring:
+		return
+	if hb.hit_targets.has(hrb):   # 同一段攻擊不重複打
+		return
+	if _area_rect(hb).intersects(_area_rect(hrb)):
+		hb.hit_targets[hrb] = true
+		hrb.receive_hit(hb)
+
+## 取得 Area2D 第一個 CollisionShape2D 的世界空間 AABB
+func _area_rect(area: Area2D) -> Rect2:
+	var cs := area.get_child(0) as CollisionShape2D
+	if not cs or not (cs.shape is RectangleShape2D):
+		return Rect2()
+	var size: Vector2 = (cs.shape as RectangleShape2D).size
+	return Rect2(cs.global_transform.origin - size * 0.5, size)
+
+## 計算本幀開始時的狀態雜湊（模擬前呼叫，用於確定性偵測）
+func _compute_checksum() -> int:
+	if not p1 or not p2:
+		return 0
+	var s := "%d,%d,%d,%d,%d,%d,%s,%d,%d,%d,%d,%d,%d,%s" % [
+		roundi(p1.position.x * 100), roundi(p1.position.y * 100),
+		roundi(p1.velocity.x * 100), roundi(p1.velocity.y * 100),
+		roundi(p1.hp), roundi(p1.energy * 10),
+		p1.state_machine.current_state_name,
+		roundi(p2.position.x * 100), roundi(p2.position.y * 100),
+		roundi(p2.velocity.x * 100), roundi(p2.velocity.y * 100),
+		roundi(p2.hp), roundi(p2.energy * 10),
+		p2.state_machine.current_state_name,
+	]
+	return s.hash() & 0xFFFFFFFF
+
+func _on_desync_detected(frame: int) -> void:
+	var msg := "DESYNC f%d | P1 pos=%s hp=%.0f en=%.1f [%s] | P2 pos=%s hp=%.0f en=%.1f [%s]" % [
+		frame,
+		str(p1.position.snapped(Vector2(0.01, 0.01))), p1.hp, p1.energy,
+		p1.state_machine.current_state_name,
+		str(p2.position.snapped(Vector2(0.01, 0.01))), p2.hp, p2.energy,
+		p2.state_machine.current_state_name,
+	]
+	push_warning(msg)
+	if not is_resimulating:
+		hud.show_message("DESYNC f%d" % frame)
+
+func _on_hard_desync() -> void:
+	hud.show_message("連線中斷，正在返回大廳...")
+	await get_tree().create_timer(2.0).timeout
+	VsGameManager.selection_confirmed = false
+	get_tree().change_scene_to_file("res://VsMods/ui/LobbyScreen.tscn")
+
 func _unhandled_input(event: InputEvent) -> void:
-	if round_manager and not round_manager.is_fighting() and \
+	if event.is_action_pressed("ui_cancel"):
+		_toggle_vs_pause()
+		return
+	# 比賽結束後任意鍵（非 ESC）返回選角
+	if not _vs_paused and round_manager and not round_manager.is_fighting() and \
 			round_manager.is_game_over() and event.is_pressed():
 		VsGameManager.selection_confirmed = false
 		get_tree().change_scene_to_file("res://VsMods/ui/SelectScreen.tscn")
+
+# ── VsMods 暫停選單 ───────────────────────────────────────────────────────────
+func _toggle_vs_pause() -> void:
+	# 聯機模式禁止暫停（會造成兩端不同步），只有離線才允許
+	if VsNetworkManager.mode != VsNetworkManager.Mode.OFFLINE:
+		return
+	_vs_paused = !_vs_paused
+	_pause_overlay.visible = _vs_paused
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if _vs_paused else Input.MOUSE_MODE_CAPTURED
+
+func _build_pause_overlay() -> void:
+	_pause_overlay = CanvasLayer.new()
+	_pause_overlay.layer   = 20   # 在 HUD（layer 10）之上
+	_pause_overlay.visible = false
+	add_child(_pause_overlay)
+
+	const VIEW_W := 384
+	const VIEW_H := 216
+	const PW     := 110
+	const PH     := 72
+
+	# 半透明全螢幕遮罩
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color        = Color(0, 0, 0, 0.55)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pause_overlay.add_child(dim)
+
+	# 面板
+	var panel := PanelContainer.new()
+	panel.position = Vector2((VIEW_W - PW) / 2, (VIEW_H - PH) / 2)
+	panel.size     = Vector2(PW, PH)
+	_pause_overlay.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text                    = "暫停"
+	title.horizontal_alignment    = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 13)
+	vbox.add_child(title)
+
+	var resume_btn := Button.new()
+	resume_btn.text = "繼續"
+	resume_btn.add_theme_font_size_override("font_size", 10)
+	resume_btn.pressed.connect(_toggle_vs_pause)
+	vbox.add_child(resume_btn)
+
+	var lobby_btn := Button.new()
+	lobby_btn.text = "返回大廳"
+	lobby_btn.add_theme_font_size_override("font_size", 10)
+	lobby_btn.pressed.connect(func():
+		VsGameManager.selection_confirmed = false
+		get_tree().change_scene_to_file("res://VsMods/ui/LobbyScreen.tscn")
+	)
+	vbox.add_child(lobby_btn)

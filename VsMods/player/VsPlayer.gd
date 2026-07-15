@@ -22,12 +22,15 @@ var queued_hitstun:       float    = 0.4   # VsHurt.enter() 讀取的硬直時�
 var last_input:           InputState       # 當幀輸入備份（供 enter() 讀取方向）
 
 # ── 節點 ─────────────────────────────────────────────────────────────────────
-@onready var state_machine:       VsStateMachine  = $VsStateMachine
-@onready var anim_player:         AnimationPlayer = $AnimationPlayer
-@onready var graphics:            Node2D          = $Graphics
-@onready var hurtbox:             VsHurtbox       = $Graphics/VsHurtbox
-@onready var out_of_combat_timer: Timer           = $OutOfCombatTimer
+@onready var state_machine: VsStateMachine  = $VsStateMachine
+@onready var anim_player:  AnimationPlayer = $AnimationPlayer
+@onready var graphics:     Node2D          = $Graphics
+@onready var hurtbox:      VsHurtbox       = $Graphics/VsHurtbox
 var hitbox: VsHitbox  # 由 _ready() 程式碼建立
+
+# 脫戰計時器：用 float + 模擬 delta，不用 Timer 節點（Timer 用真實時間，rollback 下會飄）
+const OUT_OF_COMBAT_DELAY := 2.0
+var out_of_combat_left: float = 0.0
 
 # ── 初始化 ────────────────────────────────────────────────────────────────────
 func _ready() -> void:
@@ -74,14 +77,16 @@ func use_energy(amount: float) -> bool:
 	if energy < amount:
 		return false
 	energy -= amount
-	out_of_combat_timer.start()
+	out_of_combat_left = OUT_OF_COMBAT_DELAY
 	return true
 
 func mark_in_combat() -> void:
-	out_of_combat_timer.start()
+	out_of_combat_left = OUT_OF_COMBAT_DELAY
 
 func _update_energy_regen(delta: float) -> void:
-	if out_of_combat_timer.is_stopped():
+	if out_of_combat_left > 0.0:
+		out_of_combat_left = maxf(out_of_combat_left - delta, 0.0)
+	else:
 		energy = minf(energy + energy_regen_rate * delta, max_energy)
 
 # ── 無敵 ─────────────────────────────────────────────────────────────────────
@@ -162,7 +167,7 @@ func save_state() -> Dictionary:
 		"inv":     invincible_time_left,
 		"phit":    pending_hit.duplicate(true),
 		"qhit":    queued_hitstun,
-		"ctimer":  out_of_combat_timer.time_left,
+		"ctimer":  out_of_combat_left,
 		"sname":   state_machine.current_state_name,
 		"sdata":   cur.save_state() if cur else {},
 	}
@@ -176,11 +181,7 @@ func restore_state(s: Dictionary) -> void:
 	invincible_time_left = s["inv"]
 	pending_hit          = s["phit"].duplicate(true)
 	queued_hitstun       = s["qhit"]
-	var ct: float = s["ctimer"]
-	if ct > 0.0:
-		out_of_combat_timer.start(ct)
-	else:
-		out_of_combat_timer.stop()
+	out_of_combat_left = s["ctimer"]
 	graphics.scale.x  = facing_dir
 	hitbox.monitoring = false   # 安全預設值，由 state.restore_state 覆寫
 	hitbox.reset_hits()

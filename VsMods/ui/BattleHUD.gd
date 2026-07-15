@@ -93,6 +93,10 @@ func show_game_over(winner_id: int) -> void:
 	_result_label.text    = "P%d WINS THE MATCH!\n按任意鍵返回" % winner_id
 	_result_label.visible = true
 
+func show_message(text: String) -> void:
+	_result_label.text    = text
+	_result_label.visible = true
+
 # ── 建立 UI ───────────────────────────────────────────────────────────────────
 func _build_ui() -> void:
 	var root := Control.new()
