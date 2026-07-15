@@ -22,6 +22,17 @@ func physics_update(delta: float, input: InputState) -> StringName:
 	return &""
 
 func exit() -> void:
-	# 離場後補緩衝無敵，防止動畫剛結束就再次被擊中
 	var vs := player as VsPlayer
 	vs.invincible_time_left = maxf(vs.invincible_time_left, 0.2)
+
+func save_state() -> Dictionary:
+	return {"elapsed": elapsed, "hitstun": hitstun_time}
+
+func restore_state(d: Dictionary) -> void:
+	elapsed      = d.get("elapsed", 0.0)
+	hitstun_time = d.get("hitstun",  0.4)
+
+func sync_anim() -> void:
+	var vs := player as VsPlayer
+	vs.anim_player.play("hurt")
+	vs.anim_player.seek(elapsed, true)

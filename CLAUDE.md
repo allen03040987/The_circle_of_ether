@@ -43,15 +43,40 @@ A single blanket flag meaning "ignore all player input right now," reused for tw
 
 ### VsMods (`VsMods/`)
 
-A fully parallel framework, isolated from `classes/` — do not mix the two. `VsMods/StateMachine/VsStateMachine.gd` extends `Node2D` directly (not `classes/StateMachine.gd`) and holds an explicit `@export` slot per state type rather than auto-discovering children; `VsState`/`VsPlayerState` objects return the *next state* from their process/input/physics methods, which is a different transition pattern than the main game's `transition_to(name)` calls.
+A fully parallel framework, isolated from `classes/` — do not mix the two. The VsMods was fully rebuilt from scratch; the old character-subclass system no longer exists.
 
-`VsMods/VsPlayer.gd` (`CharacterBody2D`) implements dual P1/P2 control, HP/stamina/MP, and a stock-based cooldown system (`skill_cooldowns` dict with `charges`/`max_charges`). Characters are one folder each under `VsMods/` (`Clotty/`, `Mechl/`) extending `VsPlayer`, with individual skill scripts as `VsPlayerState` subclasses (`ClottySkill_K1.gd`, `ClottySkill_U2.gd`, ...) — this is the pattern to follow when adding a new character or skill.
+`VsMods/StateMachine/VsStateMachine.gd` extends `Node2D` directly and **auto-discovers child VsState nodes** into a `states` dict keyed by lowercase node name (same discovery pattern as `classes/StateMachine.gd`, but a separate class). `transition_to(name)` has a re-entry guard. A parallel entry point `set_state_quiet(name)` switches `current_state`/`current_state_name` without calling `enter()`/`exit()` — used exclusively during rollback state restoration, never for normal gameplay transitions.
+
+`VsMods/StateMachine/VsState.gd` + `VsPlayerState.gd` — base contracts. `VsPlayerState` provides gravity/move/friction constants and `_apply_gravity(delta)`. `physics_update(delta, input) -> StringName` returns the next state name (empty string = stay); this return-value transition pattern is different from the main game's imperative `transition_to()` calls — don't mix them. Every VsState also exposes `save_state() -> Dictionary` / `restore_state(d)` / `sync_anim()` for rollback; the defaults are no-ops in `VsState.gd`, override only what the state actually needs.
+
+`VsMods/player/VsPlayer.gd` (`CharacterBody2D`) — HP/energy/invincibility, `apply_input(delta, input)` driven each frame by `vs_world`. Has `save_state()`/`restore_state()`/`sync_anim_to_state()` for rollback. States live under `VsMods/player/states/`: `VsIdle`, `VsRun`, `VsJump`, `VsFall`, `VsHurt`, `VsKnockdown`, `VsGetup`, `VsDodge`, `VsGuard`, `VsAttack`. `VsAttack` is registered programmatically in `VsPlayer._register_attack_state()` (not a scene child) because its combo animation data is built in code.
+
+Scene flow: `title_screen.gd` → `VsMods/ui/LobbyScreen.tscn` (離線/主機/加入) → `VsMods/ui/SelectScreen.tscn` (角色+3 武藝槽選擇) → `VsMods/vs_world.tscn` (戰鬥). `VsGameManager` (autoload, `VsMods/ui/VsGameManager.gd`) caches `p1_arts`/`p2_arts`/`selection_confirmed` across scene changes.
+
+### VsMods rollback netcode (`VsMods/network/`)
+
+`VsNetworkManager` (autoload) drives frame-locked synchronization:
+
+- **`tick(local_input) -> Array`** — always returns `[p1_input, p2_input]`, never stalls. If confirmed remote input for the current frame hasn't arrived yet, predicts using `_last_remote_input` (last confirmed remote frame) and records the prediction in `_predicted_remote[frame]`.
+- **`_recv_packet()`** — when confirmed remote input arrives, compares against `_predicted_remote[frame]` if present; if they differ, sets `_pending_rollback_frame` to the earliest mismatched frame.
+- Public API for `vs_world`: `needs_rollback()`, `consume_rollback_frame() -> int`, `get_game_frame() -> int`, `get_confirmed_remote_input(frame) -> InputState`.
+
+`vs_world.gd` owns rollback execution:
+
+- Every frame: saves snapshot `_frame_states[frame] = {p1_state, p2_state, round_manager_state, inp1, inp2}` before simulating. Keeps only the last `MAX_ROLLBACK_FRAMES = 10` frames.
+- When `needs_rollback()`: `_do_rollback(from_frame, cur_frame, cur_inputs)` — restores the nearest snapshot at or before `from_frame`, re-simulates each frame using `get_confirmed_remote_input()` to override stored remote predictions, then simulates the current frame.
+- **`is_resimulating`** flag — set `true` during re-simulation so `_on_round_ended`/`_on_round_started`/`_on_match_ended` signal handlers skip HUD updates.
+- After rollback completes, `sync_anim_to_state()` on both players re-syncs `AnimationPlayer` to the restored state.
+
+**Known limitation:** Godot's `Area2D` overlap detection doesn't update within a single `_physics_process` call, so hitbox collisions are not re-detected during re-simulation. Hit outcomes are reconstructed from the `pending_hit` dict stored in snapshots. Positions and velocity are always correct; in rare rollback edge-cases, HP from a hit that changes timing may briefly diverge.
+
+**Signaling server** (`server/signaling_server.py`) — deployed at `wss://the-circle-of-ether-signal.onrender.com` (Render.com free tier, `server/requirements.txt` in subdirectory — Render Build Command must be `pip install -r server/requirements.txt`). Do **not** use `websockets ≥ 14.x` type annotations (`WebSocketServerProtocol` was removed). The `"arts"` message type is relay-only (server passes it through unchanged like `"offer"`/`"answer"`/`"ice"`).
 
 ### Combat/hit detection — two separate implementations
 
 Main game: `classes/Hurtbox.gd` (Area2D) just emits a `hurt(hitbox)` signal; `classes/Hitbox.gd` (Area2D) owns damage/knockback/poise, multi-hit tracking (`hit_targets`), and dispatches spark/shake/audio via the `CombatManager`/`AudioManager` autoloads before calling into the hurtbox. `classes/Damage.gd` is the payload (type LIGHT/HEAVY/THROW/NO_STUN; source_type MELEE/PROJECTILE/ASSIST).
 
-VsMods: `VsMods/state/VsHitbox.gd` is a completely separate Area2D class with fighting-game-specific fields (hitstun_time, guard_break, armor_break, ground/air knockback, causes_down, OTG, bleed DOT, refresh_cd_slot). Character-specific hitboxes (e.g. `VsMods/Clotty/Hitbox_BD.gd`) wrap this as a `VsPlayerState`. No code is shared between the main-game and VsMods hit systems — know which mode you're editing before touching either.
+VsMods: `VsMods/combat/VsHitbox.gd` (Area2D) has fighting-game-specific fields (`damage`, `hitstun_time`, `knockback`, `causes_knockdown`, `guard_break`). `VsMods/combat/VsHurtbox.gd` emits `hurt(hitbox)` signal received by `VsPlayer._on_hurtbox_hurt()`. No code is shared between the main-game and VsMods hit systems — know which mode you're editing before touching either.
 
 ### Armor / hyperarmor defense system (main game only)
 

@@ -5,6 +5,9 @@ func enter(_prev: StringName) -> void:
 	player.velocity.y = JUMP_FORCE
 	(player as VsPlayer).anim_player.play("jump")
 
+func sync_anim() -> void:
+	(player as VsPlayer).anim_player.play("jump")
+
 func physics_update(delta: float, input: InputState) -> StringName:
 	_apply_gravity(delta)
 	_apply_air_move(input)

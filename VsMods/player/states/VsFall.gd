@@ -4,6 +4,9 @@ extends VsPlayerState
 func enter(_prev: StringName) -> void:
 	(player as VsPlayer).anim_player.play("fall")
 
+func sync_anim() -> void:
+	(player as VsPlayer).anim_player.play("fall")
+
 func physics_update(delta: float, input: InputState) -> StringName:
 	_apply_gravity(delta)
 	_apply_air_move(input)

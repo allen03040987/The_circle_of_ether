@@ -9,6 +9,9 @@ func enter(_prev: StringName) -> void:
 	# TODO: 換成防禦動畫（目前無對應素材，暫用 idle）
 	(player as VsPlayer).anim_player.play("idle")
 
+func sync_anim() -> void:
+	(player as VsPlayer).anim_player.play("idle")
+
 func physics_update(delta: float, input: InputState) -> StringName:
 	player.velocity.x = move_toward(player.velocity.x, 0.0, FRICTION * delta)
 	if not player.is_on_floor():

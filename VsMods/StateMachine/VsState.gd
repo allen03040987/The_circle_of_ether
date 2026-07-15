@@ -11,3 +11,8 @@ func enter(_prev: StringName) -> void: pass
 func exit() -> void: pass
 func physics_update(_delta: float, _input: InputState) -> StringName:
 	return &""
+
+# ── Rollback 介面（子類依需要覆寫）──────────────────────────────────────────
+func save_state() -> Dictionary: return {}
+func restore_state(_d: Dictionary) -> void: pass
+func sync_anim() -> void: pass

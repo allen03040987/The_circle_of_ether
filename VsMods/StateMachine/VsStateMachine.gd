@@ -1,7 +1,8 @@
 class_name VsStateMachine
 extends Node
 
-var current_state: VsState
+var current_state:      VsState
+var current_state_name: StringName = &""
 var states: Dictionary = {}
 
 func _ready() -> void:
@@ -38,5 +39,13 @@ func _enter(target: StringName, prev: StringName) -> void:
 		return  # 防止重入
 	if current_state:
 		current_state.exit()
-	current_state = states[key]
+	current_state      = states[key]
+	current_state_name = key
 	current_state.enter(prev)
+
+## Rollback 專用：切換狀態但不呼叫 enter/exit，由 restore_state 負責補齊內部數值。
+func set_state_quiet(target: StringName) -> void:
+	var key := target.to_lower()
+	if not states.has(key): return
+	current_state      = states[key]
+	current_state_name = key

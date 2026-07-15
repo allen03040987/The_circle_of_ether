@@ -11,7 +11,16 @@ func enter(_prev: StringName) -> void:
 	elapsed = 0.0
 	var vs  := player as VsPlayer
 	vs.anim_player.play("launched")
-	vs.invincible_time_left = 0.5  # 落地初始無敵（防追打）
+	vs.invincible_time_left = 0.5
+
+func save_state() -> Dictionary:
+	return {"elapsed": elapsed}
+
+func restore_state(d: Dictionary) -> void:
+	elapsed = d.get("elapsed", 0.0)
+
+func sync_anim() -> void:
+	(player as VsPlayer).anim_player.play("launched")
 
 func physics_update(delta: float, input: InputState) -> StringName:
 	elapsed += delta

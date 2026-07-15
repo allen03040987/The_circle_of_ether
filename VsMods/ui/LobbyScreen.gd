@@ -63,7 +63,7 @@ func _build_ui() -> void:
 	_btn("← 返回", Vector2(6, VIEW_H - 24), Vector2(56, 16)).pressed.connect(_on_back)
 
 	# 開發提示
-	_label("（開發測試：先在終端機執行 python server/signaling_server.py）",
+	_label("（此為開發測試版，出現BUG請回報）",
 		0, VIEW_H - 12, VIEW_W, 10, HORIZONTAL_ALIGNMENT_CENTER).modulate = Color(0.4, 0.4, 0.4)
 
 # ── 按鈕動作 ──────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-## VsNetworkManager — 延遲型 P2P 聯機管理器
+## VsNetworkManager — Rollback P2P 聯機管理器
 ##
 ## 使用方式：
 ##   本機雙人：VsNetworkManager.start_offline()
@@ -6,12 +6,11 @@
 ##   加入：    VsNetworkManager.join_game("ABC123") → 等 connected 信號
 ##
 ## 每個物理幀在 vs_world._physics_process 裡呼叫 tick()，
-## 回傳 [] 代表等待（stall），回傳 [p1_input, p2_input] 代表可推進這幀。
+## 永不 stall：對方輸入未到則預測（沿用上一幀），確認後 needs_rollback() 變 true。
+## vs_world 負責執行回溯重模擬（_do_rollback）。
 ##
 ## 需要安裝 webrtc-native GDExtension（桌面聯機）：
 ## https://github.com/godotengine/webrtc-native/releases
-##
-## 信令伺服器預設指向本機（開發用），正式上線前改 SIGNALING_URL。
 
 extends Node
 
@@ -27,7 +26,9 @@ signal remote_arts_received(arts: Array)  # 收到對方的武藝選擇
 const SIGNALING_URL := "wss://the-circle-of-ether-signal.onrender.com"
 const STUN_SERVERS  := [{"urls": ["stun:stun.l.google.com:19302"]}]
 ## 延遲幀數：4 幀 @ 60fps ≈ 67ms，可依網路狀況調整
-const INPUT_DELAY   := 4
+const INPUT_DELAY          := 4
+## rollback 最多回溯幾幀（超過此距離的 mismatch 忽略，避免狀態爆炸）
+const MAX_ROLLBACK_FRAMES  := 10
 
 # ── 狀態 ─────────────────────────────────────────────────────────────────────
 enum Mode { OFFLINE, HOST, CLIENT }
@@ -37,8 +38,11 @@ var local_player_id  := 1   # 1 = P1（HOST）, 2 = P2（CLIENT）
 var _game_frame := 0   # 目前要執行的遊戲幀
 var _send_frame := 0   # 目前要收集並傳送的輸入幀（超前 INPUT_DELAY）
 
-var _local_inputs:  Dictionary = {}  # frame → PackedByteArray(2 bytes)
-var _remote_inputs: Dictionary = {}  # frame → PackedByteArray(2 bytes)
+var _local_inputs:    Dictionary = {}  # frame → PackedByteArray(2 bytes)
+var _remote_inputs:   Dictionary = {}  # frame → confirmed remote input
+var _predicted_remote: Dictionary = {} # frame → predicted bytes（等候確認）
+var _last_remote_input: PackedByteArray = PackedByteArray([0, 0])
+var _pending_rollback_frame: int = -1  # -1 = 無需 rollback
 
 var _ws               := WebSocketPeer.new()
 var _rtc:    Object   = null   # WebRTCPeerConnection（plugin 才有）
@@ -92,37 +96,53 @@ func join_game(code: String) -> void:
 	_reset()
 	_ws_connect()
 
-## 每個物理幀呼叫一次，傳入本地玩家輸入。
-## 回傳 [] = stall（等待對方輸入），回傳 [p1:InputState, p2:InputState] = 可推進。
+## 每個物理幀呼叫一次，永不 stall。
+## 線上模式：對方輸入未到則用上一幀預測，稍後確認到後由 vs_world 執行 rollback。
 func tick(local_input: InputState) -> Array:
-	# 收集本幀輸入並傳送（超前 INPUT_DELAY 幀）
 	var bytes := local_input.to_bytes()
 	_local_inputs[_send_frame] = bytes
 	_send_packet(_send_frame, bytes)
 	_send_frame += 1
 
-	# 判斷是否可以執行 _game_frame
-	if not _can_step():
-		return []
-
-	# 取出雙方輸入
-	var exec := _game_frame
+	var exec  := _game_frame
 	var EMPTY := PackedByteArray([0, 0])
-	var li := InputState.from_bytes(_local_inputs.get(exec, EMPTY))
-	var ri: InputState
+	var li    := InputState.from_bytes(_local_inputs.get(exec, EMPTY))
+	var ri:   InputState
+
 	if mode == Mode.OFFLINE:
-		var other_id := 2 if local_player_id == 1 else 1
-		ri = InputState.from_input(other_id)
+		ri = InputState.from_input(2 if local_player_id == 1 else 1)
 	else:
-		ri = InputState.from_bytes(_remote_inputs.get(exec, EMPTY))
+		if exec in _remote_inputs:
+			_last_remote_input = _remote_inputs[exec]
+		else:
+			# 預測：沿用上一幀（比空輸入合理）
+			_predicted_remote[exec] = _last_remote_input
+		ri = InputState.from_bytes(_last_remote_input)
 
 	_game_frame += 1
+	# 清除超出 rollback 視窗的舊紀錄
+	var prune := exec - MAX_ROLLBACK_FRAMES
+	_predicted_remote.erase(prune)
 
-	# 永遠回傳 [P1_input, P2_input]
-	if local_player_id == 1:
-		return [li, ri]
-	else:
-		return [ri, li]
+	return [li, ri] if local_player_id == 1 else [ri, li]
+
+## Rollback 查詢 API（供 vs_world 使用）
+func needs_rollback() -> bool:
+	return _pending_rollback_frame >= 0
+
+func consume_rollback_frame() -> int:
+	var f := _pending_rollback_frame
+	_pending_rollback_frame = -1
+	return f
+
+func get_game_frame() -> int:
+	return _game_frame
+
+## 重模擬用：取得第 frame 幀對方的確認輸入（還沒收到則回傳 null）
+func get_confirmed_remote_input(frame: int) -> InputState:
+	if not frame in _remote_inputs:
+		return null
+	return InputState.from_bytes(_remote_inputs[frame])
 
 # ── 內部：幀管理 ──────────────────────────────────────────────────────────────
 func _reset() -> void:
@@ -132,21 +152,16 @@ func _reset() -> void:
 	_remote_inputs.clear()
 	_ws_ready_sent    = false
 	_channel_was_open = false
-	_ws_ever_opened   = false
-	_ws_connect_timer = 0.0
-	_error_emitted    = false
+	_ws_ever_opened      = false
+	_ws_connect_timer    = 0.0
+	_error_emitted       = false
+	_predicted_remote.clear()
+	_last_remote_input   = PackedByteArray([0, 0])
+	_pending_rollback_frame = -1
 	_rtc     = null
 	_channel = null
 	_ws.close()
 	_ws = WebSocketPeer.new()
-
-func _can_step() -> bool:
-	if mode == Mode.OFFLINE:
-		return true
-	# 暖機期（前 INPUT_DELAY 幀）直接放行，因為對方輸入還沒傳到
-	if _game_frame < INPUT_DELAY:
-		return true
-	return (_game_frame in _local_inputs) and (_game_frame in _remote_inputs)
 
 # ── 內部：封包 ────────────────────────────────────────────────────────────────
 func _send_packet(frame: int, bytes: PackedByteArray) -> void:
@@ -163,7 +178,15 @@ func _recv_packet(pkt: PackedByteArray) -> void:
 	if pkt.size() < 6:
 		return
 	var frame := pkt.decode_u32(0)
-	_remote_inputs[frame] = pkt.slice(4, 6)
+	var confirmed: PackedByteArray = pkt.slice(4, 6)
+	_remote_inputs[frame] = confirmed
+	# Rollback 偵測：若此幀曾用預測值模擬，且確認值不同 → 需要回溯
+	if frame in _predicted_remote:
+		var predicted: PackedByteArray = _predicted_remote[frame]
+		_predicted_remote.erase(frame)
+		if predicted != confirmed:
+			if _pending_rollback_frame < 0 or frame < _pending_rollback_frame:
+				_pending_rollback_frame = frame
 
 # ── 內部：WebSocket 信令 ──────────────────────────────────────────────────────
 func _ws_connect() -> void:

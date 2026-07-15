@@ -31,8 +31,20 @@ func physics_update(delta: float, input: InputState) -> StringName:
 		return &"vsidle" if player.is_on_floor() else &"vsfall"
 	return &""
 
+func save_state() -> Dictionary:
+	return {"dir": dodge_dir, "elapsed": elapsed, "perfect": _perfect_used}
+
+func restore_state(d: Dictionary) -> void:
+	dodge_dir     = d.get("dir",     1)
+	elapsed       = d.get("elapsed", 0.0)
+	_perfect_used = d.get("perfect", false)
+
+func sync_anim() -> void:
+	var vs := player as VsPlayer
+	vs.anim_player.play("sliding")
+	vs.anim_player.seek(elapsed, true)
+
 ## 完美閃避獎勵：由 VsPlayer._on_hurtbox_hurt() 在判定窗內呼叫
-## 可延長至閃避結束的無敵、給予能量獎勵
 func trigger_perfect_dodge() -> void:
 	if _perfect_used: return
 	_perfect_used = true

@@ -40,6 +40,22 @@ func is_fighting() -> bool:
 func is_game_over() -> bool:
 	return phase == Phase.GAME_OVER
 
+func save_state() -> Dictionary:
+	return {
+		"phase":    phase,
+		"p1w":      p1_wins,
+		"p2w":      p2_wins,
+		"round":    round_num,
+		"timer":    _timer,
+	}
+
+func restore_state(s: Dictionary) -> void:
+	phase     = s["phase"] as Phase
+	p1_wins   = s["p1w"]
+	p2_wins   = s["p2w"]
+	round_num = s["round"]
+	_timer    = s["timer"]
+
 # ── 主循環（由 vs_world 每物理幀呼叫）────────────────────────────────────────
 func tick(delta: float) -> void:
 	match phase:

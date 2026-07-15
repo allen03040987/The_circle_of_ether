@@ -143,6 +143,28 @@ func _kill_hitbox(vs: VsPlayer) -> void:
 		vs.hitbox.reset_hits()
 		_hitbox_active = false
 
+func save_state() -> Dictionary:
+	return {
+		"step":    combo_step,
+		"elapsed": elapsed,
+		"buf":     attack_buffered,
+		"hb":      _hitbox_active,
+	}
+
+func restore_state(d: Dictionary) -> void:
+	combo_step      = d.get("step",    1)
+	elapsed         = d.get("elapsed", 0.0)
+	attack_buffered = d.get("buf",     false)
+	_hitbox_active  = d.get("hb",      false)
+	var vs := player as VsPlayer
+	if is_instance_valid(vs):
+		vs.hitbox.monitoring = _hitbox_active
+
+func sync_anim() -> void:
+	var vs := player as VsPlayer
+	vs.anim_player.play("attack_%d" % combo_step)
+	vs.anim_player.seek(elapsed, true)
+
 ## 首次呼叫時將 attack_1~5 動畫以程式碼建立並注入 AnimationPlayer，
 ## 之後 anim_player.play("attack_N") 即可使用，在編輯器裡也看得到。
 func _ensure_animations_registered(vs: VsPlayer) -> void:

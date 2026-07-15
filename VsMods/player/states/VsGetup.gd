@@ -10,10 +10,17 @@ var elapsed: float = 0.0
 func enter(_prev: StringName) -> void:
 	elapsed = 0.0
 	var vs  := player as VsPlayer
-	# 起身期間無敵（多留 0.1s 緩衝讓動畫先播完再可被擊）
 	vs.invincible_time_left = GETUP_DURATION + 0.1
-	# TODO: 起身動畫，目前暫用 idle
 	vs.anim_player.play("idle")
+
+func save_state() -> Dictionary:
+	return {"elapsed": elapsed}
+
+func restore_state(d: Dictionary) -> void:
+	elapsed = d.get("elapsed", 0.0)
+
+func sync_anim() -> void:
+	(player as VsPlayer).anim_player.play("idle")
 
 func physics_update(delta: float, input: InputState) -> StringName:
 	elapsed += delta

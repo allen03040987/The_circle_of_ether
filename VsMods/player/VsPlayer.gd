@@ -150,6 +150,48 @@ func _apply_pending_hit() -> void:
 func take_damage(amount: float) -> void:
 	hp = maxf(hp - amount, 0.0)
 
+# ── Rollback：快照 / 還原 / 動畫同步 ─────────────────────────────────────────
+func save_state() -> Dictionary:
+	var cur := state_machine.current_state
+	return {
+		"pos":     position,
+		"vel":     velocity,
+		"hp":      hp,
+		"energy":  energy,
+		"facing":  facing_dir,
+		"inv":     invincible_time_left,
+		"phit":    pending_hit.duplicate(true),
+		"qhit":    queued_hitstun,
+		"ctimer":  out_of_combat_timer.time_left,
+		"sname":   state_machine.current_state_name,
+		"sdata":   cur.save_state() if cur else {},
+	}
+
+func restore_state(s: Dictionary) -> void:
+	position             = s["pos"]
+	velocity             = s["vel"]
+	hp                   = s["hp"]
+	energy               = s["energy"]
+	facing_dir           = s["facing"]
+	invincible_time_left = s["inv"]
+	pending_hit          = s["phit"].duplicate(true)
+	queued_hitstun       = s["qhit"]
+	var ct: float = s["ctimer"]
+	if ct > 0.0:
+		out_of_combat_timer.start(ct)
+	else:
+		out_of_combat_timer.stop()
+	graphics.scale.x  = facing_dir
+	hitbox.monitoring = false   # 安全預設值，由 state.restore_state 覆寫
+	hitbox.reset_hits()
+	state_machine.set_state_quiet(s["sname"])
+	if state_machine.current_state:
+		state_machine.current_state.restore_state(s["sdata"])
+
+func sync_anim_to_state() -> void:
+	if state_machine.current_state:
+		state_machine.current_state.sync_anim()
+
 # ── 武藝加成（vs_world 注入 art_slots 後呼叫）────────────────────────────────
 func apply_arts_bonus() -> void:
 	var empty := art_slots.count("")
