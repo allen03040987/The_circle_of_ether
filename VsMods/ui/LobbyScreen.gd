@@ -98,12 +98,9 @@ func _on_room_created(code: String) -> void:
 
 func _on_connected() -> void:
 	_connecting = false
-	_status("已連線！進入遊戲...")
-	# 線上模式：各自用預設空武藝（全空槽 = 最大能量加成），直接對戰
-	VsGameManager.p1_arts = ["", "", ""]
-	VsGameManager.p2_arts = ["", "", ""]
-	VsGameManager.selection_confirmed = true
-	get_tree().change_scene_to_file("res://VsMods/vs_world.tscn")
+	_status("已連線！")
+	VsGameManager.selection_confirmed = false
+	get_tree().change_scene_to_file("res://VsMods/ui/SelectScreen.tscn")
 
 func _on_error(msg: String) -> void:
 	_connecting = false

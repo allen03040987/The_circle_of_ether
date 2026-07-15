@@ -20,6 +20,7 @@ signal room_created(code: String)    # HOST 建立房間成功，顯示此 code 
 signal connected()                    # 雙方資料通道開啟，可以開始遊戲
 signal disconnected()
 signal connection_error(msg: String)
+signal remote_arts_received(arts: Array)  # 收到對方的武藝選擇
 
 # ── 設定 ─────────────────────────────────────────────────────────────────────
 ## 本機測試時用 ws://127.0.0.1:8765，部署後換成 wss://你的伺服器
@@ -62,6 +63,11 @@ func _process(delta: float) -> void:
 	_poll_rtc()
 
 # ── 公開 API ──────────────────────────────────────────────────────────────────
+## 透過信令伺服器把武藝選擇傳給對方（WebRTC 連線建立後仍可用 WS 傳）
+func send_arts(arts: Array) -> void:
+	var msg := JSON.stringify({"type": "arts", "room": _room_code, "arts": arts})
+	_ws.send_text(msg)
+
 func start_offline() -> void:
 	mode = Mode.OFFLINE
 	local_player_id = 1
@@ -217,6 +223,9 @@ func _handle_signal(msg) -> void:
 				int(msg.get("index", 0)),
 				msg.get("name", "")
 			)
+		"arts":
+			var arts: Array = msg.get("arts", [])
+			remote_arts_received.emit(arts)
 		"error":
 			connection_error.emit(msg.get("msg", "未知錯誤"))
 

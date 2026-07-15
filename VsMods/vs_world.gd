@@ -58,7 +58,8 @@ func _spawn_round_manager() -> void:
 
 # ── 主循環 ────────────────────────────────────────────────────────────────────
 func _physics_process(delta: float) -> void:
-	var local_input := InputState.from_input(VsNetworkManager.local_player_id)
+	# 本機永遠讀 P1 鍵位（線上模式各自在自己電腦上，離線模式 local_player_id 也是 1）
+	var local_input := InputState.from_input(1)
 	var result      := VsNetworkManager.tick(local_input)
 	if result.is_empty():
 		return
