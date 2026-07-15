@@ -106,11 +106,6 @@ func _on_exit_game_pressed() -> void:
 	get_tree().quit()
 
 ## 進入格鬥對戰模式
-func _on_vs_game_pressed() -> void: 
-	print("⚔️ 進入格鬥對戰模式！")
-	
-	# 🎵 🌟 讓主選單音樂在 1 秒內漸出消失，營造進入戰鬥的緊張感
-	AudioManager.stop_bgm(1.0) 
-	
-	# 直接跳轉到選角大廳
-	get_tree().change_scene_to_file("res://VsMods/ui/select.tscn")
+func _on_vs_game_pressed() -> void:
+	AudioManager.stop_bgm(1.0)
+	get_tree().change_scene_to_file("res://VsMods/ui/LobbyScreen.tscn")

@@ -1,17 +1,13 @@
-class_name VsState  # 基礎框架
-extends Node2D
-# 進入狀態時觸發
-func enter() -> void: 
-	pass
-# 離開狀態時觸發
-func exit() -> void:
-	pass
-# 處理每幀邏輯	
-func process_frame(_delta: float) -> VsState:
-	return null
-# 處理按鍵輸入
-func process_input(_event: InputEvent) -> VsState:
-	return null
-# 處理物理運算
-func process_physics(_delta: float) -> VsState:
-	return null
+## VsState — VsMods 狀態基底
+## 所有 VS 玩家狀態繼承此類別。
+## physics_update 回傳下一個狀態名（空字串 = 維持當前狀態）。
+class_name VsState
+extends Node
+
+var player: CharacterBody2D   # 實際型別為 VsPlayer，用 CharacterBody2D 避免循環依賴
+var state_machine: VsStateMachine
+
+func enter(_prev: StringName) -> void: pass
+func exit() -> void: pass
+func physics_update(_delta: float, _input: InputState) -> StringName:
+	return &""

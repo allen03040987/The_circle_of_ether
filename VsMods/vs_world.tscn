@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://bjvn3eofo4fg8"]
+[gd_scene load_steps=14 format=3 uid="uid://bjvn3eofo4fg8"]
 
 [ext_resource type="Texture2D" uid="uid://878xkht3wwdq" path="res://SunnyLand/Layers/tileset.png" id="1_m1ww7"]
 [ext_resource type="Script" path="res://VsMods/vs_world.gd" id="1_y77dn"]
@@ -7,7 +7,6 @@
 [ext_resource type="Texture2D" uid="uid://urkrgu66a4n4" path="res://SunnyLand/Props/shrooms.png" id="4_0heu6"]
 [ext_resource type="Texture2D" uid="uid://dauppo14kbmeh" path="res://SunnyLand/Props/bush.png" id="4_4keyo"]
 [ext_resource type="Texture2D" uid="uid://cutcgunnubhnu" path="res://SunnyLand/Layers/middle.png" id="4_s4whq"]
-[ext_resource type="PackedScene" uid="uid://dwv5katynww7e" path="res://VsMods/ui/BattleHUD.tscn" id="6_db7cr"]
 [ext_resource type="Texture2D" uid="uid://whr5kkq5cpwj" path="res://SunnyLand/Props/straw-house.png" id="6_iu4f4"]
 [ext_resource type="Texture2D" uid="uid://bsqmu8yfcn2e5" path="res://SunnyLand/Props/house.png" id="6_vyegd"]
 [ext_resource type="Script" path="res://VsMods/object/Camera2D.gd" id="7_06elh"]
@@ -544,8 +543,6 @@ centered = false
 position = Vector2(704, -17)
 texture = ExtResource("4_s4whq")
 centered = false
-
-[node name="BattleHUD" parent="." instance=ExtResource("6_db7cr")]
 
 [node name="SpawnPoint_P1" type="Marker2D" parent="."]
 position = Vector2(42, 94)

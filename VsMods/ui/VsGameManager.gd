@@ -1,13 +1,33 @@
 extends Node
+## 跨場景快取：角色選擇、武藝裝備
+## 登錄為 autoload（project.godot）
 
-# ==========================================
-# 💾 跨場景記憶卡：記錄 P1 與 P2 的選擇 (純單機版)
-# ==========================================
+# ── Clotty 武藝池 ────────────────────────────────────────────────────────────
+const CLOTTY_ARTS: Array = [
+	"Art_Clotty_1", "Art_Clotty_2", "Art_Clotty_3",
+	"Art_Clotty_4", "Art_Clotty_5", "Art_Clotty_6",
+]
 
-# 預設選角 (這裡填入你刻羅帝和未來的雙文的場景路徑)
-var p1_character: String = "res://VsMods/Mechl/Mechl.tscn"
-var p2_character: String = "res://VsMods/Mechl/Mechl.tscn" 
+const ART_DISPLAY: Dictionary = {
+	"Art_Clotty_1": "武藝一",
+	"Art_Clotty_2": "武藝二",
+	"Art_Clotty_3": "武藝三",
+	"Art_Clotty_4": "武藝四",
+	"Art_Clotty_5": "武藝五",
+	"Art_Clotty_6": "武藝六",
+	"": "（空）",
+}
 
-# 記錄 P1 和 P2 帶進場的自選技能路徑
-var p1_custom_skill: String = "res://VsMods/skills/universal_skill_heal.tscn"
-var p2_custom_skill: String = "res://VsMods/skills/universal_skill_heal.tscn"
+## 每個空槽位給予的能量回復加成（/s）
+const EMPTY_SLOT_REGEN_BONUS := 5.0
+
+# ── 選擇快取 ──────────────────────────────────────────────────────────────────
+var p1_arts: Array = ["", "", ""]   # 3 槽位，空字串 = 未裝
+var p2_arts: Array = ["", "", ""]
+var selection_confirmed: bool = false
+
+func get_display_name(art_id: String) -> String:
+	return ART_DISPLAY.get(art_id, art_id)
+
+func empty_slots(arts: Array) -> int:
+	return arts.count("")
