@@ -23,7 +23,7 @@ signal connection_error(msg: String)
 
 # ── 設定 ─────────────────────────────────────────────────────────────────────
 ## 本機測試時用 ws://127.0.0.1:8765，部署後換成 wss://你的伺服器
-const SIGNALING_URL := "ws://127.0.0.1:8765"
+const SIGNALING_URL := "wss://the-circle-of-ether-signal.onrender.com"
 const STUN_SERVERS  := [{"urls": ["stun:stun.l.google.com:19302"]}]
 ## 延遲幀數：4 幀 @ 60fps ≈ 67ms，可依網路狀況調整
 const INPUT_DELAY   := 4
@@ -46,6 +46,10 @@ var _room_code        := ""
 var _rtc_available    := false
 var _ws_ready_sent    := false
 var _channel_was_open := false
+var _ws_ever_opened   := false   # 本次連線是否曾達到 STATE_OPEN
+var _ws_connect_timer := 0.0     # WS 連線等待計時（秒）
+var _error_emitted    := false   # 避免同一次連線重複發出錯誤
+const WS_TIMEOUT      := 90.0    # 等待信令伺服器上線的最長秒數（含冷啟動）
 
 # ── 初始化 ────────────────────────────────────────────────────────────────────
 func _ready() -> void:
@@ -53,8 +57,8 @@ func _ready() -> void:
 	if not _rtc_available:
 		push_warning("VsNetworkManager: webrtc-native 未安裝，聯機功能停用。")
 
-func _process(_delta: float) -> void:
-	_poll_ws()
+func _process(delta: float) -> void:
+	_poll_ws(delta)
 	_poll_rtc()
 
 # ── 公開 API ──────────────────────────────────────────────────────────────────
@@ -122,6 +126,9 @@ func _reset() -> void:
 	_remote_inputs.clear()
 	_ws_ready_sent    = false
 	_channel_was_open = false
+	_ws_ever_opened   = false
+	_ws_connect_timer = 0.0
+	_error_emitted    = false
 	_rtc     = null
 	_channel = null
 	_ws.close()
@@ -156,10 +163,20 @@ func _recv_packet(pkt: PackedByteArray) -> void:
 func _ws_connect() -> void:
 	_ws.connect_to_url(SIGNALING_URL)
 
-func _poll_ws() -> void:
+func _poll_ws(delta: float = 0.0) -> void:
 	_ws.poll()
-	match _ws.get_ready_state():
+	var state := _ws.get_ready_state()
+	match state:
+		WebSocketPeer.STATE_CONNECTING:
+			if not _ws_ever_opened and mode != Mode.OFFLINE:
+				_ws_connect_timer += delta
+				if _ws_connect_timer >= WS_TIMEOUT and not _error_emitted:
+					_error_emitted = true
+					_ws.close()
+					connection_error.emit("信令伺服器連線逾時（%.0f秒）\n請確認伺服器是否正常運行" % WS_TIMEOUT)
 		WebSocketPeer.STATE_OPEN:
+			_ws_ever_opened = true
+			_ws_connect_timer = 0.0
 			if not _ws_ready_sent:
 				_ws_ready_sent = true
 				if mode == Mode.HOST:
@@ -172,6 +189,9 @@ func _poll_ws() -> void:
 			if _channel_was_open:
 				_channel_was_open = false
 				disconnected.emit()
+			elif not _ws_ever_opened and mode != Mode.OFFLINE and not _error_emitted:
+				_error_emitted = true
+				connection_error.emit("無法連線到信令伺服器，請確認伺服器是否正常運行")
 
 func _handle_signal(msg) -> void:
 	if not msg:

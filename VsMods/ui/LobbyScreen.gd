@@ -6,14 +6,22 @@ extends Control
 const VIEW_W := 384
 const VIEW_H := 216
 
-var _status_label: Label
-var _code_edit:    LineEdit
+var _status_label:  Label
+var _code_edit:     LineEdit
+var _connect_timer: float = 0.0   # 連線等待計時，用於顯示進度
+var _connecting:    bool  = false
 
 func _ready() -> void:
 	_build_ui()
 	VsNetworkManager.room_created.connect(_on_room_created)
 	VsNetworkManager.connected.connect(_on_connected)
 	VsNetworkManager.connection_error.connect(_on_error)
+
+func _process(delta: float) -> void:
+	if not _connecting:
+		return
+	_connect_timer += delta
+	_status_label.text = "連線中... %.0f 秒\n（伺服器首次喚醒最長需 60 秒）" % _connect_timer
 
 # ── 建立 UI ───────────────────────────────────────────────────────────────────
 func _build_ui() -> void:
@@ -65,7 +73,7 @@ func _on_offline() -> void:
 	get_tree().change_scene_to_file("res://VsMods/ui/SelectScreen.tscn")
 
 func _on_host() -> void:
-	_status("連線中...")
+	_start_connecting()
 	VsNetworkManager.host_game()
 
 func _on_join() -> void:
@@ -73,17 +81,23 @@ func _on_join() -> void:
 	if code.length() != 6:
 		_status("請輸入 6 位房間代碼")
 		return
-	_status("連線中...")
+	_start_connecting()
 	VsNetworkManager.join_game(code)
+
+func _start_connecting() -> void:
+	_connecting    = true
+	_connect_timer = 0.0
 
 func _on_back() -> void:
 	get_tree().change_scene_to_file("res://ui/title_screen.tscn")
 
 # ── VsNetworkManager 信號 ─────────────────────────────────────────────────────
 func _on_room_created(code: String) -> void:
-	_status("房間代碼：%s　等待對方加入..." % code)
+	_connecting = false
+	_status("房間代碼：%s\n把這串代碼傳給對方，等待加入..." % code)
 
 func _on_connected() -> void:
+	_connecting = false
 	_status("已連線！進入遊戲...")
 	# 線上模式：各自用預設空武藝（全空槽 = 最大能量加成），直接對戰
 	VsGameManager.p1_arts = ["", "", ""]
@@ -92,6 +106,7 @@ func _on_connected() -> void:
 	get_tree().change_scene_to_file("res://VsMods/vs_world.tscn")
 
 func _on_error(msg: String) -> void:
+	_connecting = false
 	_status("錯誤：" + msg)
 
 # ── 輔助 ──────────────────────────────────────────────────────────────────────
