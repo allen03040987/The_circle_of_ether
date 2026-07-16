@@ -313,7 +313,7 @@ func _recv_packet(pkt: PackedByteArray) -> void:
 			if _pending_rollback_frame < 0 or frame < _pending_rollback_frame:
 				_pending_rollback_frame = frame
 
-const _CS_FIELDS := ["位置", "速度", "血量/能量", "狀態"]
+const _CS_FIELDS := ["位置", "速度", "血量/能量/回合", "狀態"]
 
 func _compare_checksums(frame: int, local_cs: Array, remote_cs: Array) -> void:
 	var diffs: Array[String] = []

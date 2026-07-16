@@ -235,17 +235,23 @@ func _area_rect(area: Area2D) -> Rect2:
 	var size: Vector2 = (cs.shape as RectangleShape2D).size
 	return Rect2(cs.global_transform.origin - size * 0.5, size)
 
-## 回傳 [cs_位置, cs_速度, cs_血量能量, cs_狀態] 四個獨立雜湊
+## 回傳 [cs_位置, cs_速度, cs_血量能量回合, cs_狀態] 四個獨立雜湊
 func _compute_checksums() -> Array:
 	if not p1 or not p2:
 		return [0, 0, 0, 0]
+	var rm_state := round_manager.save_state() if round_manager else {}
 	return [
 		_fnv([roundi(p1.position.x*100), roundi(p1.position.y*100),
 			  roundi(p2.position.x*100), roundi(p2.position.y*100)]),
 		_fnv([roundi(p1.velocity.x*100), roundi(p1.velocity.y*100),
 			  roundi(p2.velocity.x*100), roundi(p2.velocity.y*100)]),
+		# 把回合管理器狀態也一起雜湊，讓回合轉換時的分叉能立即被偵測到
 		_fnv([roundi(p1.hp), roundi(p1.energy*10),
-			  roundi(p2.hp), roundi(p2.energy*10)]),
+			  roundi(p2.hp), roundi(p2.energy*10),
+			  rm_state.get("phase", 0) as int,
+			  roundi(rm_state.get("timer", 0.0) as float * 100),
+			  rm_state.get("p1w", 0) as int,
+			  rm_state.get("p2w", 0) as int]),
 		(str(p1.state_machine.current_state_name) + "," +
 		 str(p2.state_machine.current_state_name)).hash() & 0xFFFFFFFF,
 	]

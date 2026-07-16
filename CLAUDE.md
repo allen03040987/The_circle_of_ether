@@ -57,20 +57,36 @@ Scene flow: `title_screen.gd` → `VsMods/ui/LobbyScreen.tscn` (離線/主機/�
 
 `VsNetworkManager` (autoload) drives frame-locked synchronization:
 
-- **`tick(local_input) -> Array`** — always returns `[p1_input, p2_input]`, never stalls. If confirmed remote input for the current frame hasn't arrived yet, predicts using `_last_remote_input` (last confirmed remote frame) and records the prediction in `_predicted_remote[frame]`.
-- **`_recv_packet()`** — when confirmed remote input arrives, compares against `_predicted_remote[frame]` if present; if they differ, sets `_pending_rollback_frame` to the earliest mismatched frame.
-- Public API for `vs_world`: `needs_rollback()`, `consume_rollback_frame() -> int`, `get_game_frame() -> int`, `get_confirmed_remote_input(frame) -> InputState`.
+- **`tick(local_input) -> Array`** — normally returns `[p1_input, p2_input]`, never stalls. Returns `[]` (empty) during the match-sync waiting phase (see below). If confirmed remote input for the current frame hasn't arrived yet, predicts using `_last_remote_input` (last confirmed remote frame) and records the prediction in `_predicted_remote[frame]`. Predictions are kept until confirmed input arrives — do NOT add early-erase logic here, that was the root cause of a previous "silent permanent desync" bug.
+- **`_recv_packet()`** — handles three packet sizes: 4-byte forfeit (`0xFFFFFFFF`), 7-byte sync packet (no checksum, signals the remote has entered vs_world), 23-byte normal game packet. When confirmed remote input arrives and differs from a stored prediction, sets `_pending_rollback_frame` to the earliest mismatched frame.
+- **`_match_seq`** (1 byte, 0–255) — incremented by `reset_for_match()` each new match. Packets with wrong seq are silently discarded, preventing stale DataChannel-buffered packets from a previous match from polluting the new one.
+- **Match-sync waiting** — `reset_for_match()` sets `_waiting_for_sync = true`. While true, `tick()` sends a 7-byte sync packet every 10 physics ticks (~6/s) and returns `[]` so vs_world skips simulation entirely. `_waiting_for_sync` clears when the first valid packet from the remote arrives. This guarantees both sides start from frame 0 simultaneously even if one side entered vs_world much earlier.
+- Public API for `vs_world`: `needs_rollback()`, `consume_rollback_frame() -> int`, `get_game_frame() -> int`, `get_confirmed_remote_input(frame) -> InputState`, `get_prediction_depth() -> int` (prediction depth in frames ≈ one-way latency; displayed as ms in BattleHUD).
 
 `vs_world.gd` owns rollback execution:
 
-- Every frame: saves snapshot `_frame_states[frame] = {p1_state, p2_state, round_manager_state, inp1, inp2}` before simulating. Keeps only the last `MAX_ROLLBACK_FRAMES = 10` frames.
+- Every frame: saves snapshot `_frame_states[frame] = {p1_state, p2_state, round_manager_state, inp1, inp2}` before simulating. Keeps only the last `MAX_ROLLBACK_FRAMES = 20` frames.
 - When `needs_rollback()`: `_do_rollback(from_frame, cur_frame, cur_inputs)` — restores the nearest snapshot at or before `from_frame`, re-simulates each frame using `get_confirmed_remote_input()` to override stored remote predictions, then simulates the current frame.
 - **`is_resimulating`** flag — set `true` during re-simulation so `_on_round_ended`/`_on_round_started`/`_on_match_ended` signal handlers skip HUD updates.
 - After rollback completes, `sync_anim_to_state()` on both players re-syncs `AnimationPlayer` to the restored state.
+- **Hit detection** — done exclusively by `_manual_check()` in `_check_manual_hits()`, never via Area2D overlap signals (which don't fire during re-simulation). `VsHitbox.has_hit` is saved in every snapshot to prevent a hit from being re-applied when rollback re-runs the same attack window.
+- **Checksums** — `_compute_checksums()` hashes position, velocity, hp/energy/round-manager-state, and player state names into 4 independent u32 values sent with every packet. Divergence is logged as `⚠ DESYNC frame N: 欄位` and shown in BattleHUD. Desync alone does NOT kick players; only exceeding the rollback window triggers `_on_hard_desync()`.
 
-**Known limitation:** Godot's `Area2D` overlap detection doesn't update within a single `_physics_process` call, so hitbox collisions are not re-detected during re-simulation. Hit outcomes are reconstructed from the `pending_hit` dict stored in snapshots. Positions and velocity are always correct; in rare rollback edge-cases, HP from a hit that changes timing may briefly diverge.
+**Signaling server** (`server/signaling_server.py`) — deployed at `wss://the-circle-of-ether-signal.onrender.com` (Render.com free tier, `server/requirements.txt` in subdirectory — Render Build Command must be `pip install -r server/requirements.txt`). Do **not** use `websockets ≥ 14.x` type annotations (`WebSocketServerProtocol` was removed). The `"arts"` message type is relay-only (server passes it through unchanged like `"offer"`/`"answer"`/`"ice"`). Room code is currently **1 character** (set in `_new_code()` with `k=1`) for easier testing; change `k` to restore longer codes for production.
 
-**Signaling server** (`server/signaling_server.py`) — deployed at `wss://the-circle-of-ether-signal.onrender.com` (Render.com free tier, `server/requirements.txt` in subdirectory — Render Build Command must be `pip install -r server/requirements.txt`). Do **not** use `websockets ≥ 14.x` type annotations (`WebSocketServerProtocol` was removed). The `"arts"` message type is relay-only (server passes it through unchanged like `"offer"`/`"answer"`/`"ice"`).
+### VsMods rollback 確定性規則
+
+Rollback netcode 的正確性完全依賴「兩端從相同初始狀態 + 相同輸入序列，必定算出完全相同的結果」。任何非確定性行為都會造成無法修復的 desync。**在 `_simulate_frame` 的呼叫鏈內（包含 VsState、VsPlayer、VsRoundManager 的所有邏輯），嚴禁以下用法：**
+
+| 禁止 | 原因 |
+|---|---|
+| `randf()` / `randi()` / `RandomNumberGenerator` 未共享種子 | 兩端產生不同亂數序列 |
+| `Time.get_ticks_msec()` / `Time.get_unix_time_from_system()` | 兩台機器的真實時間不同 |
+| `get_physics_process_delta_time()` / `Engine.get_physics_interpolation_fraction()` | 實際物理幀時間會因機器效能而漂移 |
+| `Engine.time_scale` 影響的 `Timer` 節點 | VsMods 不用 `Engine.time_scale`，但若未來改動要特別注意 |
+| Area2D 的 `body_entered` / `area_entered` 信號 | 信號在 `_physics_process` 內不會因幀內幾何計算而觸發，rollback 中間幀偵測不到 |
+
+**正確做法：** 所有模擬邏輯用傳入的 `delta`（在 vs_world 中永遠是 `PHYS_DELTA = 1.0 / 60.0`）驅動。若未來需要亂數（例如角色特技的隨機效果），必須使用兩端共享的固定種子 `RandomNumberGenerator`，種子通過輸入或封包傳遞，不可各自獨立初始化。
 
 ### Combat/hit detection — two separate implementations
 
