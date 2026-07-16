@@ -46,10 +46,10 @@ func _build_ui() -> void:
 
 	# 加入行：代碼輸入 + 按鈕並排
 	var edit := LineEdit.new()
-	edit.placeholder_text = "6位房間代碼"
+	edit.placeholder_text = "1位房間代碼"
 	edit.position  = Vector2(bx - 4, by)
 	edit.size      = Vector2(84, 18)
-	edit.max_length = 6
+	edit.max_length = 1
 	edit.add_theme_font_size_override("font_size", 10)
 	add_child(edit)
 	_code_edit = edit
@@ -86,8 +86,8 @@ func _on_host() -> void:
 
 func _on_join() -> void:
 	var code: String = _code_edit.text.strip_edges().to_upper()
-	if code.length() != 6:
-		_status("請輸入 6 位房間代碼")
+	if code.length() != 1:
+		_status("請輸入 1 位房間代碼")
 		return
 	_start_connecting()
 	VsNetworkManager.join_game(code)
