@@ -8,8 +8,13 @@ const AIR_SPEED  := 130.0   # px/s（空中）
 const FRICTION   := 900.0   # px/s²（地面減速）
 const JUMP_FORCE := -420.0  # px/s（負號朝上）
 
+## 確定性地面判定：讀 VsPlayer.grounded（隨快照保存），不用 is_on_floor()——
+## 後者只反映最後一次真正的 move_and_slide，快照還原後是過期值 → rollback desync
+func _grounded() -> bool:
+	return (player as VsPlayer).grounded
+
 func _apply_gravity(delta: float) -> void:
-	if not player.is_on_floor():
+	if not _grounded():
 		player.velocity.y += GRAVITY * delta
 
 func _apply_ground_move(delta: float, input: InputState) -> void:

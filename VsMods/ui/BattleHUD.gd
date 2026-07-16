@@ -6,7 +6,8 @@ extends CanvasLayer
 # ── 尺寸常數（對應 384×216 基底解析度）──────────────────────────────────────
 const BAR_W   := 150
 const HP_H    := 8
-const EN_H    := 5
+const EN_H    := 4   # 武藝能量條高度
+const DASH_H  := 3   # 衝刺能量條高度
 const BAR_GAP := 2
 const MARGIN  := 5
 const VIEW_W  := 384
@@ -20,7 +21,8 @@ const C_BG     := Color(0.08, 0.08, 0.08, 0.88)
 const C_BORDER := Color(0.35, 0.35, 0.35, 1.0)
 const C_HP     := Color(0.95, 0.95, 0.95, 1.0)
 const C_HP_LOW := Color(0.95, 0.25, 0.25, 1.0)
-const C_ENERGY := Color(1.0,  0.85, 0.1,  1.0)
+const C_ENERGY := Color(1.0,  0.85, 0.1,  1.0)   # 武藝能量（金色）
+const C_DASH   := Color(0.3,  0.85, 1.0,  1.0)   # 衝刺能量（青色）
 const C_DOT_ON := Color(1.0,  1.0,  1.0,  1.0)
 const C_DOT_OFF:= Color(0.25, 0.25, 0.25, 1.0)
 
@@ -29,10 +31,12 @@ var _p1: VsPlayer
 var _p2: VsPlayer
 
 # ── 血條 / 能量條 ─────────────────────────────────────────────────────────────
-var _p1_hp: ColorRect
-var _p1_en: ColorRect
-var _p2_hp: ColorRect
-var _p2_en: ColorRect
+var _p1_hp:   ColorRect
+var _p1_en:   ColorRect   # 武藝能量（金色）
+var _p1_dash: ColorRect   # 衝刺能量（青色）
+var _p2_hp:   ColorRect
+var _p2_en:   ColorRect
+var _p2_dash: ColorRect
 
 # ── 勝場點 ────────────────────────────────────────────────────────────────────
 var _p1_dots: Array = []   # Array[ColorRect]
@@ -55,10 +59,12 @@ func init(player1: VsPlayer, player2: VsPlayer) -> void:
 func _process(_delta: float) -> void:
 	if not _p1 or not _p2:
 		return
-	_set_bar(_p1_hp, _p1.hp,     _p1.max_hp,     true)
-	_set_bar(_p1_en, _p1.energy, _p1.max_energy, true)
-	_set_bar(_p2_hp, _p2.hp,     _p2.max_hp,     false)
-	_set_bar(_p2_en, _p2.energy, _p2.max_energy, false)
+	_set_bar(_p1_hp,   _p1.hp,          _p1.max_hp,          true)
+	_set_bar(_p1_en,   _p1.arts_energy, _p1.max_arts_energy, true)
+	_set_bar(_p1_dash, _p1.dash_energy, _p1.max_dash_energy, true)
+	_set_bar(_p2_hp,   _p2.hp,          _p2.max_hp,          false)
+	_set_bar(_p2_en,   _p2.arts_energy, _p2.max_arts_energy, false)
+	_set_bar(_p2_dash, _p2.dash_energy, _p2.max_dash_energy, false)
 
 	var r1 := _p1.hp / _p1.max_hp if _p1.max_hp > 0.0 else 0.0
 	var r2 := _p2.hp / _p2.max_hp if _p2.max_hp > 0.0 else 0.0
@@ -113,17 +119,20 @@ func _build_ui() -> void:
 	var lx := MARGIN
 	var rx := VIEW_W - MARGIN - BAR_W
 	var y0 := MARGIN
-	var y1 := y0 + HP_H + BAR_GAP
+	var y1 := y0 + HP_H + BAR_GAP         # 武藝能量條 y
+	var y2 := y1 + EN_H + BAR_GAP         # 衝刺能量條 y
 
-	# 血條 / 能量條
-	_p1_hp = _make_bar(root, lx, y0, BAR_W, HP_H, C_HP)
-	_p1_en = _make_bar(root, lx, y1, BAR_W, EN_H, C_ENERGY)
-	_p2_hp = _make_bar(root, rx, y0, BAR_W, HP_H, C_HP)
-	_p2_en = _make_bar(root, rx, y1, BAR_W, EN_H, C_ENERGY)
+	# 血條 / 武藝能量條 / 衝刺能量條
+	_p1_hp   = _make_bar(root, lx, y0, BAR_W, HP_H,  C_HP)
+	_p1_en   = _make_bar(root, lx, y1, BAR_W, EN_H,  C_ENERGY)
+	_p1_dash = _make_bar(root, lx, y2, BAR_W, DASH_H, C_DASH)
+	_p2_hp   = _make_bar(root, rx, y0, BAR_W, HP_H,  C_HP)
+	_p2_en   = _make_bar(root, rx, y1, BAR_W, EN_H,  C_ENERGY)
+	_p2_dash = _make_bar(root, rx, y2, BAR_W, DASH_H, C_DASH)
 
 	# 玩家標籤
-	_make_label(root, "P1", lx,              y1 + EN_H + 2, 8)
-	_make_label(root, "P2", rx + BAR_W - 14, y1 + EN_H + 2, 8)
+	_make_label(root, "P1", lx,              y2 + DASH_H + 2, 8)
+	_make_label(root, "P2", rx + BAR_W - 14, y2 + DASH_H + 2, 8)
 
 	# 勝場指示點（中央上方）
 	var cx     := VIEW_W / 2

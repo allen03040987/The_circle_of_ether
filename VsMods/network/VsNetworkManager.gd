@@ -21,6 +21,7 @@ signal disconnected()
 signal connection_error(msg: String)
 signal remote_arts_received(arts: Array)  # 收到對方的武藝選擇
 signal desync_detected(frame: int, fields: Array)  # 兩端 checksum 不符，fields = 分叉欄位名稱清單
+signal sync_lost()                   # checksum 連續不符超過閾值 → 狀態已永久分歧，本場作廢
 signal opponent_forfeited()          # 對方主動放棄或無法回滾
 
 # ── 設定 ─────────────────────────────────────────────────────────────────────
@@ -29,8 +30,13 @@ const SIGNALING_URL := "wss://the-circle-of-ether-signal.onrender.com"
 const STUN_SERVERS  := [{"urls": ["stun:stun.l.google.com:19302"]}]
 ## 延遲幀數：4 幀 @ 60fps ≈ 67ms，可依網路狀況調整
 const INPUT_DELAY          := 4
+## 每個封包夾帶最近幾幀輸入（冗餘）。DataChannel 不重傳，單發封包遺失會讓
+## 該幀輸入永遠無法確認 → 永久 desync；冗餘讓連續 N-1 個封包遺失都能恢復。
+const INPUT_REDUNDANCY     := 10
 ## rollback 最多回溯幾幀（超過此距離的 mismatch 忽略，避免狀態爆炸）
 const MAX_ROLLBACK_FRAMES  := 20
+## checksum 連續不符幾次視為永久分歧（每 tick 比對一次 ≈ 2 秒）
+const CS_FAIL_LIMIT        := 120
 
 # ── 狀態 ─────────────────────────────────────────────────────────────────────
 enum Mode { OFFLINE, HOST, CLIENT }
@@ -49,8 +55,11 @@ var _pending_rollback_frame: int = -1  # -1 = 無需 rollback
 var _match_seq: int = 0   # 場次序號（0-255 循環）；封包帶著它，收到不同序號的就丟棄
 
 # ── Checksum 驗證（確定性偵測）───────────────────────────────────────────────
-var _local_checksums:  Dictionary = {}  # frame → int（本機算出的狀態雜湊）
-var _remote_checksums: Dictionary = {}  # frame → int（對方傳來、尚未比對的雜湊）
+## 只登記「已 settled」的幀（雙方都用確認輸入模擬過、不會再被 rollback 改寫），
+## 避免拿預測狀態的過時雜湊比對而誤報 DESYNC。settled 幀由 vs_world 決定。
+var _local_checksums:  Dictionary = {}  # frame → Array[int]（本機 settled 幀雜湊）
+var _remote_checksums: Dictionary = {}  # frame → Array[int]（對方傳來、尚未比對）
+var _cs_fail_streak:   int = 0          # 連續比對失敗次數（歸零於任一次全符合）
 
 var _ws               := WebSocketPeer.new()
 var _rtc:    Object   = null   # WebRTCPeerConnection（plugin 才有）
@@ -113,8 +122,9 @@ func join_game(code: String) -> void:
 	_ws_connect()
 
 ## 每個物理幀呼叫一次，永不 stall。
-## checksums：[cs_pos, cs_vel, cs_hp, cs_state] 四個獨立雜湊，用於確定性偵測。
-func tick(local_input: InputState, checksums: Array = []) -> Array:
+## cs_frame / checksums：vs_world 傳入「已 settled 幀」的編號與四個獨立雜湊
+## （[cs_pos, cs_vel, cs_hp, cs_state]），-1 = 本幀無可比對的 settled 雜湊。
+func tick(local_input: InputState, cs_frame: int = -1, checksums: Array = []) -> Array:
 	var bytes := local_input.to_bytes()
 
 	# 同步等待期：兩側都進入 vs_world 才開始跑幀。
@@ -122,36 +132,39 @@ func tick(local_input: InputState, checksums: Array = []) -> Array:
 	# 讓對方知道我們已準備好，同時不推進 _game_frame / _send_frame。
 	# 每 10 tick 才送一次，避免在對方剛進 vs_world 時製造 burst 而引起卡頓。
 	if _waiting_for_sync and mode != Mode.OFFLINE:
-		_local_inputs[0] = bytes
+		# 等待期：不帶真實輸入（frame 0..INPUT_DELAY-1 統一用預填 [0,0]，兩端完全對齊）
 		_sync_tick_counter += 1
 		if _sync_tick_counter % 10 == 0 and _channel and _channel.get_ready_state() == 1:
 			var sync_pkt := PackedByteArray()
 			sync_pkt.resize(7)
 			sync_pkt[0] = _match_seq & 0xFF
 			sync_pkt.encode_u32(1, 0)
-			sync_pkt[5] = bytes[0]
-			sync_pkt[6] = bytes[1]
+			sync_pkt[5] = 0   # ← 固定 [0,0]，不送真實輸入
+			sync_pkt[6] = 0
 			_channel.put_packet(sync_pkt)
 		return []   # 空陣列 → vs_world._physics_process 當幀提前返回，不模擬
 
 	var exec  := _game_frame
 	_local_inputs[_send_frame] = bytes
-	_send_packet(_send_frame, bytes, checksums)
+	_send_packet(_send_frame, cs_frame, checksums)
 	_send_frame += 1
 
 	var EMPTY := PackedByteArray([0, 0])
-	var li    := InputState.from_bytes(_local_inputs.get(exec, EMPTY))
+	var li:   InputState
 	var ri:   InputState
 
 	if mode == Mode.OFFLINE:
+		# 離線不需輸入延遲：直接用傳入的當幀輸入，無額外 lag
+		li = local_input
 		ri = InputState.from_input(2 if local_player_id == 1 else 1)
 	else:
-		# Checksum：存本幀雜湊，若對方的已先到就比對
-		if not checksums.is_empty():
-			_local_checksums[exec] = checksums
-			if _remote_checksums.has(exec):
-				_compare_checksums(exec, checksums, _remote_checksums[exec])
-				_remote_checksums.erase(exec)
+		li = InputState.from_bytes(_local_inputs.get(exec, EMPTY))
+		# Checksum：登記 settled 幀雜湊，若對方的已先到就比對
+		if cs_frame >= 0 and not checksums.is_empty():
+			_local_checksums[cs_frame] = checksums
+			if _remote_checksums.has(cs_frame):
+				_compare_checksums(cs_frame, checksums, _remote_checksums[cs_frame])
+				_remote_checksums.erase(cs_frame)
 
 		if exec in _remote_inputs:
 			_last_remote_input = _remote_inputs[exec]
@@ -164,7 +177,8 @@ func tick(local_input: InputState, checksums: Array = []) -> Array:
 	# 只清 checksum（記憶體有限）；_predicted_remote 不在這裡清，
 	# 讓它存到 _recv_packet() 收到確認封包時才清——
 	# 確保晚到封包（> MAX_ROLLBACK_FRAMES 幀）也能比對出 mismatch 並觸發 rollback/hard desync
-	_local_checksums.erase(exec - MAX_ROLLBACK_FRAMES)
+	_local_checksums.erase(exec - 3 * MAX_ROLLBACK_FRAMES)
+	_remote_checksums.erase(exec - 3 * MAX_ROLLBACK_FRAMES)
 
 	return [li, ri] if local_player_id == 1 else [ri, li]
 
@@ -175,7 +189,15 @@ func needs_rollback() -> bool:
 func consume_rollback_frame() -> int:
 	var f := _pending_rollback_frame
 	_pending_rollback_frame = -1
+	# 記錄近期 rollback（診斷用）：[回溯起點, 執行當下的 game_frame]
+	_recent_rollbacks.append([f, _game_frame])
+	if _recent_rollbacks.size() > 8:
+		_recent_rollbacks.pop_front()
 	return f
+
+var _recent_rollbacks: Array = []
+func get_recent_rollbacks() -> Array:
+	return _recent_rollbacks
 
 func get_game_frame() -> int:
 	return _game_frame
@@ -186,6 +208,17 @@ func get_prediction_depth() -> int:
 	if mode == Mode.OFFLINE or _last_confirmed_remote_frame < 0:
 		return 0
 	return maxi(0, _game_frame - _last_confirmed_remote_frame - 1)
+
+## 回傳目前已 settled 的最新幀（雙方都用確認輸入模擬過、不會再被 rollback 改寫）
+## = min(已確認遠端輸入的最新幀, 待處理 rollback 起點-1, 已模擬的最新幀)
+## -1 = 尚無 settled 幀（離線模式、或開場還沒收到任何確認輸入）
+func get_settled_frame() -> int:
+	if mode == Mode.OFFLINE or _last_confirmed_remote_frame < 0:
+		return -1
+	var s := _last_confirmed_remote_frame
+	if _pending_rollback_frame >= 0:
+		s = mini(s, _pending_rollback_frame - 1)
+	return mini(s, _game_frame - 1)
 
 ## 重模擬用：取得第 frame 幀對方的確認輸入（還沒收到則回傳 null）
 func get_confirmed_remote_input(frame: int) -> InputState:
@@ -199,8 +232,10 @@ func get_confirmed_remote_input(frame: int) -> InputState:
 func reset_for_match() -> void:
 	_match_seq = (_match_seq + 1) & 0xFF  # 遞增場次序號（0-255 循環），讓舊封包失效
 	_game_frame = 0
-	_send_frame = 0
+	_send_frame = INPUT_DELAY   # ← 輸入延遲：從 INPUT_DELAY 幀開始收集真實輸入
 	_local_inputs.clear()
+	for i in INPUT_DELAY:
+		_local_inputs[i] = PackedByteArray([0, 0])  # frame 0..INPUT_DELAY-1 預填空輸入
 	_remote_inputs.clear()
 	_predicted_remote.clear()
 	_pending_rollback_frame      = -1
@@ -208,14 +243,18 @@ func reset_for_match() -> void:
 	_last_confirmed_remote_frame = -1
 	_local_checksums.clear()
 	_remote_checksums.clear()
+	_cs_fail_streak = 0
+	_recent_rollbacks.clear()
 	# 線上模式：等兩側都進入 vs_world 才開始跑幀（避免幀偏移永久 desync）
 	_waiting_for_sync  = (mode != Mode.OFFLINE)
 	_sync_tick_counter = 0
 
 func _reset() -> void:
 	_game_frame = 0
-	_send_frame = 0
+	_send_frame = INPUT_DELAY   # ← 輸入延遲：從 INPUT_DELAY 幀開始收集真實輸入
 	_local_inputs.clear()
+	for i in INPUT_DELAY:
+		_local_inputs[i] = PackedByteArray([0, 0])  # frame 0..INPUT_DELAY-1 預填空輸入
 	_remote_inputs.clear()
 	_ws_ready_sent    = false
 	_channel_was_open = false
@@ -229,6 +268,8 @@ func _reset() -> void:
 	_pending_rollback_frame      = -1
 	_local_checksums.clear()
 	_remote_checksums.clear()
+	_cs_fail_streak = 0
+	_recent_rollbacks.clear()
 	# 先正確關閉再清除，確保 GDExtension 完整清理底層資源
 	if _channel and _channel.has_method("close"):
 		_channel.close()
@@ -247,18 +288,27 @@ func send_forfeit() -> void:
 		return
 	_channel.put_packet(PackedByteArray([0xFF, 0xFF, 0xFF, 0xFF]))
 
-## 封包格式：[u8 seq][u32 frame][u8 in0][u8 in1][u32 cs×4] = 23 bytes
-func _send_packet(frame: int, bytes: PackedByteArray, checksums: Array) -> void:
+## 封包格式（可變長，最小 28 bytes）：
+## [u8 seq][u32 frame][u8 n][n×2 bytes 輸入（新→舊：frame, frame-1, ...）]
+## [u32 cs_frame（0xFFFFFFFF=無）][u32 cs×4]
+## 夾帶最近 n ≤ INPUT_REDUNDANCY 幀輸入冗餘 → 連續 n-1 個封包遺失仍可恢復
+func _send_packet(frame: int, cs_frame: int, checksums: Array) -> void:
 	if not _channel or _channel.get_ready_state() != 1:   # 1 = STATE_OPEN
 		return
+	var n := mini(INPUT_REDUNDANCY, frame + 1)
 	var pkt := PackedByteArray()
-	pkt.resize(23)
+	pkt.resize(6 + 2 * n + 20)
 	pkt[0] = _match_seq & 0xFF           # 場次序號（防舊場封包污染新場）
 	pkt.encode_u32(1, frame)
-	pkt[5] = bytes[0]
-	pkt[6] = bytes[1]
+	pkt[5] = n
+	for i in n:
+		var b: PackedByteArray = _local_inputs.get(frame - i, PackedByteArray([0, 0]))
+		pkt[6 + 2 * i]     = b[0]
+		pkt[6 + 2 * i + 1] = b[1]
+	var off := 6 + 2 * n
+	pkt.encode_u32(off, cs_frame if cs_frame >= 0 else 0xFFFFFFFF)
 	for i in 4:
-		pkt.encode_u32(7 + i * 4, checksums[i] if i < checksums.size() else 0)
+		pkt.encode_u32(off + 4 + i * 4, checksums[i] if i < checksums.size() else 0)
 	_channel.put_packet(pkt)
 
 func _recv_packet(pkt: PackedByteArray) -> void:
@@ -270,17 +320,13 @@ func _recv_packet(pkt: PackedByteArray) -> void:
 	if pkt.size() == 7:
 		if pkt[0] != (_match_seq & 0xFF):
 			return
-		var frame := pkt.decode_u32(1)
-		var confirmed: PackedByteArray = pkt.slice(5, 7)
-		_remote_inputs[frame] = confirmed
-		if frame > _last_confirmed_remote_frame:
-			_last_confirmed_remote_frame = frame
-			_last_remote_input = confirmed
+		# 只作「已就緒」訊號，不儲存 input。
+		# frame 0..INPUT_DELAY-1 由兩端各自預填 [0,0]，無需封包傳遞。
 		if _waiting_for_sync:
 			_waiting_for_sync = false   # 對方已就緒，可以開跑了
 		return
-	# 正常遊戲封包（23 bytes）
-	if pkt.size() < 23:
+	# 正常遊戲封包（可變長，最小 28 bytes）
+	if pkt.size() < 28:
 		return
 	# 場次序號不符 → 上一場遺留的舊封包，直接丟棄
 	if pkt[0] != (_match_seq & 0xFF):
@@ -288,30 +334,45 @@ func _recv_packet(pkt: PackedByteArray) -> void:
 	# 收到有效遊戲封包也視為對方已就緒（處理同步封包丟失的邊緣情況）
 	if _waiting_for_sync:
 		_waiting_for_sync = false
-	var frame      := pkt.decode_u32(1)
-	var confirmed: PackedByteArray = pkt.slice(5, 7)
-	var remote_cs  := [
-		pkt.decode_u32(7),  pkt.decode_u32(11),
-		pkt.decode_u32(15), pkt.decode_u32(19),
-	]
+	var frame := pkt.decode_u32(1)
+	var n     := int(pkt[5])
+	if n < 1 or pkt.size() < 6 + 2 * n + 20:
+		return   # 格式不符（截斷或損毀）
 
-	_remote_inputs[frame] = confirmed
+	# 冗餘輸入：由舊到新掃描（i = n-1 → 0），確保 rollback 起點取到最早的 mismatch
+	for i in range(n - 1, -1, -1):
+		var f := frame - i
+		if f < 0 or _remote_inputs.has(f):
+			continue   # 已確認過的幀不重複處理（冗餘封包大多重疊）
+		var confirmed: PackedByteArray = pkt.slice(6 + 2 * i, 8 + 2 * i)
+		_remote_inputs[f] = confirmed
+		# Rollback 偵測：若此幀曾用預測值模擬，且確認值不同 → 需要回溯
+		if f in _predicted_remote:
+			var predicted: PackedByteArray = _predicted_remote[f]
+			_predicted_remote.erase(f)
+			if predicted != confirmed:
+				if _pending_rollback_frame < 0 or f < _pending_rollback_frame:
+					_pending_rollback_frame = f
+
 	# 更新預測基準：只往前推，舊封包不蓋掉較新的已知狀態
 	if frame > _last_confirmed_remote_frame:
 		_last_confirmed_remote_frame = frame
-		_last_remote_input = confirmed
-	# Checksum 比對：本機已算出才能比，否則暫存等 tick() 來比
-	if _local_checksums.has(frame):
-		_compare_checksums(frame, _local_checksums[frame], remote_cs)
-	else:
-		_remote_checksums[frame] = remote_cs
-	# Rollback 偵測：若此幀曾用預測值模擬，且確認值不同 → 需要回溯
-	if frame in _predicted_remote:
-		var predicted: PackedByteArray = _predicted_remote[frame]
-		_predicted_remote.erase(frame)
-		if predicted != confirmed:
-			if _pending_rollback_frame < 0 or frame < _pending_rollback_frame:
-				_pending_rollback_frame = frame
+		_last_remote_input = _remote_inputs[frame]
+
+	# Checksum：封包帶的是對方「已 settled 幀」的雜湊，附明確幀號
+	var off        := 6 + 2 * n
+	var cs_frame_u := pkt.decode_u32(off)
+	if cs_frame_u != 0xFFFFFFFF:
+		var cs_frame  := int(cs_frame_u)
+		var remote_cs := [
+			pkt.decode_u32(off + 4),  pkt.decode_u32(off + 8),
+			pkt.decode_u32(off + 12), pkt.decode_u32(off + 16),
+		]
+		if _local_checksums.has(cs_frame):
+			_compare_checksums(cs_frame, _local_checksums[cs_frame], remote_cs)
+			_remote_checksums.erase(cs_frame)
+		else:
+			_remote_checksums[cs_frame] = remote_cs   # 本機還沒 settled，暫存等 tick() 比
 
 const _CS_FIELDS := ["位置", "速度", "血量/能量/回合", "狀態"]
 
@@ -320,9 +381,15 @@ func _compare_checksums(frame: int, local_cs: Array, remote_cs: Array) -> void:
 	for i in 4:
 		if local_cs[i] != remote_cs[i]:
 			diffs.append(_CS_FIELDS[i])
-	if not diffs.is_empty():
-		push_warning("⚠ DESYNC frame %d: %s" % [frame, ", ".join(diffs)])
-		desync_detected.emit(frame, diffs)
+	if diffs.is_empty():
+		_cs_fail_streak = 0
+		return
+	_cs_fail_streak += 1
+	push_warning("⚠ DESYNC frame %d: %s（連續第 %d 次）" % [frame, ", ".join(diffs), _cs_fail_streak])
+	desync_detected.emit(frame, diffs)
+	# settled 幀不該分歧；連續分歧 = 狀態已永久發散，繼續打只會兩邊各玩各的
+	if _cs_fail_streak == CS_FAIL_LIMIT:
+		sync_lost.emit()
 
 # ── 內部：WebSocket 信令 ──────────────────────────────────────────────────────
 func _ws_connect() -> void:

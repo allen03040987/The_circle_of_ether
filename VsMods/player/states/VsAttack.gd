@@ -113,7 +113,7 @@ func physics_update(delta: float, input: InputState) -> StringName:
 			vs.hitbox.reset_hits()
 
 	# 地面慣性衰減（攻擊期間不接受移動輸入）
-	if player.is_on_floor():
+	if _grounded():
 		player.velocity.x = move_toward(player.velocity.x, 0.0, FRICTION * 0.5 * delta)
 	else:
 		_apply_gravity(delta)
@@ -127,7 +127,7 @@ func physics_update(delta: float, input: InputState) -> StringName:
 			return &""
 		else:
 			combo_step = 1
-			return &"vsidle" if player.is_on_floor() else &"vsfall"
+			return &"vsidle" if _grounded() else &"vsfall"
 
 	return &""
 

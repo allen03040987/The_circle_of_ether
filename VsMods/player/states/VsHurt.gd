@@ -18,7 +18,7 @@ func physics_update(delta: float, input: InputState) -> StringName:
 	player.velocity.x = move_toward(player.velocity.x, 0.0, FRICTION * 1.5 * delta)
 	_apply_gravity(delta)
 	if elapsed >= hitstun_time:
-		return &"vsidle" if player.is_on_floor() else &"vsfall"
+		return &"vsidle" if _grounded() else &"vsfall"
 	return &""
 
 func exit() -> void:

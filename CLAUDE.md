@@ -57,8 +57,11 @@ Scene flow: `title_screen.gd` → `VsMods/ui/LobbyScreen.tscn` (離線/主機/�
 
 `VsNetworkManager` (autoload) drives frame-locked synchronization:
 
-- **`tick(local_input) -> Array`** — normally returns `[p1_input, p2_input]`, never stalls. Returns `[]` (empty) during the match-sync waiting phase (see below). If confirmed remote input for the current frame hasn't arrived yet, predicts using `_last_remote_input` (last confirmed remote frame) and records the prediction in `_predicted_remote[frame]`. Predictions are kept until confirmed input arrives — do NOT add early-erase logic here, that was the root cause of a previous "silent permanent desync" bug.
-- **`_recv_packet()`** — handles three packet sizes: 4-byte forfeit (`0xFFFFFFFF`), 7-byte sync packet (no checksum, signals the remote has entered vs_world), 23-byte normal game packet. When confirmed remote input arrives and differs from a stored prediction, sets `_pending_rollback_frame` to the earliest mismatched frame.
+- **Input delay** — `INPUT_DELAY = 4` is actually applied: `_send_frame` starts at `INPUT_DELAY` while `_game_frame` starts at 0, and frames `0..INPUT_DELAY-1` are pre-filled with empty input `[0,0]` on both sides (in `reset_for_match()`/`_reset()`). This means local input collected on tick N executes on frame N+4, giving remote packets ~67ms head start and cutting prediction depth accordingly. OFFLINE mode bypasses the delay entirely (uses the raw current-tick input).
+- **`tick(local_input, cs_frame, checksums) -> Array`** — normally returns `[p1_input, p2_input]`, never stalls. Returns `[]` (empty) during the match-sync waiting phase (see below). If confirmed remote input for the current frame hasn't arrived yet, predicts using `_last_remote_input` (last confirmed remote frame) and records the prediction in `_predicted_remote[frame]`. Predictions are kept until confirmed input arrives — do NOT add early-erase logic here, that was the root cause of a previous "silent permanent desync" bug.
+- **Input redundancy** — the DataChannel is unordered/no-retransmit, so a lost packet would otherwise leave that frame's remote input permanently unconfirmed (= permanent silent desync; this was a real bug). Every game packet therefore carries the last `INPUT_REDUNDANCY = 10` frames of input (newest→oldest). `_recv_packet` scans them oldest→newest, storing any not-yet-confirmed frame and setting `_pending_rollback_frame` to the earliest mismatch.
+- **`_recv_packet()`** — handles three packet kinds: 4-byte forfeit (`0xFFFFFFFF`), 7-byte sync packet (ready-signal only, carries no real input), and variable-length game packet (min 28 bytes): `[u8 seq][u32 frame][u8 n][n×2B inputs][u32 cs_frame][4×u32 cs]`.
+- **Checksums are "settled-frame only"** — comparing checksums of frames simulated with *predicted* input would produce false DESYNC reports, so `vs_world` keeps `_cs_history[frame]` (recorded in `_save_snapshot`, auto-corrected during rollback re-simulation) and each tick sends only the checksum of `VsNetworkManager.get_settled_frame()` (= min(last confirmed remote frame, pending-rollback-start − 1, last simulated frame)), tagged with its explicit frame number. `CS_FAIL_LIMIT = 120` consecutive mismatches (~2s) emits `sync_lost` → both sides independently abort the match to the lobby instead of silently playing divergent realities.
 - **`_match_seq`** (1 byte, 0–255) — incremented by `reset_for_match()` each new match. Packets with wrong seq are silently discarded, preventing stale DataChannel-buffered packets from a previous match from polluting the new one.
 - **Match-sync waiting** — `reset_for_match()` sets `_waiting_for_sync = true`. While true, `tick()` sends a 7-byte sync packet every 10 physics ticks (~6/s) and returns `[]` so vs_world skips simulation entirely. `_waiting_for_sync` clears when the first valid packet from the remote arrives. This guarantees both sides start from frame 0 simultaneously even if one side entered vs_world much earlier.
 - Public API for `vs_world`: `needs_rollback()`, `consume_rollback_frame() -> int`, `get_game_frame() -> int`, `get_confirmed_remote_input(frame) -> InputState`, `get_prediction_depth() -> int` (prediction depth in frames ≈ one-way latency; displayed as ms in BattleHUD).
@@ -85,8 +88,34 @@ Rollback netcode 的正確性完全依賴「兩端從相同初始狀態 + 相同
 | `get_physics_process_delta_time()` / `Engine.get_physics_interpolation_fraction()` | 實際物理幀時間會因機器效能而漂移 |
 | `Engine.time_scale` 影響的 `Timer` 節點 | VsMods 不用 `Engine.time_scale`，但若未來改動要特別注意 |
 | Area2D 的 `body_entered` / `area_entered` 信號 | 信號在 `_physics_process` 內不會因幀內幾何計算而觸發，rollback 中間幀偵測不到 |
+| `move_and_slide()` / `is_on_floor()` | `move_and_slide` 內部有「上一幀是否在地面」的隱藏記憶（地面吸附用），快照還原無法還原它 → 重模擬的移動結果與直跑不同（實測：一邊多施一次重力，y 永久分歧）。移動一律走 `VsPlayer._move_deterministic()`（無狀態的 `move_and_collide` + 顯式 motion 向量）；地面判定一律讀 `VsPlayer.grounded`（`test_move` 純位置查詢、隨快照保存），states 透過 `VsPlayerState._grounded()` 讀取 |
+| `global_position` / `global_transform` | scene tree 的 transform 快取在 rollback 重模擬中不保證更新。模擬邏輯一律用 `position`（vs_world 直屬子節點兩者等值）；hitbox 來源方向用 `VsHitbox.owner_player.position` |
 
 **正確做法：** 所有模擬邏輯用傳入的 `delta`（在 vs_world 中永遠是 `PHYS_DELTA = 1.0 / 60.0`）驅動。若未來需要亂數（例如角色特技的隨機效果），必須使用兩端共享的固定種子 `RandomNumberGenerator`，種子通過輸入或封包傳遞，不可各自獨立初始化。
+
+### VsMods InputState (`VsMods/network/InputState.gd`)
+
+2 bytes 序列化，所有欄位如下：
+
+| 欄位 | 型別 | 說明 |
+|---|---|---|
+| `move_dir` | float | −1.0 左 / 0.0 中立 / 1.0 右 |
+| `is_crouch` | bool | 蹲下 |
+| `jump` | bool | just_pressed |
+| `attack` | bool | 普攻 just_pressed |
+| `skill` | bool | 技能 just_pressed |
+| `art_1/2/3` | bool | 武藝 1/2/3 just_pressed |
+| `dodge` | bool | 閃避 just_pressed |
+| `guard` | bool | 防禦 pressed（長按） |
+
+**P1 操作特殊**：普攻/技能 = 無修飾左/右鍵；武藝 = E（`martial_modifier`）+ 左/右/中鍵。P2 純鍵盤，無修飾鍵。
+
+### VsMods 攻擊系統目前狀態（Phase 4）
+
+- **地面普攻** — `VsAttack.gd` 完整實作 5 段連技（資料表驅動，`COMBO_DATA[1..5]`），動畫在 `_ensure_animations_registered()` 首次 `enter()` 時注入 AnimationPlayer。`combo_step` 在 `exit()` 才重置；直接用 `enter()` 重入繞過防重入鎖以繼續連段。
+- **空中普攻** — 尚未實作。素材 `player/Katana/air_A.png` 存在。計畫在 VsAttack 加 `is_grounded` 判斷分支，或拆出獨立 `VsAirAttack` 狀態。
+- **技能（`input.skill`）** — 尚未實作，目前所有狀態的 `physics_update` 均忽略此輸入。
+- **武藝（`input.art_1/2/3`）** — 尚未實作效果。`VsPlayer.art_slots: Array[String]` 儲存玩家選擇的 3 個武藝名稱（由 `vs_world` 從 `VsGameManager.p1_arts/p2_arts` 注入）；`apply_arts_bonus()` 目前只處理空槽加成。武藝名稱字串即武藝 class name，效果實作時需自行 lookup。
 
 ### Combat/hit detection — two separate implementations
 

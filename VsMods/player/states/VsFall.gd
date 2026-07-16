@@ -12,10 +12,10 @@ func physics_update(delta: float, input: InputState) -> StringName:
 	_apply_air_move(input)
 
 	var vs := player as VsPlayer
-	if input.dodge and vs.use_energy(15.0):
+	if input.dodge and vs.use_dash_energy(30.0):
 		return &"vsdodge"
 
-	if player.is_on_floor():
+	if _grounded():
 		if input.move_dir != 0.0:
 			return &"vsrun"
 		return &"vsidle"

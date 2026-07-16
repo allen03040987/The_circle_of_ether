@@ -11,13 +11,13 @@ func physics_update(delta: float, input: InputState) -> StringName:
 	_apply_gravity(delta)
 	_apply_ground_move(delta, input)
 
-	if not player.is_on_floor():
+	if not _grounded():
 		return &"vsfall"
 
 	var vs := player as VsPlayer
 	if input.attack:
 		return &"vsattack"
-	if input.dodge and vs.use_energy(15.0):
+	if input.dodge and vs.use_dash_energy(30.0):
 		return &"vsdodge"
 	if input.guard:
 		return &"vsguard"

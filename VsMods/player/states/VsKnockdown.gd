@@ -24,7 +24,7 @@ func sync_anim() -> void:
 
 func physics_update(delta: float, input: InputState) -> StringName:
 	elapsed += delta
-	if player.is_on_floor():
+	if _grounded():
 		player.velocity.x = move_toward(player.velocity.x, 0.0, FRICTION * delta)
 		player.velocity.y = 0.0
 	else:
