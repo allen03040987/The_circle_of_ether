@@ -10,18 +10,13 @@ extends Area2D
 @export var guard_break: bool = false        # 是否能打破防禦狀態
 
 var hit_targets: Dictionary = {}
+## rollback 安全旗標：此段攻擊是否已命中過（儲存於快照，還原後不會意外重複觸發）
+var has_hit: bool = false
 
-func _ready() -> void:
-	area_entered.connect(_on_area_entered)
-
-func _on_area_entered(area: Area2D) -> void:
-	if not (area is VsHurtbox): return
-	if hit_targets.has(area): return
-	if not is_instance_valid(area.owner): return
-	if area.owner == self.owner: return
-	hit_targets[area] = true
-	area.receive_hit(self)
+## 打擊偵測統一由 vs_world._simulate_frame() 內的幾何計算驅動，
+## 不使用 Area2D 信號（信號有一幀延遲，導致兩端命中時機不同 → HP desync）
 
 ## 換招時呼叫，清除已命中記錄以允許再次判定
 func reset_hits() -> void:
 	hit_targets.clear()
+	has_hit = false

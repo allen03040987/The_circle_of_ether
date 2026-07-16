@@ -144,11 +144,14 @@ func _kill_hitbox(vs: VsPlayer) -> void:
 		_hitbox_active = false
 
 func save_state() -> Dictionary:
+	var vs := player as VsPlayer
 	return {
 		"step":    combo_step,
 		"elapsed": elapsed,
 		"buf":     attack_buffered,
 		"hb":      _hitbox_active,
+		# has_hit 隨快照保存：rollback 還原後不會因 hit_targets 被清而重複命中
+		"hh":      vs.hitbox.has_hit if is_instance_valid(vs) else false,
 	}
 
 func restore_state(d: Dictionary) -> void:
@@ -159,6 +162,7 @@ func restore_state(d: Dictionary) -> void:
 	var vs := player as VsPlayer
 	if is_instance_valid(vs):
 		vs.hitbox.monitoring = _hitbox_active
+		vs.hitbox.has_hit    = d.get("hh", false)
 
 func sync_anim() -> void:
 	var vs := player as VsPlayer

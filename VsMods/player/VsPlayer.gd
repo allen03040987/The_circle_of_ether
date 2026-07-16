@@ -69,8 +69,21 @@ func apply_input(delta: float, input: InputState) -> void:
 	_tick_invincibility(delta)
 	_apply_pending_hit()
 	state_machine.physics_update(delta, input)
-	move_and_slide()
+	_move_deterministic(delta)
 	graphics.scale.x = facing_dir
+
+## move_and_slide() 內部用 get_physics_process_delta_time()（真實時間），
+## 兩台機器真實 delta 略有差距會造成位置累積偏移 → rollback 後仍 desync。
+## 解法：移動前把 velocity 縮放，使 move_and_slide() 算出的位移 = velocity × sim_delta。
+func _move_deterministic(sim_delta: float) -> void:
+	var real_dt := get_physics_process_delta_time()
+	if real_dt > 0.00001 and absf(real_dt - sim_delta) > 0.00001:
+		var scale := sim_delta / real_dt
+		velocity *= scale
+		move_and_slide()
+		velocity /= scale
+	else:
+		move_and_slide()
 
 # ── 能量 ─────────────────────────────────────────────────────────────────────
 func use_energy(amount: float) -> bool:

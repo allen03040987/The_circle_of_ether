@@ -40,6 +40,7 @@ var _p2_dots: Array = []
 
 # ── 文字 ──────────────────────────────────────────────────────────────────────
 var _result_label: Label   # 回合結果（平時隱藏）
+var _ping_label:   Label   # 網路延遲顯示（離線時隱藏）
 
 # ── 初始化 ────────────────────────────────────────────────────────────────────
 func _ready() -> void:
@@ -63,6 +64,11 @@ func _process(_delta: float) -> void:
 	var r2 := _p2.hp / _p2.max_hp if _p2.max_hp > 0.0 else 0.0
 	_p1_hp.color = C_HP_LOW if r1 < 0.25 else C_HP
 	_p2_hp.color = C_HP_LOW if r2 < 0.25 else C_HP
+
+	# 延遲顯示：讀取預測深度，換算為 ms（60fps → 每幀 ≈ 16.67ms）
+	if _ping_label.visible:
+		var depth := VsNetworkManager.get_prediction_depth()
+		_ping_label.text = "延遲 ~%dms" % int(depth * 1000.0 / 60.0) if depth > 0 else "延遲 <17ms"
 
 func _set_bar(fill: ColorRect, cur: float, max_val: float, ltr: bool) -> void:
 	var w := int(BAR_W * clampf(cur / max_val, 0.0, 1.0)) if max_val > 0.0 else 0
@@ -145,6 +151,16 @@ func _build_ui() -> void:
 	_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_result_label.add_theme_font_size_override("font_size", 14)
 	root.add_child(_result_label)
+
+	# 網路延遲標籤（螢幕底部中央，離線模式自動隱藏）
+	_ping_label          = Label.new()
+	_ping_label.position = Vector2(0, VIEW_H - 11)
+	_ping_label.size     = Vector2(VIEW_W, 10)
+	_ping_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_ping_label.add_theme_font_size_override("font_size", 7)
+	_ping_label.modulate = Color(1, 1, 1, 0.55)
+	_ping_label.visible  = (VsNetworkManager.mode != VsNetworkManager.Mode.OFFLINE)
+	root.add_child(_ping_label)
 
 # ── 私有輔助 ──────────────────────────────────────────────────────────────────
 func _make_bar(parent: Control, x: int, y: int, w: int, h: int, color: Color) -> ColorRect:

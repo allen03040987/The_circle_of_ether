@@ -20,7 +20,8 @@ signal connected()                    # 雙方資料通道開啟，可以開始�
 signal disconnected()
 signal connection_error(msg: String)
 signal remote_arts_received(arts: Array)  # 收到對方的武藝選擇
-signal desync_detected(frame: int)   # 兩端 checksum 不符（確定性 bug）
+signal desync_detected(frame: int, fields: Array)  # 兩端 checksum 不符，fields = 分叉欄位名稱清單
+signal opponent_forfeited()          # 對方主動放棄或無法回滾
 
 # ── 設定 ─────────────────────────────────────────────────────────────────────
 ## 本機測試時用 ws://127.0.0.1:8765，部署後換成 wss://你的伺服器
@@ -29,7 +30,7 @@ const STUN_SERVERS  := [{"urls": ["stun:stun.l.google.com:19302"]}]
 ## 延遲幀數：4 幀 @ 60fps ≈ 67ms，可依網路狀況調整
 const INPUT_DELAY          := 4
 ## rollback 最多回溯幾幀（超過此距離的 mismatch 忽略，避免狀態爆炸）
-const MAX_ROLLBACK_FRAMES  := 10
+const MAX_ROLLBACK_FRAMES  := 20
 
 # ── 狀態 ─────────────────────────────────────────────────────────────────────
 enum Mode { OFFLINE, HOST, CLIENT }
@@ -45,6 +46,7 @@ var _predicted_remote: Dictionary = {} # frame → predicted bytes（等候確�
 var _last_remote_input: PackedByteArray = PackedByteArray([0, 0])
 var _last_confirmed_remote_frame: int = -1  # 已收到確認輸入的最新幀號
 var _pending_rollback_frame: int = -1  # -1 = 無需 rollback
+var _match_seq: int = 0   # 場次序號（0-255 循環）；封包帶著它，收到不同序號的就丟棄
 
 # ── Checksum 驗證（確定性偵測）───────────────────────────────────────────────
 var _local_checksums:  Dictionary = {}  # frame → int（本機算出的狀態雜湊）
@@ -58,9 +60,17 @@ var _rtc_available    := false
 var _ws_ready_sent    := false
 var _channel_was_open := false
 var _ws_ever_opened   := false   # 本次連線是否曾達到 STATE_OPEN
-var _ws_connect_timer := 0.0     # WS 連線等待計時（秒）
+var _ws_connect_timer := 0.0     # 自首次嘗試起的總等待時間（秒）
+var _ws_retry_timer   := 0.0     # 離上次重試的間隔計時
 var _error_emitted    := false   # 避免同一次連線重複發出錯誤
 const WS_TIMEOUT      := 90.0    # 等待信令伺服器上線的最長秒數（含冷啟動）
+const WS_RETRY_INTERVAL := 4.0   # 502 重試間隔（秒）
+
+## 場次同步：兩側都已進入 vs_world 才開始跑幀 0。
+## 避免一方進 vs_world 早，跑了幾百幀後另一方才進入、
+## 導致對方的幀 0~N 封包因 seq 不符已全數丟棄，永遠無法確認 → 持續預測誤差。
+var _waiting_for_sync:   bool = false
+var _sync_tick_counter:  int  = 0   # 限制同步封包發送頻率，避免進 vs_world 瞬間 burst
 
 # ── 初始化 ────────────────────────────────────────────────────────────────────
 func _ready() -> void:
@@ -103,12 +113,30 @@ func join_game(code: String) -> void:
 	_ws_connect()
 
 ## 每個物理幀呼叫一次，永不 stall。
-## checksum：vs_world 在模擬本幀前算好的狀態雜湊，用於確定性偵測。
-func tick(local_input: InputState, checksum: int = 0) -> Array:
-	var exec  := _game_frame
+## checksums：[cs_pos, cs_vel, cs_hp, cs_state] 四個獨立雜湊，用於確定性偵測。
+func tick(local_input: InputState, checksums: Array = []) -> Array:
 	var bytes := local_input.to_bytes()
+
+	# 同步等待期：兩側都進入 vs_world 才開始跑幀。
+	# 送出 7-byte 同步封包（格式：[u8 seq][u32 frame=0][u8 in0][u8 in1]，無 checksum）
+	# 讓對方知道我們已準備好，同時不推進 _game_frame / _send_frame。
+	# 每 10 tick 才送一次，避免在對方剛進 vs_world 時製造 burst 而引起卡頓。
+	if _waiting_for_sync and mode != Mode.OFFLINE:
+		_local_inputs[0] = bytes
+		_sync_tick_counter += 1
+		if _sync_tick_counter % 10 == 0 and _channel and _channel.get_ready_state() == 1:
+			var sync_pkt := PackedByteArray()
+			sync_pkt.resize(7)
+			sync_pkt[0] = _match_seq & 0xFF
+			sync_pkt.encode_u32(1, 0)
+			sync_pkt[5] = bytes[0]
+			sync_pkt[6] = bytes[1]
+			_channel.put_packet(sync_pkt)
+		return []   # 空陣列 → vs_world._physics_process 當幀提前返回，不模擬
+
+	var exec  := _game_frame
 	_local_inputs[_send_frame] = bytes
-	_send_packet(_send_frame, bytes, checksum)
+	_send_packet(_send_frame, bytes, checksums)
 	_send_frame += 1
 
 	var EMPTY := PackedByteArray([0, 0])
@@ -119,10 +147,11 @@ func tick(local_input: InputState, checksum: int = 0) -> Array:
 		ri = InputState.from_input(2 if local_player_id == 1 else 1)
 	else:
 		# Checksum：存本幀雜湊，若對方的已先到就比對
-		_local_checksums[exec] = checksum
-		if _remote_checksums.has(exec):
-			_compare_checksums(exec, checksum, _remote_checksums[exec])
-			_remote_checksums.erase(exec)
+		if not checksums.is_empty():
+			_local_checksums[exec] = checksums
+			if _remote_checksums.has(exec):
+				_compare_checksums(exec, checksums, _remote_checksums[exec])
+				_remote_checksums.erase(exec)
 
 		if exec in _remote_inputs:
 			_last_remote_input = _remote_inputs[exec]
@@ -132,10 +161,10 @@ func tick(local_input: InputState, checksum: int = 0) -> Array:
 		ri = InputState.from_bytes(_last_remote_input)
 
 	_game_frame += 1
-	# 清除超出 rollback 視窗的舊紀錄
-	var prune := exec - MAX_ROLLBACK_FRAMES
-	_predicted_remote.erase(prune)
-	_local_checksums.erase(prune)
+	# 只清 checksum（記憶體有限）；_predicted_remote 不在這裡清，
+	# 讓它存到 _recv_packet() 收到確認封包時才清——
+	# 確保晚到封包（> MAX_ROLLBACK_FRAMES 幀）也能比對出 mismatch 並觸發 rollback/hard desync
+	_local_checksums.erase(exec - MAX_ROLLBACK_FRAMES)
 
 	return [li, ri] if local_player_id == 1 else [ri, li]
 
@@ -151,6 +180,13 @@ func consume_rollback_frame() -> int:
 func get_game_frame() -> int:
 	return _game_frame
 
+## 回傳目前預測深度（幀數）≈ 單向網路延遲 / 16.67ms。
+## 值 = _game_frame 領先最後一個已確認遠端幀的幀數；0 = 無延遲。
+func get_prediction_depth() -> int:
+	if mode == Mode.OFFLINE or _last_confirmed_remote_frame < 0:
+		return 0
+	return maxi(0, _game_frame - _last_confirmed_remote_frame - 1)
+
 ## 重模擬用：取得第 frame 幀對方的確認輸入（還沒收到則回傳 null）
 func get_confirmed_remote_input(frame: int) -> InputState:
 	if not frame in _remote_inputs:
@@ -158,6 +194,24 @@ func get_confirmed_remote_input(frame: int) -> InputState:
 	return InputState.from_bytes(_remote_inputs[frame])
 
 # ── 內部：幀管理 ──────────────────────────────────────────────────────────────
+## 每場對局開始時呼叫（保留 WebRTC/WS 連線，只清幀計數與輸入緩衝）
+## _reset() 會重置整個連線狀態；此方法用於同一連線的第二場以後
+func reset_for_match() -> void:
+	_match_seq = (_match_seq + 1) & 0xFF  # 遞增場次序號（0-255 循環），讓舊封包失效
+	_game_frame = 0
+	_send_frame = 0
+	_local_inputs.clear()
+	_remote_inputs.clear()
+	_predicted_remote.clear()
+	_pending_rollback_frame      = -1
+	_last_remote_input           = PackedByteArray([0, 0])
+	_last_confirmed_remote_frame = -1
+	_local_checksums.clear()
+	_remote_checksums.clear()
+	# 線上模式：等兩側都進入 vs_world 才開始跑幀（避免幀偏移永久 desync）
+	_waiting_for_sync  = (mode != Mode.OFFLINE)
+	_sync_tick_counter = 0
+
 func _reset() -> void:
 	_game_frame = 0
 	_send_frame = 0
@@ -167,6 +221,7 @@ func _reset() -> void:
 	_channel_was_open = false
 	_ws_ever_opened      = false
 	_ws_connect_timer    = 0.0
+	_ws_retry_timer      = 0.0
 	_error_emitted       = false
 	_predicted_remote.clear()
 	_last_remote_input           = PackedByteArray([0, 0])
@@ -174,30 +229,71 @@ func _reset() -> void:
 	_pending_rollback_frame      = -1
 	_local_checksums.clear()
 	_remote_checksums.clear()
+	# 先正確關閉再清除，確保 GDExtension 完整清理底層資源
+	if _channel and _channel.has_method("close"):
+		_channel.close()
+	if _rtc and _rtc.has_method("close"):
+		_rtc.close()
 	_rtc     = null
 	_channel = null
 	_ws.close()
 	_ws = WebSocketPeer.new()
 
 # ── 內部：封包 ────────────────────────────────────────────────────────────────
-## 封包格式：[u32 frame][u8 in0][u8 in1][u32 checksum] = 10 bytes
-func _send_packet(frame: int, bytes: PackedByteArray, checksum: int) -> void:
+## 告知對方「我放棄/我要離開」，對方顯示獲勝並返回大廳
+## 封包格式：[0xFF 0xFF 0xFF 0xFF]（frame 全 1，與正常封包的 10 bytes 大小不同，靠 size 區分）
+func send_forfeit() -> void:
+	if not _channel or _channel.get_ready_state() != 1:
+		return
+	_channel.put_packet(PackedByteArray([0xFF, 0xFF, 0xFF, 0xFF]))
+
+## 封包格式：[u8 seq][u32 frame][u8 in0][u8 in1][u32 cs×4] = 23 bytes
+func _send_packet(frame: int, bytes: PackedByteArray, checksums: Array) -> void:
 	if not _channel or _channel.get_ready_state() != 1:   # 1 = STATE_OPEN
 		return
 	var pkt := PackedByteArray()
-	pkt.resize(10)
-	pkt.encode_u32(0, frame)
-	pkt[4] = bytes[0]
-	pkt[5] = bytes[1]
-	pkt.encode_u32(6, checksum & 0xFFFFFFFF)
+	pkt.resize(23)
+	pkt[0] = _match_seq & 0xFF           # 場次序號（防舊場封包污染新場）
+	pkt.encode_u32(1, frame)
+	pkt[5] = bytes[0]
+	pkt[6] = bytes[1]
+	for i in 4:
+		pkt.encode_u32(7 + i * 4, checksums[i] if i < checksums.size() else 0)
 	_channel.put_packet(pkt)
 
 func _recv_packet(pkt: PackedByteArray) -> void:
-	if pkt.size() < 10:
+	# 放棄封包（4 bytes，全 0xFF）
+	if pkt.size() == 4 and pkt.decode_u32(0) == 0xFFFFFFFF:
+		opponent_forfeited.emit()
 		return
-	var frame      := pkt.decode_u32(0)
-	var confirmed: PackedByteArray = pkt.slice(4, 6)
-	var remote_cs  := pkt.decode_u32(6)
+	# 同步封包（7 bytes）：對方確認已進入本場 vs_world
+	if pkt.size() == 7:
+		if pkt[0] != (_match_seq & 0xFF):
+			return
+		var frame := pkt.decode_u32(1)
+		var confirmed: PackedByteArray = pkt.slice(5, 7)
+		_remote_inputs[frame] = confirmed
+		if frame > _last_confirmed_remote_frame:
+			_last_confirmed_remote_frame = frame
+			_last_remote_input = confirmed
+		if _waiting_for_sync:
+			_waiting_for_sync = false   # 對方已就緒，可以開跑了
+		return
+	# 正常遊戲封包（23 bytes）
+	if pkt.size() < 23:
+		return
+	# 場次序號不符 → 上一場遺留的舊封包，直接丟棄
+	if pkt[0] != (_match_seq & 0xFF):
+		return
+	# 收到有效遊戲封包也視為對方已就緒（處理同步封包丟失的邊緣情況）
+	if _waiting_for_sync:
+		_waiting_for_sync = false
+	var frame      := pkt.decode_u32(1)
+	var confirmed: PackedByteArray = pkt.slice(5, 7)
+	var remote_cs  := [
+		pkt.decode_u32(7),  pkt.decode_u32(11),
+		pkt.decode_u32(15), pkt.decode_u32(19),
+	]
 
 	_remote_inputs[frame] = confirmed
 	# 更新預測基準：只往前推，舊封包不蓋掉較新的已知狀態
@@ -217,13 +313,22 @@ func _recv_packet(pkt: PackedByteArray) -> void:
 			if _pending_rollback_frame < 0 or frame < _pending_rollback_frame:
 				_pending_rollback_frame = frame
 
-func _compare_checksums(frame: int, local_cs: int, remote_cs: int) -> void:
-	if local_cs != remote_cs:
-		push_warning("⚠ DESYNC frame %d | local=0x%08X remote=0x%08X" % [frame, local_cs, remote_cs])
-		desync_detected.emit(frame)
+const _CS_FIELDS := ["位置", "速度", "血量/能量", "狀態"]
+
+func _compare_checksums(frame: int, local_cs: Array, remote_cs: Array) -> void:
+	var diffs: Array[String] = []
+	for i in 4:
+		if local_cs[i] != remote_cs[i]:
+			diffs.append(_CS_FIELDS[i])
+	if not diffs.is_empty():
+		push_warning("⚠ DESYNC frame %d: %s" % [frame, ", ".join(diffs)])
+		desync_detected.emit(frame, diffs)
 
 # ── 內部：WebSocket 信令 ──────────────────────────────────────────────────────
 func _ws_connect() -> void:
+	# STATE_CLOSED 後 WebSocketPeer 不可重用，每次重試都需重建
+	_ws = WebSocketPeer.new()
+	_ws_ready_sent = false
 	_ws.connect_to_url(SIGNALING_URL)
 
 func _poll_ws(delta: float = 0.0) -> void:
@@ -232,7 +337,7 @@ func _poll_ws(delta: float = 0.0) -> void:
 	match state:
 		WebSocketPeer.STATE_CONNECTING:
 			if not _ws_ever_opened and mode != Mode.OFFLINE:
-				_ws_connect_timer += delta
+				_ws_connect_timer += delta   # 與 STATE_CLOSED 重試時共用同一個計時器
 				if _ws_connect_timer >= WS_TIMEOUT and not _error_emitted:
 					_error_emitted = true
 					_ws.close()
@@ -249,12 +354,23 @@ func _poll_ws(delta: float = 0.0) -> void:
 			while _ws.get_available_packet_count() > 0:
 				_handle_signal(JSON.parse_string(_ws.get_packet().get_string_from_utf8()))
 		WebSocketPeer.STATE_CLOSED:
-			if _channel_was_open:
+			# WebSocket 是信令通道；WebRTC DataChannel 才是遊戲通道。
+			# 只有 DataChannel 也不在線時才算真正斷線，避免 Render.com 閒置關 WS
+			# 導致 _channel_was_open 被誤設成 false → connected/disconnected 每幀輪流觸發。
+			if _channel_was_open and (not _channel or _channel.get_ready_state() != 1):
 				_channel_was_open = false
 				disconnected.emit()
 			elif not _ws_ever_opened and mode != Mode.OFFLINE and not _error_emitted:
-				_error_emitted = true
-				connection_error.emit("無法連線到信令伺服器，請確認伺服器是否正常運行")
+				# 可能是 Render 冷啟動 502 → 在 WS_TIMEOUT 內定時重試
+				_ws_connect_timer += delta
+				if _ws_connect_timer >= WS_TIMEOUT:
+					_error_emitted = true
+					connection_error.emit("信令伺服器連線逾時（%.0f秒），請稍後再試" % WS_TIMEOUT)
+				else:
+					_ws_retry_timer += delta
+					if _ws_retry_timer >= WS_RETRY_INTERVAL:
+						_ws_retry_timer = 0.0
+						_ws_connect()   # 重建 WebSocket 並重試握手
 
 func _handle_signal(msg) -> void:
 	if not msg:

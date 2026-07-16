@@ -12,7 +12,7 @@ rooms: dict = {}
 def _new_code() -> str:
     chars = string.ascii_uppercase + string.digits
     while True:
-        code = "".join(random.choices(chars, k=6))
+        code = "".join(random.choices(chars, k=1))
         if code not in rooms:
             return code
 
