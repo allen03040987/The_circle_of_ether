@@ -12,8 +12,8 @@ func sync_anim() -> void:
 	(player as VsPlayer).anim_player.play("idle")
 
 func physics_update(delta: float, input: InputState) -> StringName:
-	# 防禦期間原地不動
-	player.velocity.x = move_toward(player.velocity.x, 0.0, FRICTION * delta)
+	# 防禦期間原地不動（規則：原地無法移動——直接歸零，不滑行）
+	player.velocity.x = 0.0
 	if not _grounded():
 		_apply_gravity(delta)
 	# 衝刺可打斷防禦（優先級高）

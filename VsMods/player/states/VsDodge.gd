@@ -31,6 +31,7 @@ func physics_update(delta: float, _input: InputState) -> StringName:
 	player.velocity.y    = 0.0   # 衝刺期間不受重力影響
 	if elapsed >= DODGE_DURATION:
 		_completed = true
+		player.velocity.x = 0.0   # 衝刺結束直接停下，不滑行
 		return &"vsidle" if _grounded() else &"vsfall"
 	return &""
 

@@ -30,12 +30,16 @@ var facing_dir:  int = 1    # 1 = 右, -1 = 左
 ## 更新，隨快照保存還原。所有模擬邏輯一律讀 grounded（VsPlayerState._grounded()），
 ## 嚴禁 is_on_floor()——它依賴 move_and_slide 的內部記憶，rollback 下不可靠。
 var grounded:    bool = true
+## 連段窗口旗標：由攻擊動畫的 `.:can_combo` 軌道開關（主遊戲同款做法），
+## 程式碼不要直接排程它——時間點去動畫軌道上調。VsAttack 的 enter/exit 會歸零。
+var can_combo:   bool = false
 
 # ── 戰鬥 ─────────────────────────────────────────────────────────────────────
 var invincible_time_left:  float      = 0.0   # 剩餘無敵秒數（以 delta 遞減）
 var post_dash_armor_left:  float      = 0.0   # 衝刺後強霸體倒計（秒）
 var pending_hit:           Dictionary = {}    # 本幀設定，下幀處理（空 = 無）
 var queued_hitstun:        float      = 0.4   # VsHurt.enter() 讀取的硬直時長
+var queued_knockdown:      bool       = false # 落地屬性（y=0）：VsHurt 硬直完進倒地
 var last_input:            InputState         # 當幀輸入備份（供 enter() 讀取方向）
 
 # ── 節點 ─────────────────────────────────────────────────────────────────────
@@ -43,7 +47,11 @@ var last_input:            InputState         # 當幀輸入備份（供 enter()
 @onready var anim_player:  AnimationPlayer = $AnimationPlayer
 @onready var graphics:     Node2D          = $Graphics
 @onready var hurtbox:      VsHurtbox       = $Graphics/VsHurtbox
-var hitbox: VsHitbox  # 由 _ready() 程式碼建立
+## Graphics 下所有 VsHitbox（每招一顆：HitboxA1~A5...，大小/位置/傷害數值都在
+## 編輯器節點上調），開關由各攻擊動畫的 monitoring 軌道驅動，_ready() 收集
+var hitboxes: Array[VsHitbox] = []
+## 對手參照（由 vs_world._spawn_players 注入）——回到 idle 自動面向對方用
+var opponent: VsPlayer = null
 
 # 脫戰計時器：用 float + 模擬 delta，不用 Timer 節點（Timer 用真實時間，rollback 下會飄）
 const OUT_OF_COMBAT_DELAY := 2.0
@@ -54,32 +62,15 @@ func _ready() -> void:
 	hp          = max_hp
 	arts_energy = max_arts_energy
 	dash_energy = max_dash_energy
-	_build_hitbox()
-	_register_attack_state()
+	# MANUAL 模式在運行時才切（rollback 需要：動畫由 apply_input 以模擬 delta 推進）。
+	# 不寫死在 tscn——編輯器預覽在 MANUAL 模式下不會推進，動畫面板會壞掉不能播
+	anim_player.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	for c in graphics.get_children():
+		if c is VsHitbox:
+			c.owner_player = self   # 受擊方向計算用（模擬資料，不依賴 scene tree transform）
+			hitboxes.append(c)
 	state_machine.init(self, &"vsidle")
 	hurtbox.hurt.connect(_on_hurtbox_hurt)
-
-func _build_hitbox() -> void:
-	var hb := VsHitbox.new()
-	hb.name = "VsHitbox"
-	hb.owner_player = self   # 受擊方向計算用（模擬資料，不依賴 scene tree transform）
-	hb.position = Vector2(30, -20)
-	hb.collision_layer = 1024
-	hb.collision_mask  = 512
-	hb.monitoring      = false
-	var cs := CollisionShape2D.new()
-	var rs := RectangleShape2D.new()
-	rs.size    = Vector2(30, 24)
-	cs.shape   = rs
-	hb.add_child(cs)
-	graphics.add_child(hb)
-	hitbox = hb
-
-func _register_attack_state() -> void:
-	var va := VsAttack.new()
-	va.name = "VsAttack"
-	state_machine.add_child(va)
-	state_machine.states[&"vsattack"] = va
 
 # ── 主更新（由 vs_world 每幀呼叫）────────────────────────────────────────────
 func apply_input(delta: float, input: InputState) -> void:
@@ -87,6 +78,11 @@ func apply_input(delta: float, input: InputState) -> void:
 	_update_energy_regen(delta)
 	_tick_invincibility(delta)
 	_apply_pending_hit()
+	# 動畫用模擬 delta 手動推進（AnimationPlayer 是 MANUAL 模式）——
+	# 攻擊動畫的 can_combo / hitbox monitoring 軌道值因此是模擬時間的純函數，
+	# rollback 重模擬每幀都會重跑軌道，兩端保證一致。放在狀態更新之前，
+	# 讓「動畫時間」與各狀態的 elapsed 對齊（enter 播動畫的下一幀兩者同為 1 delta）
+	anim_player.advance(delta)
 	state_machine.physics_update(delta, input)
 	_move_deterministic(delta)
 	graphics.scale.x = facing_dir
@@ -234,16 +230,24 @@ func _apply_pending_hit() -> void:
 	queued_hitstun = hit["hitstun_time"]
 	mark_in_combat()
 
+	# 落地規則分流：
+	#   落地屬性 + y<0 擊退 → 擊飛（忽略硬直，落地那一刻直接進倒地）
+	#   落地屬性 + y=0 擊退 → 正常硬直，硬直結束後進倒地（queued_knockdown）
+	#   無落地屬性          → 正常硬直
 	var cur := state_machine.current_state
-	if hit["causes_knockdown"]:
-		if cur is VsKnockdown:
-			cur.enter(&"vsknockdown")
+	var kb: Vector2 = hit["knockback"]
+	if hit["causes_knockdown"] and kb.y < 0.0:
+		if cur is VsLaunched:
+			cur.enter(&"vslaunched")   # 空中再次被擊飛（juggle）：重入刷新
 		else:
-			state_machine.transition_to(&"vsknockdown")
+			state_machine.transition_to(&"vslaunched")
+	elif cur is VsKnockdown or cur is VsLaunched:
+		pass  # 倒地（OTG）/擊飛中被普通攻擊打到：只吃傷害與擊退速度，不改變狀態
 	else:
+		queued_knockdown = hit["causes_knockdown"]
 		if cur is VsHurt:
 			cur.enter(&"vshurt")
-		elif not (cur is VsKnockdown):
+		else:
 			state_machine.transition_to(&"vshurt")
 
 # ── 受傷（直接扣血，不帶硬直，外部工具用）───────────────────────────────────
@@ -261,11 +265,16 @@ func save_state() -> Dictionary:
 		"dash_e": dash_energy,
 		"facing": facing_dir,
 		"gnd":    grounded,
+		"cc":     can_combo,
 		"inv":    invincible_time_left,
 		"pda":    post_dash_armor_left,
 		"phit":   pending_hit.duplicate(true),
 		"qhit":   queued_hitstun,
+		"qkd":    queued_knockdown,
 		"ctimer": out_of_combat_left,
+		# 每顆判定框的 [monitoring, has_hit]：monitoring 平時由動畫軌道驅動，
+		# has_hit 防 rollback 重模擬時同一攻擊窗重複命中
+		"hbs":    hitboxes.map(func(h: VsHitbox) -> Array: return [h.monitoring, h.has_hit]),
 		"sname":  state_machine.current_state_name,
 		"sdata":  cur.save_state() if cur else {},
 	}
@@ -278,17 +287,25 @@ func restore_state(s: Dictionary) -> void:
 	dash_energy          = s["dash_e"]
 	facing_dir           = s["facing"]
 	grounded             = s["gnd"]
+	can_combo            = s["cc"]
 	invincible_time_left = s["inv"]
 	post_dash_armor_left = s["pda"]
 	pending_hit          = s["phit"].duplicate(true)
 	queued_hitstun       = s["qhit"]
+	queued_knockdown     = s["qkd"]
 	out_of_combat_left   = s["ctimer"]
 	graphics.scale.x     = facing_dir
-	hitbox.monitoring    = false
-	hitbox.reset_hits()
+	var hbs: Array = s["hbs"]
+	for i in hitboxes.size():
+		hitboxes[i].monitoring = hbs[i][0]
+		hitboxes[i].has_hit    = hbs[i][1]
+		hitboxes[i].hit_targets.clear()
 	state_machine.set_state_quiet(s["sname"])
 	if state_machine.current_state:
 		state_machine.current_state.restore_state(s["sdata"])
+	# 動畫時間必須立刻對齊還原後的狀態：軌道值由 advance() 依動畫時間驅動，
+	# 時間不對的話重模擬會漏觸發/多觸發 can_combo、hitbox monitoring 的 key
+	sync_anim_to_state()
 
 func sync_anim_to_state() -> void:
 	if state_machine.current_state:
@@ -298,3 +315,89 @@ func sync_anim_to_state() -> void:
 func apply_arts_bonus() -> void:
 	var empty := art_slots.count("")
 	arts_regen_rate += empty * VsGameManager.EMPTY_SLOT_REGEN_BONUS
+
+# ==========================================
+# 🎨 狀態輪廓描邊（主遊戲 StatusOutline 同款）：藍=霸體、黃=強霸體、紅=無敵
+# 優先權：無敵 > 強霸體 > 霸體。純視覺——每個渲染幀從「當下模擬狀態」衍生，
+# 不參與模擬、不進快照，rollback 無關（tween 用真實時間也沒關係）。
+# ==========================================
+const OUTLINE_SHADER = preload("res://classes/StatusOutline.gdshader")
+const OUTLINE_COLOR_HYPER        := Color(0.5, 0.8, 1.4, 0.7)  ## 藍（低調）
+const OUTLINE_COLOR_STRONG_HYPER := Color(1.4, 1.1, 0.0, 1.0)  ## 黃（HDR 飽和）
+const OUTLINE_COLOR_INVINCIBLE   := Color(1.0, 0.15, 0.15, 1.0) ## 紅
+const OUTLINE_FADE_DURATION: float = 0.15
+
+var _outline_mat:      ShaderMaterial = null
+var _outline_original: Material       = null
+var _outline_tween:    Tween          = null
+var _outline_state:    String         = ""  ## "" / "invincible" / "strong_hyper" / "hyper"
+
+func _process(_delta: float) -> void:
+	_update_status_outline()
+
+func _update_status_outline() -> void:
+	var desired := ""
+	# 跟主遊戲共用同一個純視覺開關（設定選單的「狀態輪廓」）
+	if Game.config_enable_status_outline:
+		if is_invincible():
+			desired = "invincible"
+		else:
+			match get_armor_tier():
+				ArmorTier.STRONG_HYPER: desired = "strong_hyper"
+				ArmorTier.HYPER:        desired = "hyper"
+
+	if desired != _outline_state:
+		_outline_state = desired
+		match desired:
+			"invincible":   _apply_outline_color(OUTLINE_COLOR_INVINCIBLE)
+			"strong_hyper": _apply_outline_color(OUTLINE_COLOR_STRONG_HYPER)
+			"hyper":        _apply_outline_color(OUTLINE_COLOR_HYPER)
+			_:              _clear_outline()
+
+	# spritesheet 每幀重算「目前這一格」的 UV 範圍，避免描邊採樣到隔壁格（主遊戲同款處理）
+	if is_instance_valid(_outline_mat) and _outline_state != "":
+		_sync_outline_frame_bounds()
+
+func _apply_outline_color(color: Color) -> void:
+	if _outline_mat == null:
+		_outline_mat = ShaderMaterial.new()
+		_outline_mat.shader = OUTLINE_SHADER
+	_outline_mat.set_shader_parameter("line_color", color)
+	_outline_mat.set_shader_parameter("outline_alpha", 0.0)
+	var sprite := graphics.get_node_or_null("Sprite2D")
+	if is_instance_valid(sprite):
+		if sprite.material != _outline_mat:
+			_outline_original = sprite.material
+			sprite.material = _outline_mat
+	if is_instance_valid(_outline_tween) and _outline_tween.is_valid(): _outline_tween.kill()
+	_outline_tween = create_tween()
+	_outline_tween.tween_property(_outline_mat, "shader_parameter/outline_alpha", 1.0, OUTLINE_FADE_DURATION)
+
+func _clear_outline() -> void:
+	if not is_instance_valid(_outline_mat): return
+	if is_instance_valid(_outline_tween) and _outline_tween.is_valid(): _outline_tween.kill()
+	_outline_tween = create_tween()
+	_outline_tween.tween_property(_outline_mat, "shader_parameter/outline_alpha", 0.0, OUTLINE_FADE_DURATION)
+	_outline_tween.tween_callback(_restore_outline_material)
+
+func _restore_outline_material() -> void:
+	var sprite := graphics.get_node_or_null("Sprite2D")
+	if is_instance_valid(sprite) and sprite.material == _outline_mat:
+		sprite.material = _outline_original
+	_outline_original = null
+
+func _sync_outline_frame_bounds() -> void:
+	var sprite := graphics.get_node_or_null("Sprite2D") as Sprite2D
+	if not is_instance_valid(sprite): return
+	var h := maxi(sprite.hframes, 1)
+	var v := maxi(sprite.vframes, 1)
+	if h <= 1 and v <= 1:
+		_outline_mat.set_shader_parameter("frame_uv_min", Vector2.ZERO)
+		_outline_mat.set_shader_parameter("frame_uv_max", Vector2.ONE)
+		return
+	var col := sprite.frame % h
+	var row := int(sprite.frame / float(h))
+	var uv_min := Vector2(float(col) / h, float(row) / v)
+	var uv_max := uv_min + Vector2(1.0 / h, 1.0 / v)
+	_outline_mat.set_shader_parameter("frame_uv_min", uv_min)
+	_outline_mat.set_shader_parameter("frame_uv_max", uv_max)

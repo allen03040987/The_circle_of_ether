@@ -20,7 +20,7 @@ enum BreakLevel {
 var hit_targets: Dictionary = {}
 ## rollback 安全旗標：此段攻擊是否已命中過（儲存於快照，還原後不會意外重複觸發）
 var has_hit: bool = false
-## 擁有此 hitbox 的玩家（由 VsPlayer._build_hitbox 設定）。
+## 擁有此 hitbox 的玩家（由 VsPlayer._ready 設定）。
 ## 受擊方向一律從它的 position（模擬資料）計算——Node.owner 對程式碼建立的
 ## 節點是 null，而 global_position 在 rollback 重模擬中可能過期。
 var owner_player: Node2D = null

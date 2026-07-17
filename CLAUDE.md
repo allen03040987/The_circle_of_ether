@@ -49,7 +49,7 @@ A fully parallel framework, isolated from `classes/` — do not mix the two. The
 
 `VsMods/StateMachine/VsState.gd` + `VsPlayerState.gd` — base contracts. `VsPlayerState` provides gravity/move/friction constants and `_apply_gravity(delta)`. `physics_update(delta, input) -> StringName` returns the next state name (empty string = stay); this return-value transition pattern is different from the main game's imperative `transition_to()` calls — don't mix them. Every VsState also exposes `save_state() -> Dictionary` / `restore_state(d)` / `sync_anim()` for rollback; the defaults are no-ops in `VsState.gd`, override only what the state actually needs.
 
-`VsMods/player/VsPlayer.gd` (`CharacterBody2D`) — HP/energy/invincibility, `apply_input(delta, input)` driven each frame by `vs_world`. Has `save_state()`/`restore_state()`/`sync_anim_to_state()` for rollback. States live under `VsMods/player/states/`: `VsIdle`, `VsRun`, `VsJump`, `VsFall`, `VsHurt`, `VsKnockdown`, `VsGetup`, `VsDodge`, `VsGuard`, `VsAttack`. `VsAttack` is registered programmatically in `VsPlayer._register_attack_state()` (not a scene child) because its combo animation data is built in code.
+`VsMods/player/VsPlayer.gd` (`CharacterBody2D`) — HP/energy/invincibility, `apply_input(delta, input)` driven each frame by `vs_world`. Has `save_state()`/`restore_state()`/`sync_anim_to_state()` for rollback. States live under `VsMods/player/states/` and are all scene children in `VsPlayer.tscn`: `VsIdle`, `VsRun`, `VsJump`, `VsFall`, `VsHurt`, `VsKnockdown`, `VsGetup`, `VsDodge`, `VsGuard`, `VsAttack`.
 
 Scene flow: `title_screen.gd` → `VsMods/ui/LobbyScreen.tscn` (離線/主機/加入) → `VsMods/ui/SelectScreen.tscn` (角色+3 武藝槽選擇) → `VsMods/vs_world.tscn` (戰鬥). `VsGameManager` (autoload, `VsMods/ui/VsGameManager.gd`) caches `p1_arts`/`p2_arts`/`selection_confirmed` across scene changes.
 
@@ -90,6 +90,7 @@ Rollback netcode 的正確性完全依賴「兩端從相同初始狀態 + 相同
 | Area2D 的 `body_entered` / `area_entered` 信號 | 信號在 `_physics_process` 內不會因幀內幾何計算而觸發，rollback 中間幀偵測不到 |
 | `move_and_slide()` / `is_on_floor()` | `move_and_slide` 內部有「上一幀是否在地面」的隱藏記憶（地面吸附用），快照還原無法還原它 → 重模擬的移動結果與直跑不同（實測：一邊多施一次重力，y 永久分歧）。移動一律走 `VsPlayer._move_deterministic()`（無狀態的 `move_and_collide` + 顯式 motion 向量）；地面判定一律讀 `VsPlayer.grounded`（`test_move` 純位置查詢、隨快照保存），states 透過 `VsPlayerState._grounded()` 讀取 |
 | `global_position` / `global_transform` | scene tree 的 transform 快取在 rollback 重模擬中不保證更新。模擬邏輯一律用 `position`（vs_world 直屬子節點兩者等值）；hitbox 來源方向用 `VsHitbox.owner_player.position` |
+| AnimationPlayer 用真實時間播放 gameplay 軌道 | `VsPlayer.tscn` 的 AnimationPlayer 是 **MANUAL 模式**，由 `apply_input()` 以模擬 delta `advance()` 推進——所以攻擊動畫的 `.:can_combo` / `Graphics/VsHitbox:monitoring` 軌道值是模擬時間的純函數，可以安全參與判定（設計時間點請直接調動畫軌道，別在程式碼裡排程）。`restore_state()` 結尾 `sync_anim_to_state()` 重新對齊動畫時間，重模擬才會重跑軌道 key。若改回 PHYSICS/IDLE 播放模式，軌道值就會脫離模擬時間 → desync。非戰鬥階段（回合結算）玩家不被模擬，`vs_world._simulate_frame` 有純外觀的 advance 防止畫面凍住 |
 
 **正確做法：** 所有模擬邏輯用傳入的 `delta`（在 vs_world 中永遠是 `PHYS_DELTA = 1.0 / 60.0`）驅動。若未來需要亂數（例如角色特技的隨機效果），必須使用兩端共享的固定種子 `RandomNumberGenerator`，種子通過輸入或封包傳遞，不可各自獨立初始化。
 
@@ -110,9 +111,26 @@ Rollback netcode 的正確性完全依賴「兩端從相同初始狀態 + 相同
 
 **P1 操作特殊**：普攻/技能 = 無修飾左/右鍵；武藝 = E（`martial_modifier`）+ 左/右/中鍵。P2 純鍵盤，無修飾鍵。
 
+### VsMods 體質效果與能量系統（已實作）
+
+- **`VsPlayer.ArmorTier { NONE, HYPER, STRONG_HYPER }`** — 衍生值，`get_armor_tier()` 由當前狀態即時計算（`VsGuard` 狀態或 `post_dash_armor_left > 0` → STRONG_HYPER），**不獨立儲存**，所以不需要進快照。
+- **`VsHitbox.BreakLevel { NONE, ARMOR_BREAK, STRONG_ARMOR_BREAK }`** — 取代舊的 `guard_break: bool`。判定矩陣在 `VsPlayer._on_hurtbox_hurt()`：STRONG_HYPER 免疫非強破霸的硬直/擊退並 50% 減傷（強破霸攻擊完整生效）；HYPER 免疫非破霸硬直（無減傷）。
+- **雙能量池**：`dash_energy`（上限 100，永遠 10/s 回復，衝刺一次耗 30）與 `arts_energy`（上限 50，脫戰 2 秒後 10/s 回復；`out_of_combat_left` 是 float 計時、不用 Timer 節點）。HUD 各畫一條（金色=武藝、青色=衝刺）。
+- **衝刺（`VsDodge`）**：前 0.3s 完美閃避判定窗；期間 `velocity.y = 0`（無重力）；`_completed` 旗標——正常走完才給 `post_dash_armor_left = 2.0`（被打斷不給）。
+- **防禦（`VsGuard`）**：即強霸體。普通攻擊 50% 傷害、無擊退硬直；`STRONG_ARMOR_BREAK` 破防 → 完整 `pending_hit` 流程進 VsHurt。
+- 受擊方向（擊退的 dir_x）一律從 `VsHitbox.owner_player.position` 計算（`VsPlayer._ready()` 對所有 hitbox 設定），見確定性規則表的 `global_position` 條目。
+
+### VsMods rollback 除錯工具
+
+- 每場進 vs_world 會寫 `user://vs_session_p<本機id>.txt`（路徑與設定資訊），DESYNC 事件**即時附加**到 `user://desync_log_p<本機id>.txt` —— 按本機玩家 id 分檔，因為同一台電腦開兩個實例測試時共用 `user://`，不分檔會互相交錯。每場開頭寫 `═══ 場次開始 <時間戳> ═══` 分隔線；附加模式，最上方=最舊。
+- desync log 每筆含：偵測當下即時狀態、**分歧幀的封存快照**（雙方 pos/vel/state）、該幀雙方輸入（hex）、預測深度、近期 rollback 記錄（`VsNetworkManager.get_recent_rollbacks()`）。診斷方法：兩台機器對照**同一幀號**的區塊——輸入 hex 不同 = 傳輸層 bug；輸入相同但快照不同 = 模擬層非確定性（可直接從數值差反推，例：vel.y 差 980/60 = 差一次重力）。
+- 延遲容量：`INPUT_DELAY 4 + MAX_ROLLBACK_FRAMES 20 ≈ 400ms 單向上限`；超過時 `_do_rollback` 找不到快照 → hard desync 踢回大廳，**這是設計行為不是 bug**（那種延遲下也不可玩）。實測：Clumsy 50ms 整場穩定、零 checksum 分歧；200ms（本機雙實例下實際 ≈400ms）觸發回滾窗保護。
+
 ### VsMods 攻擊系統目前狀態（Phase 4）
 
-- **地面普攻** — `VsAttack.gd` 完整實作 5 段連技（資料表驅動，`COMBO_DATA[1..5]`），動畫在 `_ensure_animations_registered()` 首次 `enter()` 時注入 AnimationPlayer。`combo_step` 在 `exit()` 才重置；直接用 `enter()` 重入繞過防重入鎖以繼續連段。
+- **地面普攻** — `VsAttack.gd` 5 段連技，**每招的所有資料都在 `VsPlayer.tscn`，程式碼零資料表**：時間點在 attack_1~5 動畫軌道（`.:can_combo` 軌=連段窗口、`Graphics/HitboxAN:monitoring` 軌=判定框開關，與主遊戲 player.tscn 同款做法）；判定框大小/位置/傷害/硬直/擊退在**每招一顆的 `HitboxA1~A5` 節點**（VsHitbox @export，編輯器直接調）。`VsPlayer.hitboxes` 收集 Graphics 下所有 VsHitbox，快照統一保存各框 `[monitoring, has_hit]`，`vs_world._check_manual_hits` 迭代全部。0.2s 攻擊輸入緩衝（`ATTACK_BUFFER`，必須小於各段窗口開啟時間）；窗口開啟＋有緩衝→立刻取消剩餘動畫接下一段。打斷優先級：衝刺（任何時點）> 防禦（地面限定）> 武藝（未實作，接入點已留）> 連段派生。`combo_step` 在 `exit()` 才重置；連段繼續直接呼叫 `enter()` 繞過防重入鎖。
+- **輔助鎖敵** — `VsIdle.enter()` 自動把 `facing_dir` 轉向對手（`VsPlayer.opponent` 由 vs_world 注入；用 `position` 算，確定性安全；rollback 走 `set_state_quiet` 不經過 enter，面向由快照還原）。
+- **硬直/落地（倒地）/起身流程** — `causes_knockdown` 攻擊按擊退 y 分流（`VsPlayer._apply_pending_hit`）：y<0 → `VsLaunched` 擊飛（忽略硬直，弧線飛行，落地瞬間進 `VsKnockdown`、水平動量保留；空中再被擊飛=juggle 重入）；y=0 → `VsHurt` 正常硬直，結束後進 `VsKnockdown`（`queued_knockdown`）。`VsKnockdown` 無計時躺地：真正貼地那一刻→無敵直到起身（`INVINCIBLE_COVER` 罩住，進 VsGetup 被覆寫）＋彈起一次（`BOUNCE_VELOCITY`）→二次落地直接接 `VsGetup`；貼地摩擦隨貼地時間漸增（`FRICTION_RAMP_TIME`），不瞬間黏住；保護靠 `can_hit_downed` OTG 偵測層閘門，倒地/擊飛中被普通攻擊打到只吃傷害與速度、不換狀態。`VsHurt` 硬直**不給任何無敵**（連段要能全程命中；同攻擊窗防重複靠 `has_hit`——別把 0.15s/0.2s 的「防穿透/喘息」無敵加回來，A2 打空的 bug 就是它）。`VsGetup` 播 `launched_2`、時長讀動畫長度，給 2s 無敵（延續進 idle）、可衝刺打斷但無敵歸零。死亡演出：`VsRoundManager._tick_fighting` 判定回合結束時強制死者進 `VsKnockdown`（暫代死亡動畫）。AnimationPlayer 的 MANUAL 模式由 `VsPlayer._ready()` 在運行時設定，**不寫在 tscn**——否則編輯器動畫面板無法預覽播放。
 - **空中普攻** — 尚未實作。素材 `player/Katana/air_A.png` 存在。計畫在 VsAttack 加 `is_grounded` 判斷分支，或拆出獨立 `VsAirAttack` 狀態。
 - **技能（`input.skill`）** — 尚未實作，目前所有狀態的 `physics_update` 均忽略此輸入。
 - **武藝（`input.art_1/2/3`）** — 尚未實作效果。`VsPlayer.art_slots: Array[String]` 儲存玩家選擇的 3 個武藝名稱（由 `vs_world` 從 `VsGameManager.p1_arts/p2_arts` 注入）；`apply_arts_bonus()` 目前只處理空槽加成。武藝名稱字串即武藝 class name，效果實作時需自行 lookup。

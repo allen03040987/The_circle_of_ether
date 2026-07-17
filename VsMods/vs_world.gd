@@ -143,6 +143,10 @@ func _spawn_players() -> void:
 	p2.art_slots.assign(VsGameManager.p2_arts)
 	p2.apply_arts_bonus()
 
+	# 對手參照：回到 idle 自動面向對方（輔助鎖敵）用
+	p1.opponent = p2
+	p2.opponent = p1
+
 	camera.target_p1 = p1
 	camera.target_p2 = p2
 
@@ -258,6 +262,13 @@ func _restore_snapshot(frame: int) -> void:
 func _simulate_frame(delta: float, inp1: InputState, inp2: InputState) -> void:
 	round_manager.tick(delta)
 	if not round_manager.is_fighting():
+		# AnimationPlayer 是 MANUAL 模式（平時由 VsPlayer.apply_input 推進）；
+		# 非戰鬥階段玩家不被模擬，這裡純外觀推進動畫以免畫面凍住。
+		# 不屬於模擬狀態：玩家凍結中軌道值不參與任何判定，且回合重置的
+		# transition_to 會重播動畫，重模擬跳過這段也不會分歧
+		if not is_resimulating:
+			p1.anim_player.advance(delta)
+			p2.anim_player.advance(delta)
 		return
 	p1.apply_input(delta, inp1)
 	p2.apply_input(delta, inp2)
@@ -282,8 +293,10 @@ func _on_match_ended(winner_id: int) -> void:
 
 # ── 手動打擊偵測（補足 rollback 中間幀 Area2D 訊號不觸發的缺口）────────────────
 func _check_manual_hits() -> void:
-	_manual_check(p1.hitbox, p2.hurtbox, p1, p2)
-	_manual_check(p2.hitbox, p1.hurtbox, p2, p1)
+	for hb: VsHitbox in p1.hitboxes:
+		_manual_check(hb, p2.hurtbox, p1, p2)
+	for hb: VsHitbox in p2.hitboxes:
+		_manual_check(hb, p1.hurtbox, p2, p1)
 
 func _manual_check(hb: VsHitbox, hrb: VsHurtbox, hb_owner: VsPlayer, hrb_owner: VsPlayer) -> void:
 	if not hb.monitoring:
@@ -293,10 +306,22 @@ func _manual_check(hb: VsHitbox, hrb: VsHurtbox, hb_owner: VsPlayer, hrb_owner: 
 	# Rollback 安全防重複：has_hit 存於快照，還原後仍能阻擋同一攻擊窗再次偵測
 	if hb.has_hit:
 		return
+	# 倒地目標：只有標記 can_hit_downed（OTG）的攻擊打得到——在偵測層擋下，
+	# 攻擊直接穿過（不消耗 has_hit），對方起身後同一攻擊窗仍可命中
+	if not hb.can_hit_downed and hrb_owner.state_machine.current_state is VsKnockdown:
+		return
 	if _sim_rect(hb, hb_owner).intersects(_sim_rect(hrb, hrb_owner)):
 		hb.hit_targets[hrb] = true
 		hb.has_hit = true
 		hrb.receive_hit(hb)
+
+## desync log 用：列出玩家所有判定框的 monitoring/has_hit（開著的才列，全關顯示 "-"）
+func _hb_summary(p: VsPlayer) -> String:
+	var parts: Array[String] = []
+	for hb: VsHitbox in p.hitboxes:
+		if hb.monitoring or hb.has_hit:
+			parts.append("%s mon=%s hit=%s" % [hb.name, str(hb.monitoring), str(hb.has_hit)])
+	return "-" if parts.is_empty() else "; ".join(parts)
 
 ## 從模擬狀態直接計算 Area2D 的世界空間 AABB，完全不依賴 scene tree global_transform。
 ## 根本原因：rollback 重模擬中間幀，Godot 不保證 global_transform 在 move_and_slide()
@@ -361,9 +386,7 @@ func _on_desync_detected(frame: int, fields: Array) -> void:
 			p2.hp, p2.arts_energy, p2.dash_energy,
 			p2.facing_dir, p2.invincible_time_left, p2.post_dash_armor_left,
 			str(p2.state_machine.current_state_name)],
-		"P1_HB monitor=%s has_hit=%s  P2_HB monitor=%s has_hit=%s" % [
-			str(p1.hitbox.monitoring), str(p1.hitbox.has_hit),
-			str(p2.hitbox.monitoring), str(p2.hitbox.has_hit)],
+		"P1_HB [%s]  P2_HB [%s]" % [_hb_summary(p1), _hb_summary(p2)],
 	]
 	# ↑上面是「偵測當下」的即時狀態；↓下面是「分歧那一幀」的封存快照——
 	# 兩台機器各自對照同一幀的快照，才能定位是輸入對幀錯還是模擬分歧

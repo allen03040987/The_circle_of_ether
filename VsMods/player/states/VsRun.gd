@@ -23,6 +23,6 @@ func physics_update(delta: float, input: InputState) -> StringName:
 		return &"vsguard"
 	if input.jump:
 		return &"vsjump"
-	if input.move_dir == 0.0 and absf(player.velocity.x) < 1.0:
-		return &"vsidle"
+	if input.move_dir == 0.0:
+		return &"vsidle"   # 放開方向鍵即停（_apply_ground_move 已把速度歸零）
 	return &""

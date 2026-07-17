@@ -82,6 +82,14 @@ func _tick_fighting() -> void:
 	_p1.hp = maxf(_p1.hp, 0.0)
 	_p2.hp = maxf(_p2.hp, 0.0)
 
+	# 死亡演出（規則：死亡→撥放動畫）：倒下收場。在模擬路徑內執行→確定性安全；
+	# ROUND_END 期間玩家凍結不再推進狀態，動畫由 vs_world 純外觀播完。
+	# TODO: 換成專屬死亡動畫（目前用倒地的 launched 動畫代位）
+	if p1_dead and not (_p1.state_machine.current_state is VsKnockdown or _p1.state_machine.current_state is VsLaunched):
+		_p1.state_machine.transition_to(&"vsknockdown")
+	if p2_dead and not (_p2.state_machine.current_state is VsKnockdown or _p2.state_machine.current_state is VsLaunched):
+		_p2.state_machine.transition_to(&"vsknockdown")
+
 	phase  = Phase.ROUND_END
 	_timer = ROUND_END_DELAY
 	round_ended.emit(winner)
