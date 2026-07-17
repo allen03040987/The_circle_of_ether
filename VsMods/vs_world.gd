@@ -135,6 +135,7 @@ func _spawn_players() -> void:
 	add_child(p1)
 	p1.art_slots.assign(VsGameManager.p1_arts)
 	p1.apply_arts_bonus()
+	p1._load_arts()
 
 	p2 = scene.instantiate()
 	p2.player_id = 2
@@ -142,6 +143,7 @@ func _spawn_players() -> void:
 	add_child(p2)
 	p2.art_slots.assign(VsGameManager.p2_arts)
 	p2.apply_arts_bonus()
+	p2._load_arts()
 
 	# 對手參照：回到 idle 自動面向對方（輔助鎖敵）用
 	p1.opponent = p2

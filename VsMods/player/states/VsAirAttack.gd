@@ -7,15 +7,27 @@ extends VsPlayerState
 ## @export，編輯器直接調），跟地面 HitboxA1~5 是同一個 `VsPlayer.hitboxes`
 ## 陣列（`_ready()` 通用收集 Graphics 底下所有 VsHitbox），不用另外的集合。
 ##
-## 全程受一般重力影響——沒有移植主遊戲第 3 段專屬的「近零重力浮空 + 延遲上勾
-## 噴射」演出（那是主遊戲那招的專屬花招，不是「多段空中普攻」規則本身要求的，
-## 之後想加再說）。落地當幀立刻收招：空中連段不能延續到地面。
+## 重力完全比照主遊戲 Katana.gd：第 1/2 段吃一般重力，只有第 3 段（終結技，
+## 對應主遊戲 combo_step==13）套用「近零重力滯空」（GRAVITY * 0.1 * delta，
+## 原樣照搬 `new_y += player.default_gravity * 0.1 * delta`）。
+## ⚠ 主遊戲同一招看似還有「延遲上勾噴射」，但那其實是另一招（combo_step==23，
+## 地面戰技昇龍斬）的效果，跟 air_light_1~3 完全無關，不是漏移植。
+## 落地當幀立刻收招：空中連段不能延續到地面。
+## 每次跳躍只能觸發一輪空中普攻（`VsPlayer.air_attack_used`，落地時歸零，比照
+## 主遊戲 `air_attack_locked`）——進場檢查在 VsJump/VsFall，這裡只負責在真正
+## 開始新的一輪時把旗標設起來。
+## 上升推力：主遊戲 `_play_air_step()` 在**每一段**觸發當下都直接
+## `player.velocity.y = air_thrust_force`（= -150.0，往上），不是只有第一段——
+## 這裡在 `enter()` 原樣照搬，讓連段每一下都會把角色往上頂一點，是空戰連段
+## 手感的一部分，別誤植成只在第一段生效。
 
 const ATTACK_BUFFER:    float = 0.2
 const MAX_COMBO:        int   = 3
 # 攻擊期間水平減速率，跟地面 VsAttack 同一套理由：strike_impulse 的前衝力道
 # 要靠這麼強的摩擦力才煞得住，一般移動摩擦力（900）會飛太遠。
 const IMPULSE_FRICTION: float = 8750.0
+# 每段起手瞬間的上升推力，比照主遊戲 Katana.gd 的 air_thrust_force（-150.0）
+const AIR_THRUST_FORCE: float = -150.0
 
 # ── 狀態變數 ──────────────────────────────────────────────────────────────────
 var combo_step:         int   = 1
@@ -30,7 +42,9 @@ func enter(_prev: StringName) -> void:
 	var vs        := player as VsPlayer
 	var anim_name := "air_attack_%d" % combo_step
 
+	vs.air_attack_used = true
 	vs.can_combo = false
+	player.velocity.y = AIR_THRUST_FORCE
 	_reset_hitboxes(vs)
 	vs.anim_player.play(anim_name)
 	_anim_length = vs.anim_player.get_animation(anim_name).length
@@ -61,7 +75,11 @@ func physics_update(delta: float, input: InputState) -> StringName:
 
 	# 2. 防禦：規則明講空中不能防禦，這裡不做地面 VsAttack 那樣的分支
 
-	# 3. 武藝取消：權限僅次衝刺、不受連段窗限制——武藝系統實作時接在這裡
+	# 3. 武藝取消：權限僅次衝刺、不受連段窗限制（是否能在空中放由該武藝自己的
+	#    can_use_in_air 決定，_check_art_cast 內部已經檢查過）
+	var art_transition := _check_art_cast(input)
+	if art_transition != &"":
+		return art_transition
 
 	# 4. 連段派生：窗口開啟且有緩衝輸入 → 立刻取消剩餘動畫接下一段
 	if vs.can_combo and attack_buffer_left > 0.0 and combo_step < MAX_COMBO:
@@ -70,7 +88,10 @@ func physics_update(delta: float, input: InputState) -> StringName:
 		return &""
 
 	player.velocity.x = move_toward(player.velocity.x, 0.0, IMPULSE_FRICTION * delta)
-	_apply_gravity(delta)
+	if combo_step == 3:
+		player.velocity.y += GRAVITY * 0.1 * delta   # 第 3 段近零重力滯空
+	else:
+		_apply_gravity(delta)
 
 	# 動畫結束（末段或窗口內沒按 → 收招，此時必定還在空中，落地判斷在上面已擋過）
 	if elapsed >= _anim_length:

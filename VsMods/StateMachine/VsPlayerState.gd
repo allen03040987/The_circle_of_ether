@@ -40,3 +40,30 @@ func _recovery_transition(input: InputState) -> StringName:
 		(player as VsPlayer).facing_dir = int(sign(input.move_dir))
 		return &"vsrun"
 	return &"vsidle"
+
+## 武藝施放共用檢查（規則：可打斷普攻施放，權限僅次衝刺/防禦）。任何狀態的
+## physics_update() 在打斷優先權合適的位置呼叫這個——有輸入、對應槽位有裝
+## 武藝、地面限制符合（can_use_in_air）、能量夠、而且不是同一招正在施放中
+## （連按同招不重啟，比照主遊戲 is_same_art_still_running 的防呆）—— 全部
+## 成立才會扣能量並回傳武藝的狀態名稱（"vsart1"/"vsart2"/"vsart3"）；不然
+## 回傳空字串代表不觸發，呼叫端跟平常一樣把空字串當「維持原狀態」處理。
+func _check_art_cast(input: InputState) -> StringName:
+	var vs := player as VsPlayer
+	var slot := 0
+	if input.art_1:   slot = 1
+	elif input.art_2: slot = 2
+	elif input.art_3: slot = 3
+	if slot == 0:
+		return &""
+
+	var art := vs.get_art_in_slot(slot)
+	if art == null:
+		return &""
+	if not art.can_use_in_air and not _grounded():
+		return &""
+	if vs.state_machine.current_state == art:
+		return &""   # 連按同一招不重啟
+	if not vs.use_arts_energy(art.energy_cost):
+		return &""
+
+	return StringName("vsart%d" % slot)

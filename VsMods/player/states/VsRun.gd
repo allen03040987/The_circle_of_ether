@@ -17,8 +17,13 @@ func physics_update(delta: float, input: InputState) -> StringName:
 	var vs := player as VsPlayer
 	if input.attack:
 		return &"vsattack"
+	if input.skill:
+		return &"vsskill"
 	if input.dodge and vs.use_dash_energy(30.0):
 		return &"vsdodge"
+	var art_transition := _check_art_cast(input)
+	if art_transition != &"":
+		return art_transition
 	if input.guard:
 		return &"vsguard"
 	if input.jump:

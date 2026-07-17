@@ -45,6 +45,37 @@ enum ArmorTier {
 
 # ── 武藝槽（由 vs_world 從 VsGameManager 注入）──────────────────────────────
 var art_slots: Array[String] = ["", "", ""]
+## 對應 art_slots 動態載入的武藝狀態節點（空字串槽位對應 null）。由 _load_arts()
+## 在 vs_world 注入 art_slots 之後呼叫填入——場景初始化時 art_slots 還是空的，
+## 沒辦法在 _ready() 就知道要掛哪個武藝腳本，跟地面/空中攻擊是場景固定子節點
+## 不同，這裡必須是動態的。
+var loaded_arts: Array[VsMartialArt] = [null, null, null]
+
+## 依 art_slots 動態載入 3 個武藝腳本，掛成 VsStateMachine 的子節點並註冊進
+## 狀態機（名稱固定 VsArt1~3，對應槽位 1~3，不是武藝的實際身分——同一個槽位
+## 名稱在不同玩家/不同場次可能對應到不同武藝，靠 VsArtRegistry 查表決定實際
+## 要 instantiate 哪個腳本）。由 vs_world._spawn_players() 在設定完 art_slots
+## 後呼叫，此時 state_machine.init() 早已跑過，用 register_state() 補登記。
+func _load_arts() -> void:
+	for i in art_slots.size():
+		var art_name := art_slots[i]
+		if art_name == "":
+			continue
+		var script := VsArtRegistry.get_art_script(art_name)
+		if script == null:
+			continue   # 選了但還沒對應腳本的武藝（例如 Art_Clotty_2~6）先跳過
+		var node := script.new() as VsMartialArt
+		node.name = "VsArt%d" % (i + 1)
+		node.art_id = art_name
+		state_machine.add_child(node)
+		state_machine.register_state(node, self)
+		loaded_arts[i] = node
+
+## slot：1/2/3。回傳該槽位動態載入的武藝狀態，沒裝或還沒對應腳本回傳 null。
+func get_art_in_slot(slot: int) -> VsMartialArt:
+	if slot < 1 or slot > loaded_arts.size():
+		return null
+	return loaded_arts[slot - 1]
 
 # ── 數值 ─────────────────────────────────────────────────────────────────────
 var hp:          float
@@ -58,6 +89,10 @@ var grounded:    bool = true
 ## 連段窗口旗標：由攻擊動畫的 `.:can_combo` 軌道開關（主遊戲同款做法），
 ## 程式碼不要直接排程它——時間點去動畫軌道上調。VsAttack 的 enter/exit 會歸零。
 var can_combo:   bool = false
+## 這次跳躍是否已經用掉空中普攻的施放機會（比照主遊戲 Katana.gd 的
+## air_attack_locked）——每次跳躍只能觸發一輪空中普攻連段。VsAirAttack.enter()
+## 開始新一輪時設 true；落地（grounded 變 true）時在 _move_deterministic() 歸零。
+var air_attack_used: bool = false
 
 # ── 戰鬥 ─────────────────────────────────────────────────────────────────────
 var invincible_time_left:  float      = 0.0   # 剩餘無敵秒數（以 delta 遞減）
@@ -72,6 +107,10 @@ var last_input:            InputState         # 當幀輸入備份（供 enter()
 @onready var anim_player:  AnimationPlayer = $AnimationPlayer
 @onready var graphics:     Node2D          = $Graphics
 @onready var hurtbox:      VsHurtbox       = $Graphics/VsHurtbox
+## 技能專屬 hitbox（單發，不像普攻有一組陣列）——規則要求技能要能強破霸，
+## break_level 直接設在這顆節點上（編輯器可調，但技能存在的意義就是要能破
+## 強霸體，別把它調回 NONE）。同時也會被下面的 hitboxes 通用收集掃到。
+@onready var skill_hitbox: VsHitbox = $Graphics/HitboxSkill
 ## Graphics 下所有 VsHitbox（每招一顆：HitboxA1~A5...，大小/位置/傷害數值都在
 ## 編輯器節點上調），開關由各攻擊動畫的 monitoring 軌道驅動，_ready() 收集
 var hitboxes: Array[VsHitbox] = []
@@ -116,9 +155,16 @@ func face_opponent() -> void:
 ## （_do_rollback 重模擬迴圈裡的 advance()，或正常單幀模擬）才生效。
 var _resyncing_anim: bool = false
 
+## 「這幀之間已被打斷轉去別的狀態」防呆用的白名單——只有這些會播放 strike_impulse
+## 動畫軌道的攻擊性狀態才允許生效。加新的攻擊/招式狀態、且它的動畫也想用
+## strike_impulse 前衝軌道時，記得把該狀態類別加進這裡，不然呼叫全部是空跑
+## （曾經只認 VsAttack，導致 VsAirAttack/VsSkill/武藝的 strike_impulse key 全部
+## 沒作用，這裡才擴大範圍修正）。
 func strike_impulse(strength: float) -> void:
 	if _resyncing_anim: return
-	if not (state_machine.current_state is VsAttack): return
+	var cur := state_machine.current_state
+	var allowed := cur is VsAttack or cur is VsAirAttack or cur is VsSkill or cur is VsMartialArt
+	if not allowed: return
 	velocity.x = facing_dir * strength
 
 # 脫戰計時器：用 float + 模擬 delta，不用 Timer 節點（Timer 用真實時間，rollback 下會飄）
@@ -193,6 +239,8 @@ func _move_deterministic(sim_delta: float) -> void:
 	# 地面旗標唯一更新點：純位置查詢（往下 0.1px 是否碰撞），無隱藏狀態，
 	# 隨快照保存 → rollback 重模擬讀到正確值
 	grounded = test_move(global_transform, Vector2(0.0, 0.1))
+	if grounded:
+		air_attack_used = false
 
 # ── 能量 ─────────────────────────────────────────────────────────────────────
 ## 消耗衝刺能量（30點/次）；失敗回傳 false
@@ -231,6 +279,10 @@ func get_armor_tier() -> ArmorTier:
 	var cur := state_machine.current_state
 	if cur is VsGuard:
 		return ArmorTier.STRONG_HYPER
+	# 規則：武藝施放全程要有霸體或以上——多數武藝維持 HYPER（免疫非破霸攻擊）
+	# 即符合下限，個別招式想要強霸體就設 armor_tier_override_strong
+	if cur is VsMartialArt:
+		return ArmorTier.STRONG_HYPER if (cur as VsMartialArt).armor_tier_override_strong else ArmorTier.HYPER
 	if post_dash_armor_left > 0.0:
 		return ArmorTier.STRONG_HYPER
 	return ArmorTier.NONE
@@ -345,6 +397,7 @@ func save_state() -> Dictionary:
 		"facing": facing_dir,
 		"gnd":    grounded,
 		"cc":     can_combo,
+		"aau":    air_attack_used,
 		"inv":    invincible_time_left,
 		"pda":    post_dash_armor_left,
 		"phit":   pending_hit.duplicate(true),
@@ -367,6 +420,7 @@ func restore_state(s: Dictionary) -> void:
 	facing_dir           = s["facing"]
 	grounded             = s["gnd"]
 	can_combo            = s["cc"]
+	air_attack_used      = s["aau"]
 	invincible_time_left = s["inv"]
 	post_dash_armor_left = s["pda"]
 	pending_hit          = s["phit"].duplicate(true)

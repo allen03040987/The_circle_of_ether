@@ -17,6 +17,16 @@ func init(player: CharacterBody2D, initial: StringName) -> void:
 		state.state_machine = self
 	_enter(initial, &"")
 
+## 執行期動態註冊一個新狀態（跟 _ready() 的自動探索寫進同一份 states 字典，
+## 只是時機延後）。用於 VsMods 的武藝系統：具體要掛哪個武藝腳本要等
+## art_slots（玩家選擇）注入後才知道，沒辦法在場景裡固定成靜態子節點，
+## 只能執行期動態 instantiate 再補登記。呼叫端負責把 state 加成子節點
+## （`add_child`），這裡只處理 states 字典登記跟欄位注入。
+func register_state(state: VsState, player: CharacterBody2D) -> void:
+	state.player        = player
+	state.state_machine = self
+	states[StringName(state.name.to_lower())] = state
+
 func physics_update(delta: float, input: InputState) -> void:
 	if not current_state:
 		return

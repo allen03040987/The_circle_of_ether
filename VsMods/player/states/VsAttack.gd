@@ -64,7 +64,10 @@ func physics_update(delta: float, input: InputState) -> StringName:
 	if input.guard and _grounded():
 		return &"vsguard"
 
-	# 3. 武藝取消：權限僅次衝刺/防禦、不受連段窗限制——武藝系統實作時接在這裡
+	# 3. 武藝取消：權限僅次衝刺/防禦、不受連段窗限制（規則：武藝可打斷普攻施放）
+	var art_transition := _check_art_cast(input)
+	if art_transition != &"":
+		return art_transition   # exit() 會清 hitbox / can_combo 並重置 combo_step
 
 	# 4. 連段派生：窗口（動畫軌道的 can_combo）開啟且有緩衝輸入
 	#    → 立刻取消剩餘動畫接下一段（不等動畫播完）

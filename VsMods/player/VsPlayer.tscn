@@ -1,4 +1,4 @@
-[gd_scene load_steps=62 format=3 uid="uid://b15lm00sa5m5s"]
+[gd_scene load_steps=75 format=3 uid="uid://b15lm00sa5m5s"]
 
 [ext_resource type="Script" path="res://VsMods/player/VsPlayer.gd" id="1_player"]
 [ext_resource type="Script" path="res://VsMods/StateMachine/VsStateMachine.gd" id="2_sm"]
@@ -40,6 +40,7 @@
 [ext_resource type="PackedScene" uid="uid://djfuu6roflvrt" path="res://Explod/tscn/Aggregation ring.tscn" id="40_vfx_agg_ring"]
 [ext_resource type="Texture2D" uid="uid://bpp801dar3y4i" path="res://player/Katana/air_A.png" id="41_tx_air_a"]
 [ext_resource type="Script" path="res://VsMods/player/states/VsAirAttack.gd" id="42_air_attack"]
+[ext_resource type="Script" path="res://VsMods/player/states/VsSkill.gd" id="43_skill"]
 
 [sub_resource type="RectangleShape2D" id="Shape_body"]
 size = Vector2(16, 64)
@@ -61,6 +62,21 @@ size = Vector2(134, 61)
 
 [sub_resource type="RectangleShape2D" id="Shape_hbA5"]
 size = Vector2(259.5, 25)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbAir1"]
+size = Vector2(60, 50)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbAir2"]
+size = Vector2(60, 50)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbAir3"]
+size = Vector2(70, 60)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbSkill"]
+size = Vector2(80, 60)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbArt1"]
+size = Vector2(70, 60)
 
 [sub_resource type="Animation" id="Anim_reset"]
 resource_name = "RESET"
@@ -799,6 +815,370 @@ tracks/8/keys = {
 }]
 }
 
+[sub_resource type="Animation" id="Anim_air_attack_1"]
+resource_name = "air_attack_1"
+length = 0.4
+step = 0.01
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Graphics/Sprite2D:texture")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [ExtResource("41_tx_air_a")]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Graphics/Sprite2D:hframes")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [5]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Graphics/Sprite2D:vframes")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [4]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Graphics/Sprite2D:region_rect")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Rect2(0, 0, 640, 512)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Graphics/Sprite2D:position")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(-2, -28)]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Graphics/Sprite2D:frame")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.03, 0.06, 0.09, 0.14, 0.16, 0.18, 0.2),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7]
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath(".:can_combo")
+tracks/6/interp = 1
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.32, 0.4),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": [false, true, false]
+}
+tracks/7/type = "value"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath("Graphics/HitboxAir1:monitoring")
+tracks/7/interp = 1
+tracks/7/loop_wrap = true
+tracks/7/keys = {
+"times": PackedFloat32Array(0, 0.15, 0.16),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": [false, true, false]
+}
+tracks/8/type = "method"
+tracks/8/imported = false
+tracks/8/enabled = true
+tracks/8/path = NodePath(".")
+tracks/8/interp = 1
+tracks/8/loop_wrap = true
+tracks/8/keys = {
+"times": PackedFloat32Array(0.14, 0.16),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [800.0],
+"method": &"strike_impulse"
+}, {
+"args": ["cut", 0.0, -20.0, Vector2(0.8, 0.4), 0.0, Color(1, 3, 1, 1), Color(1, 1, 1, 1), false, 1, 1.0],
+"method": &"spawn_anim_vfx"
+}]
+}
+
+[sub_resource type="Animation" id="Anim_air_attack_2"]
+resource_name = "air_attack_2"
+length = 0.4
+step = 0.01
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Graphics/Sprite2D:texture")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [ExtResource("41_tx_air_a")]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Graphics/Sprite2D:hframes")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [5]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Graphics/Sprite2D:vframes")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [4]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Graphics/Sprite2D:region_rect")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Rect2(0, 0, 640, 512)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Graphics/Sprite2D:position")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(-2, -28)]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Graphics/Sprite2D:frame")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.06, 0.09, 0.12),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 1,
+"values": [8, 9, 10, 11]
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath(".:can_combo")
+tracks/6/interp = 1
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.32, 0.4),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": [false, true, false]
+}
+tracks/7/type = "value"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath("Graphics/HitboxAir2:monitoring")
+tracks/7/interp = 1
+tracks/7/loop_wrap = true
+tracks/7/keys = {
+"times": PackedFloat32Array(0, 0.06, 0.07),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": [false, true, false]
+}
+tracks/8/type = "method"
+tracks/8/imported = false
+tracks/8/enabled = true
+tracks/8/path = NodePath(".")
+tracks/8/interp = 1
+tracks/8/loop_wrap = true
+tracks/8/keys = {
+"times": PackedFloat32Array(0.04, 0.07),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [1000.0],
+"method": &"strike_impulse"
+}, {
+"args": ["cut", 0.0, -20.0, Vector2(-1, -0.6), 45.0, Color(1, 3, 1, 1), Color(1, 1, 1, 1), true, 1, 1.0],
+"method": &"spawn_anim_vfx"
+}]
+}
+
+[sub_resource type="Animation" id="Anim_air_attack_3"]
+resource_name = "air_attack_3"
+length = 0.5
+step = 0.01
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Graphics/Sprite2D:texture")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [ExtResource("41_tx_air_a")]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Graphics/Sprite2D:hframes")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [5]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Graphics/Sprite2D:vframes")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [4]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Graphics/Sprite2D:region_rect")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Rect2(0, 0, 640, 512)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Graphics/Sprite2D:position")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(-2, -28)]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Graphics/Sprite2D:frame")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.06, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [8, 12, 13, 14, 15, 16, 17, 18]
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath(".:can_combo")
+tracks/6/interp = 1
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [false]
+}
+tracks/7/type = "value"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath("Graphics/HitboxAir3:monitoring")
+tracks/7/interp = 1
+tracks/7/loop_wrap = true
+tracks/7/keys = {
+"times": PackedFloat32Array(0, 0.15, 0.36),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": [false, true, false]
+}
+tracks/8/type = "method"
+tracks/8/imported = false
+tracks/8/enabled = true
+tracks/8/path = NodePath(".")
+tracks/8/interp = 1
+tracks/8/loop_wrap = true
+tracks/8/keys = {
+"times": PackedFloat32Array(0.06, 0.21),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [1200.0],
+"method": &"strike_impulse"
+}, {
+"args": ["Circular cut", 0.0, -20.0, Vector2(-0.7, 0.7), 0.0, Color(1, 3, 1, 1), Color(0.768627, 0.94902, 0.654902, 1), false, 1, 1.0],
+"method": &"spawn_anim_vfx"
+}]
+}
+
+[sub_resource type="Animation" id="Anim_skill"]
+resource_name = "skill"
+length = 0.5
+step = 0.01
+
+[sub_resource type="Animation" id="Anim_art_1"]
+resource_name = "art_1"
+length = 0.5
+step = 0.01
+
 [sub_resource type="Animation" id="Anim_fall"]
 resource_name = "fall"
 length = 0.3
@@ -1494,6 +1874,10 @@ tracks/5/keys = {
 [sub_resource type="AnimationLibrary" id="AnimLib"]
 _data = {
 "RESET": SubResource("Anim_reset"),
+"air_attack_1": SubResource("Anim_air_attack_1"),
+"air_attack_2": SubResource("Anim_air_attack_2"),
+"air_attack_3": SubResource("Anim_air_attack_3"),
+"art_1": SubResource("Anim_art_1"),
 "attack_1": SubResource("Anim_attack_1"),
 "attack_2": SubResource("Anim_attack_2"),
 "attack_3": SubResource("Anim_attack_3"),
@@ -1507,6 +1891,7 @@ _data = {
 "launched_2": SubResource("Animation_afx50"),
 "launched_start": SubResource("Anim_launched"),
 "running": SubResource("Anim_run"),
+"skill": SubResource("Anim_skill"),
 "sliding": SubResource("Anim_slide")
 }
 
@@ -1627,7 +2012,7 @@ monitoring = false
 script = ExtResource("12_hitbox")
 damage = 150.0
 hitstun_time = 0.0
-knockback = Vector2(600, -200)
+knockback = Vector2(400, -400)
 causes_knockdown = true
 shake_intensity = 10.0
 use_character_default_spark = false
@@ -1641,6 +2026,80 @@ spark_random_angle = 90.0
 visible = false
 position = Vector2(-13.25, -19)
 shape = SubResource("Shape_hbA5")
+
+[node name="HitboxAir1" type="Area2D" parent="Graphics"]
+position = Vector2(30, -30)
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("12_hitbox")
+damage = 80.0
+hitstun_time = 0.35
+knockback = Vector2(100, -200)
+causes_knockdown = true
+can_hit_downed = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxAir1"]
+visible = false
+shape = SubResource("Shape_hbAir1")
+
+[node name="HitboxAir2" type="Area2D" parent="Graphics"]
+position = Vector2(30, -30)
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("12_hitbox")
+damage = 80.0
+hitstun_time = 0.35
+knockback = Vector2(100, -200)
+causes_knockdown = true
+can_hit_downed = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxAir2"]
+visible = false
+shape = SubResource("Shape_hbAir2")
+
+[node name="HitboxAir3" type="Area2D" parent="Graphics"]
+position = Vector2(30, -30)
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("12_hitbox")
+knockback = Vector2(100, -200)
+causes_knockdown = true
+can_hit_downed = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxAir3"]
+visible = false
+shape = SubResource("Shape_hbAir3")
+
+[node name="HitboxSkill" type="Area2D" parent="Graphics"]
+position = Vector2(30, -25)
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("12_hitbox")
+damage = 120.0
+hitstun_time = 0.45
+knockback = Vector2(250, -60)
+break_level = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxSkill"]
+visible = false
+shape = SubResource("Shape_hbSkill")
+
+[node name="HitboxArt1" type="Area2D" parent="Graphics"]
+position = Vector2(30, -25)
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("12_hitbox")
+damage = 150.0
+knockback = Vector2(280, -100)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxArt1"]
+visible = false
+shape = SubResource("Shape_hbArt1")
 
 [node name="VsStateMachine" type="Node" parent="."]
 script = ExtResource("2_sm")
@@ -1677,6 +2136,12 @@ script = ExtResource("17_launched")
 
 [node name="VsAttack" type="Node" parent="VsStateMachine"]
 script = ExtResource("17_attack")
+
+[node name="VsAirAttack" type="Node" parent="VsStateMachine"]
+script = ExtResource("42_air_attack")
+
+[node name="VsSkill" type="Node" parent="VsStateMachine"]
+script = ExtResource("43_skill")
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
 callback_mode_process = 0
