@@ -121,7 +121,7 @@ script = ExtResource("1_dn44r")
 [node name="Aura" type="Sprite2D" parent="."]
 modulate = Color(1, 1, 1, 0.376471)
 material = SubResource("CanvasItemMaterial_bxsb4")
-position = Vector2(18, 1)
+position = Vector2(-0.999999, 2.38419e-07)
 scale = Vector2(2.58203, 2.59766)
 texture = SubResource("GradientTexture2D_piy6w")
 
@@ -138,7 +138,7 @@ initial_velocity_max = 600.0
 linear_accel_min = -100.0
 
 [node name="Sprite-0001" type="Sprite2D" parent="CPUParticles2D"]
-position = Vector2(10, -1)
+position = Vector2(-5, -1.25)
 scale = Vector2(1.2, 2.5)
 texture = ExtResource("2_s2o5l")
 hframes = 3

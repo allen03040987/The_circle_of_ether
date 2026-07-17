@@ -17,6 +17,28 @@ enum BreakLevel {
 @export var break_level: BreakLevel = BreakLevel.NONE
 @export var guard_damage: float = 0.0      # 留用欄位（目前由體質效果系統統一計算）
 
+@export_group("打擊回饋（純視覺）")
+@export var shake_intensity: float = 0.0   # 0 = 不震動（沒有角色預設層，跟主遊戲一樣每招自己填）
+
+@export_subgroup("火花")
+## true（預設）＝完全套用角色的預設火花（VsPlayer.default_spark_*，比照主遊戲
+## Weapon.get_weapon_default_spark()），下面這顆 hitbox 自己的欄位全部忽略——
+## 大多數招式不用管火花，維持 true 即可。想讓「這一招」火花長得不一樣，關掉這個
+## 開關、把下面欄位填成這招要的樣子。VsMods 是節點驅動（不是主遊戲那種資料表），
+## 所以簡化成「整組套用角色預設」或「整組用這招自己的」二選一，不像主遊戲能單一
+## 欄位分開 fallback（例如只覆蓋顏色、其他繼續繼承）——多數情況這樣已經夠用。
+@export var use_character_default_spark: bool = true
+@export var spark_type: Hitbox.SparkType = Hitbox.SparkType.SLASH
+@export var spark_scale: float = 0.3
+@export var spark_color: Color = Color.WHITE
+@export var aura_color: Color = Color(1.0, 1.0, 1.0, 0.5)
+@export var spark_raw_intensity: float = 1.0
+@export var spark_random_angle: float = 20.0
+@export var spark_base_offset: Vector2 = Vector2.ZERO
+@export var spark_random_offset: Vector2 = Vector2.ZERO
+@export var attach_spark_to_victim: bool = true
+@export var custom_spark_scene: PackedScene
+
 var hit_targets: Dictionary = {}
 ## rollback 安全旗標：此段攻擊是否已命中過（儲存於快照，還原後不會意外重複觸發）
 var has_hit: bool = false

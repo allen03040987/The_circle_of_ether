@@ -260,6 +260,10 @@ func _restore_snapshot(frame: int) -> void:
 
 # ── 單幀模擬 ──────────────────────────────────────────────────────────────────
 func _simulate_frame(delta: float, inp1: InputState, inp2: InputState) -> void:
+	# 同步給玩家：vfx_* 系列特效輔助函式靠這個旗標擋掉 rollback 重模擬期間的
+	# 重複觸發（同一次命中/同一幀衝刺可能因多次 rollback 被重跑好幾遍）
+	p1.is_resimulating = is_resimulating
+	p2.is_resimulating = is_resimulating
 	round_manager.tick(delta)
 	if not round_manager.is_fighting():
 		# AnimationPlayer 是 MANUAL 模式（平時由 VsPlayer.apply_input 推進）；
@@ -314,6 +318,11 @@ func _manual_check(hb: VsHitbox, hrb: VsHurtbox, hb_owner: VsPlayer, hrb_owner: 
 		hb.hit_targets[hrb] = true
 		hb.has_hit = true
 		hrb.receive_hit(hb)
+		# 打擊回饋：火花釘在受害者身上、跟著移動；震動全域生效。純視覺，命中
+		# 判定/傷害邏輯完全不受影響——不管防禦/霸體/無敵吸收與否都照樣給回饋，
+		# 「打中了」跟「打中造成多少效果」是兩件事（比照主遊戲 Hitbox 的做法）
+		hb_owner.vfx_spark(hb, hrb.global_position, hrb_owner)
+		hb_owner.vfx_shake(hb.shake_intensity)
 
 ## desync log 用：列出玩家所有判定框的 monitoring/has_hit（開著的才列，全關顯示 "-"）
 func _hb_summary(p: VsPlayer) -> String:

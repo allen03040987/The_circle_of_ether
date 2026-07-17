@@ -18,6 +18,31 @@ enum ArmorTier {
 @export var max_dash_energy: float = 100.0
 @export var dash_regen_rate: float = 10.0   # 每秒回復量（永遠生效）
 
+# ── VFX 字典庫（比照主遊戲 Player.gd 的 vfx_common/vfx_weapon/vfx_system）─────
+# 用途：登記「名稱 → 特效場景」，動畫 Call Method 軌道或程式碼直接用字串名稱
+# 呼叫 spawn_anim_vfx(name, ...)，不用像 vfx_spark_self 那樣被固定在單一枚舉
+# 上——任何自訂特效場景都能掛，例如武藝/技能的專屬視覺。在 Inspector 展開
+# 字典逐一新增 key（特效名）/value（PackedScene）即可，跟主遊戲用法一致。
+@export_group("VFX 字典庫")
+@export var vfx_common: Dictionary = {}   ## 通用特效（環境/煙塵等，跨角色共用）
+@export var vfx_weapon: Dictionary = {}   ## 武器/角色專屬特效
+@export var vfx_system: Dictionary = {}   ## 系統反饋（蓄力/受擊閃光等）
+
+# ── 角色預設火花（比照主遊戲 Weapon.get_weapon_default_spark()）──────────────
+# 每顆 VsHitbox 預設 use_character_default_spark=true，會完全套用這裡的值，
+# 不用每招自己填一遍；想要某招火花不一樣才去該 hitbox 節點關掉開關、自己填。
+@export_group("角色預設火花")
+@export var default_spark_type: Hitbox.SparkType = Hitbox.SparkType.SLASH
+@export var default_spark_scale: float = 0.3
+@export var default_spark_color: Color = Color.WHITE
+@export var default_aura_color: Color = Color(1.0, 1.0, 1.0, 0.5)
+@export var default_spark_raw_intensity: float = 1.0
+@export var default_spark_random_angle: float = 20.0
+@export var default_spark_base_offset: Vector2 = Vector2.ZERO
+@export var default_spark_random_offset: Vector2 = Vector2.ZERO
+@export var default_attach_spark_to_victim: bool = true
+@export var default_custom_spark_scene: PackedScene
+
 # ── 武藝槽（由 vs_world 從 VsGameManager 注入）──────────────────────────────
 var art_slots: Array[String] = ["", "", ""]
 
@@ -53,6 +78,13 @@ var hitboxes: Array[VsHitbox] = []
 ## 對手參照（由 vs_world._spawn_players 注入）——輔助鎖敵用
 var opponent: VsPlayer = null
 
+## 是否正在 rollback 重模擬中（由 vs_world._simulate_frame 每幀同步，不進快照——
+## 這是「這次呼叫是不是重跑」的執行期中繼資訊，不是模擬狀態本身）。
+## 所有 vfx_* 特效輔助函式都靠這個旗標擋掉重模擬期間的重複觸發：同一次命中、
+## 同一幀衝刺可能因為多次 rollback 被重新跑過好幾遍，不擋的話火花/震動/殘影
+## 會噴好幾份。純視覺、不影響模擬結果，兩端各自獨立判斷即可，不用同步。
+var is_resimulating: bool = false
+
 ## 轉向指定世界 x 座標（模擬資料 position，rollback 安全）。x 等於自己時不變。
 func face_towards_x(x: float) -> void:
 	if x > position.x:
@@ -70,7 +102,22 @@ func face_opponent() -> void:
 ## strength 參數決定，不用程式碼排程（跟 can_combo/hitbox 軌道同一套原則）。
 ## 只在攻擊狀態生效：若這幀之間已被打斷轉去別的狀態，該狀態 enter() 早已把
 ## anim_player 換成別的動畫，這條 call method 軌道理論上不會再被觸發，這裡多一層防呆。
+##
+## ⚠ rollback 確定性關鍵：_resyncing_anim 為 true 時直接跳過，不套用衝力。
+## 原因：can_combo/hitbox monitoring 是「值」軌道，seek() 重複套用同一個值是
+## 無害的（冪等）；但這是「呼叫方法」軌道，每次觸發都會真的改一次 velocity，
+## 不是冪等的。sync_anim_to_state()（每次 rollback 還原快照、以及重模擬結束
+## 都會呼叫）內部用 seek(elapsed, true) 把動畫時間跳到還原後的位置——Godot 的
+## seek 是否會回放沿途經過的 call method key，行為不夠明確保證不會，一旦真的
+## 回放了，這裡就會拿「已經是重模擬後正確結果」的 velocity 再蓋一次錯的衝力，
+## 而且每次 rollback 都疊加一次，形同持續累積誤差 → desync（實測抓到過：連續
+## 幾次 rollback 後 P2 在 vsattack 狀態 position/dash_energy 兩端對不上）。
+## 這裡直接擋掉「因為 seek 而觸發」的呼叫，只允許「真的走過這一幀模擬」時
+## （_do_rollback 重模擬迴圈裡的 advance()，或正常單幀模擬）才生效。
+var _resyncing_anim: bool = false
+
 func strike_impulse(strength: float) -> void:
+	if _resyncing_anim: return
 	if not (state_machine.current_state is VsAttack): return
 	velocity.x = facing_dir * strength
 
@@ -86,6 +133,15 @@ func _ready() -> void:
 	# MANUAL 模式在運行時才切（rollback 需要：動畫由 apply_input 以模擬 delta 推進）。
 	# 不寫死在 tscn——編輯器預覽在 MANUAL 模式下不會推進，動畫面板會壞掉不能播
 	anim_player.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	# Call Method 軌道（strike_impulse）預設是「延遲執行」——真正呼叫的時機是
+	# call_deferred() 排到這一幀稍後，不是 advance()/seek() 呼叫的當下。這會讓
+	# _resyncing_anim 防呆完全失效（guard 早就重置回 false 了才真的觸發），
+	# 而且 rollback 重模擬同一真實影格內會連續呼叫多次 advance()，若都被排到
+	# 延遲佇列，執行次數/順序不保證對應到各自的模擬幀，直接破壞確定性
+	# （實測：velocity 出現 -554.17 這種只有 strike_impulse 直接寫入才會有的
+	# 異常值，重複觸發到離譜的程度）。改成立即模式，呼叫嚴格同步在 advance()/
+	# seek() 呼叫當下發生，_resyncing_anim 才真的擋得住 resync 觸發的呼叫。
+	anim_player.callback_mode_method = AnimationMixer.ANIMATION_CALLBACK_MODE_METHOD_IMMEDIATE
 	for c in graphics.get_children():
 		if c is VsHitbox:
 			c.owner_player = self   # 受擊方向計算用（模擬資料，不依賴 scene tree transform）
@@ -332,12 +388,177 @@ func restore_state(s: Dictionary) -> void:
 
 func sync_anim_to_state() -> void:
 	if state_machine.current_state:
+		# 期間發生的動畫 seek 純粹是視覺重新對齊，不代表真的走過那段模擬時間——
+		# 見 strike_impulse() 的說明，擋掉 seek 觸發的方法呼叫副作用
+		_resyncing_anim = true
 		state_machine.current_state.sync_anim()
+		_resyncing_anim = false
 
 # ── 武藝加成（vs_world 注入 art_slots 後呼叫）────────────────────────────────
 func apply_arts_bonus() -> void:
 	var empty := art_slots.count("")
 	arts_regen_rate += empty * VsGameManager.EMPTY_SLOT_REGEN_BONUS
+
+# ==========================================
+# 🎇 打擊回饋 VFX
+# ==========================================
+## CombatManager（autoload）是共用的特效庫，`vfx_spark`/`vfx_shake`/`vfx_ghost`/
+## `vfx_dodge_spark` 是每個角色呼叫它的統一入口。`spawn_anim_vfx` 則是完整移植
+## 主遊戲 Player.gd 的「字典庫」系統（見下方，vfx_common/vfx_weapon/vfx_system 三
+## 個 @export Dictionary），用來掛任意自訂特效場景（不限於固定的 SparkType 打擊
+## 火花）——這兩套系統並存，各司其職：固定打擊回饋用 vfx_*，招式專屬/自訂特效
+## 用 spawn_anim_vfx。都不需要另外蓋一個「特效字典場景」，CombatManager／
+## Dictionary 本身就是。
+##
+## **火花只綁在命中判定上，動畫軌道用不到**：`vfx_spark` 一定要有實際命中的
+## `VsHitbox`（讀它的 use_character_default_spark/角色預設 fallback），只會由
+## `vs_world._manual_check()` 在真正判定命中時呼叫，不提供動畫 Call Method 軌道
+## 版本——招式自己的動畫不該無條件噴火花，那是命中那一刻、命中對象身上才有的
+## 反應。`vfx_shake`/`vfx_ghost`/`vfx_dodge_spark`/`spawn_anim_vfx` 則兩種來源
+## 都能呼叫：(1) 程式碼直接呼叫（hit 判定、dash 計時器這種要等執行期才知道該不
+## 該觸發的場合）；(2) 當動畫 Call Method 軌道用（NodePath 打 `.`、方法名填函式
+## 名，比照 strike_impulse 的用法，適合「這一幀就是要有這個特效」的固定時間點，
+## 例如出招瞬間的塵土、蓄力閃光——這些不是「命中回饋」，是招式本身自帶的效果，
+## 所以可以綁動畫時間點）。
+## 兩種來源共用同一套 rollback 防呆：
+##   - is_resimulating：擋掉 rollback 重模擬期間的重複觸發
+##   - _resyncing_anim：擋掉 sync_anim_to_state() 的 seek() 可能回放 Call Method key
+## 兩者缺一不可（原因見 _ready() 設定 callback_mode_method 那段說明），任何新的
+## Call Method 軌道都要走這裡而不是直接呼叫 CombatManager，否則會漏掉這層防呆。
+func _vfx_blocked() -> bool:
+	return is_resimulating or _resyncing_anim
+
+## 角色 Sprite2D 的實際世界座標——VsPlayer 根節點對齊腳底，特效要對齊「看起來的
+## 身體位置」得讀這個，不能直接用 global_position（那是腳底，殘影/火花會貼地）
+func vfx_anchor_position() -> Vector2:
+	var sprite := graphics.get_node_or_null("Sprite2D") as Sprite2D
+	return sprite.global_position if is_instance_valid(sprite) else global_position
+
+## 打擊火花——由 vs_world._manual_check 命中確認後呼叫。完整比照主遊戲
+## Hitbox._execute_hit() 的解析流程：先決定這顆 hitbox 是用角色預設還是自己的
+## 火花設定（VsHitbox.use_character_default_spark），再算隨機角度/偏移，最後
+## 呼叫 CombatManager.spawn_spark。純視覺，兩端各自 randf_range 不用同步。
+func vfx_spark(hb: VsHitbox, base_pos: Vector2, victim: Node) -> void:
+	if _vfx_blocked(): return
+	var type: Hitbox.SparkType
+	var scale: float
+	var color: Color
+	var aura: Color
+	var intensity: float
+	var rand_angle: float
+	var base_offset: Vector2
+	var rand_offset: Vector2
+	var attach: bool
+	var custom_scene: PackedScene
+	if hb.use_character_default_spark:
+		type          = default_spark_type
+		scale         = default_spark_scale
+		color         = default_spark_color
+		aura          = default_aura_color
+		intensity     = default_spark_raw_intensity
+		rand_angle    = default_spark_random_angle
+		base_offset   = default_spark_base_offset
+		rand_offset   = default_spark_random_offset
+		attach        = default_attach_spark_to_victim
+		custom_scene  = default_custom_spark_scene
+	else:
+		type          = hb.spark_type
+		scale         = hb.spark_scale
+		color         = hb.spark_color
+		aura          = hb.aura_color
+		intensity     = hb.spark_raw_intensity
+		rand_angle    = hb.spark_random_angle
+		base_offset   = hb.spark_base_offset
+		rand_offset   = hb.spark_random_offset
+		attach        = hb.attach_spark_to_victim
+		custom_scene  = hb.custom_spark_scene
+
+	var pos := base_pos + Vector2(base_offset.x * facing_dir, base_offset.y)
+	pos.x += randf_range(-rand_offset.x, rand_offset.x)
+	pos.y += randf_range(-rand_offset.y, rand_offset.y)
+	var angle := randf_range(-rand_angle, rand_angle)
+	var target: Node = victim if attach else null
+	CombatManager.spawn_spark(type, pos, facing_dir, target, angle, scale, color, custom_scene, aura, intensity)
+
+## 螢幕震動——強度 <= 0 視為不震動。可直接當動畫 Call Method 軌道呼叫。
+## ⚠ 走 VsCamera.shake()，不是主遊戲的 CombatManager.apply_camera_shake()：
+## VsCamera._physics_process() 每幀都會用自己的 shake_timer/shake_intensity
+## 決定 offset（沒在震動就強制歸零），如果改呼叫 CombatManager 那邊用 Tween
+## 動 camera.offset，兩邊每幀互搶同一個屬性，Tween 的效果會被 VsCamera 自己的
+## 「沒在搖就歸零」蓋掉，震動等於沒作用（實測發現的坑，VsCamera 早就有自己
+## 一套完整的震動系統，直接用它就好，不要重複做兩套）。
+func vfx_shake(intensity: float, duration: float = 0.06) -> void:
+	if _vfx_blocked() or intensity <= 0.0: return
+	if not Game.config_enable_screen_shake: return
+	var cam := get_viewport().get_camera_2d() as VsCamera
+	if is_instance_valid(cam):
+		cam.shake(intensity, duration)
+
+## 殘影——沿用主遊戲 add_ghost 的預設半透明白色。可當動畫 Call Method 軌道呼叫，
+## 也可由 VsDodge 每 0.05s 呼叫一次（衝刺拖尾）
+func vfx_ghost(color: Color = Color(1.0, 1.0, 1.0, 0.4)) -> void:
+	if _vfx_blocked(): return
+	var sprite := graphics.get_node_or_null("Sprite2D") as Sprite2D
+	if is_instance_valid(sprite):
+		CombatManager.spawn_ghost(sprite, sprite.global_position, graphics.scale, color)
+
+## 完美閃避專屬火花——由 VsDodge.trigger_perfect_dodge() 呼叫
+func vfx_dodge_spark() -> void:
+	if _vfx_blocked(): return
+	CombatManager.spawn_dodge_spark(vfx_anchor_position())
+
+## 特寫運鏡——鏡頭短暫拉近盯著自己再自動恢復一般立回模式。可直接當動畫 Call
+## Method 軌道呼叫（NodePath 打 `.`，方法名 vfx_closeup）。
+## depth = 拉近倍率（VsCamera.cinematic_zoom() 規定 > 1.0 才會真的觸發特寫，
+## 數值越大鏡頭拉得越近；平常立回縮放範圍是 min_zoom~max_zoom= 0.6~1.2，
+## depth 建議抓 1.5~2.5 左右試手感）；duration = 維持特寫的秒數，時間到
+## VsCamera 自己倒數退出，不用另外呼叫「結束特寫」。
+## 走 VsCamera 自己的 cinematic_zoom（不是主遊戲 CombatManager.apply_camera_closeup）：
+## VsCamera 平常持續動態運算縮放（依兩位玩家距離即時調整），主遊戲那套「直接
+## tween camera.zoom、時間到還原成固定 base_zoom」的做法會跟這個動態運算打架
+## ——VsCamera 已經有專門的 is_in_cinematic 分支處理特寫期間暫停動態運算，
+## 直接用它才不會互相搶 zoom 屬性。
+func vfx_closeup(depth: float, duration: float) -> void:
+	if _vfx_blocked(): return
+	var cam := get_viewport().get_camera_2d() as VsCamera
+	if is_instance_valid(cam):
+		cam.cinematic_zoom(self, depth, duration)
+
+## 生成字典庫裡登記的自訂特效（比照主遊戲 Player.spawn_anim_vfx，完整移植）。
+## 依序查 vfx_common → vfx_weapon → vfx_system，找不到就不生成。
+## detach=true：掛在 vs_world 底下（世界座標獨立存在，角色死亡/換狀態不會帶走）；
+## detach=false：掛在角色自己身上（跟著移動，例如貼身持續特效）。
+## 位置基準跟主遊戲一樣是角色的 global_position（腳底）＋呼叫端自己指定的
+## offset_x/offset_y——不是 vfx_anchor_position()，因為主遊戲每個特效呼叫本來
+## 就是靠 offset 手動校正位置（例如 "heal_flash" 用 offset_y=-30 對準胸口），
+## 換成自動抓 Sprite2D 位置反而會跟既有的 offset 數值對不上。
+func spawn_anim_vfx(
+	vfx_name: String, offset_x: float = 0.0, offset_y: float = 0.0,
+	custom_scale: Vector2 = Vector2(1.0, 1.0), rotation_deg: float = 0.0,
+	custom_color: Color = Color.WHITE, aura_color: Color = Color.WHITE,
+	detach: bool = true, custom_z_index: int = 1, raw_intensity: float = 1.0
+) -> void:
+	if _vfx_blocked(): return
+	var vfx_scene: PackedScene = null
+	if vfx_common.has(vfx_name): vfx_scene = vfx_common[vfx_name]
+	elif vfx_weapon.has(vfx_name): vfx_scene = vfx_weapon[vfx_name]
+	elif vfx_system.has(vfx_name): vfx_scene = vfx_system[vfx_name]
+	if vfx_scene == null: return
+
+	var vfx := vfx_scene.instantiate()
+	if detach:
+		get_parent().add_child(vfx)
+		vfx.global_position = global_position + Vector2(offset_x * facing_dir, offset_y)
+		vfx.z_index = z_index + custom_z_index
+	else:
+		add_child(vfx)
+		vfx.position = Vector2(offset_x * facing_dir, offset_y)
+		vfx.z_index = custom_z_index
+
+	vfx.scale = Vector2(facing_dir * custom_scale.x, custom_scale.y)
+	vfx.rotation_degrees = rotation_deg * facing_dir
+	var hdr_color := Color(custom_color.r * raw_intensity, custom_color.g * raw_intensity, custom_color.b * raw_intensity, custom_color.a)
+	CombatManager._apply_vfx_colors(vfx, hdr_color, aura_color)
 
 # ==========================================
 # 🎨 狀態輪廓描邊（主遊戲 StatusOutline 同款）：藍=霸體、黃=強霸體、紅=無敵
