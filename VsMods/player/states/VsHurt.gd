@@ -27,7 +27,7 @@ func physics_update(delta: float, input: InputState) -> StringName:
 	if elapsed >= hitstun_time:
 		if knockdown_after:
 			return &"vsknockdown"
-		return &"vsidle" if _grounded() else &"vsfall"
+		return _recovery_transition(input)   # 支援跑步預輸入
 	return &""
 
 func save_state() -> Dictionary:

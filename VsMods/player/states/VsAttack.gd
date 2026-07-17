@@ -13,6 +13,12 @@ extends VsPlayerState
 #   撐到窗口開啟、自動多接一段（enter() 會清緩衝，所以段與段之間不會誤傳）。
 const ATTACK_BUFFER: float = 0.2
 const MAX_COMBO:     int   = 5
+# 攻擊期間水平減速率——比照主遊戲 Katana.gd 的 FLOOR_ACCELERATION
+# (RUN_SPEED/0.04 = 8750px/s²)，而不是一般移動用的 VsPlayerState.FRICTION（900）。
+# strike_impulse 的前衝力道要靠這麼強的摩擦力才煞得住：用一般移動摩擦力的話，
+# 同樣的衝力強度會滑出將近 20 倍遠（滑行距離 ∝ v²/摩擦力），主遊戲數值搬過來
+# 測試會直接飛超遠就是這個落差。
+const IMPULSE_FRICTION: float = 8750.0
 
 # ── 狀態變數 ──────────────────────────────────────────────────────────────────
 var combo_step:         int   = 1
@@ -29,6 +35,9 @@ func enter(_prev: StringName) -> void:
 
 	vs.can_combo = false   # 由動畫軌道在窗口時間點重新拉起
 	_reset_hitboxes(vs)    # 清掉上一段殘留的判定框，本段的由動畫軌道開啟
+	# 攻擊起手清除殘留水平動量（跑步衝進攻擊不再滑行）；前衝/突刺感改由
+	# strike_impulse 動畫呼叫方法軌道注入，主遊戲同款設計，見 VsPlayer.strike_impulse()
+	player.velocity.x = 0.0
 	vs.anim_player.play(anim_name)
 	_anim_length = vs.anim_player.get_animation(anim_name).length
 
@@ -64,9 +73,10 @@ func physics_update(delta: float, input: InputState) -> StringName:
 		enter(&"vsattack")   # 直接重啟，繞過防重入（exit() 不會被呼叫；enter() 會清窗口/緩衝/hitbox）
 		return &""
 
-	# 地面慣性衰減（攻擊期間不接受移動輸入）
+	# 地面慣性衰減（攻擊期間不接受移動輸入）——用 IMPULSE_FRICTION 而非一般
+	# 移動摩擦力，讓 strike_impulse 打出的前衝力道快速收回，不會飛太遠
 	if _grounded():
-		player.velocity.x = move_toward(player.velocity.x, 0.0, FRICTION * 0.5 * delta)
+		player.velocity.x = move_toward(player.velocity.x, 0.0, IMPULSE_FRICTION * delta)
 	else:
 		_apply_gravity(delta)
 

@@ -2,8 +2,9 @@ class_name VsDodge
 extends VsPlayerState
 ## 衝刺狀態
 ## 消耗 30 點衝刺能量，往前位移，期間不受重力影響。
-## 前 PERFECT_WINDOW 秒內受擊 → 觸發完美閃避（invincible_time_left 延伸至整段衝刺）。
-## 衝刺正常結束後授予 2 秒強霸體（被打斷則不授予）。
+## 前 PERFECT_WINDOW 秒內受擊 → 觸發完美閃避：(1) 無敵延伸至整段衝刺、
+## (2) 結束後再給 2 秒強霸體。兩者都綁在「有沒有被打到」上——沒被打到、
+## 或雖被打到但衝刺被打斷，都不給結束後強霸體。
 
 const DODGE_SPEED:    float = 300.0
 const DODGE_DURATION: float = 0.35
@@ -22,22 +23,25 @@ func enter(_prev: StringName) -> void:
 	# 以 last_input 決定方向；無移動輸入則沿目前面向
 	var lm := vs.last_input.move_dir if vs.last_input else 0.0
 	dodge_dir = int(sign(lm)) if lm != 0.0 else vs.facing_dir
+	# 動畫朝向要跟移動方向一致：沒這行的話，若衝刺前面向跟 dodge_dir 不同
+	# （例如剛轉身瞬間衝刺），畫面會出現「朝左的滑動動畫、卻往右衝」
+	vs.facing_dir = dodge_dir
 	vs.anim_player.play("sliding")
 	vs.invincible_time_left = PERFECT_WINDOW
 
-func physics_update(delta: float, _input: InputState) -> StringName:
+func physics_update(delta: float, input: InputState) -> StringName:
 	elapsed             += delta
 	player.velocity.x    = dodge_dir * DODGE_SPEED
 	player.velocity.y    = 0.0   # 衝刺期間不受重力影響
 	if elapsed >= DODGE_DURATION:
 		_completed = true
 		player.velocity.x = 0.0   # 衝刺結束直接停下，不滑行
-		return &"vsidle" if _grounded() else &"vsfall"
+		return _recovery_transition(input)   # 支援跑步預輸入
 	return &""
 
 func exit() -> void:
-	# 只有正常走完才授予衝刺後強霸體（被擊中打斷則不授予）
-	if _completed:
+	# 結束後強霸體：必須「正常走完」且「前 0.3s 有觸發完美閃避」兩者皆成立
+	if _completed and _perfect_used:
 		(player as VsPlayer).post_dash_armor_left = 2.0
 
 func save_state() -> Dictionary:

@@ -50,8 +50,29 @@ var last_input:            InputState         # 當幀輸入備份（供 enter()
 ## Graphics 下所有 VsHitbox（每招一顆：HitboxA1~A5...，大小/位置/傷害數值都在
 ## 編輯器節點上調），開關由各攻擊動畫的 monitoring 軌道驅動，_ready() 收集
 var hitboxes: Array[VsHitbox] = []
-## 對手參照（由 vs_world._spawn_players 注入）——回到 idle 自動面向對方用
+## 對手參照（由 vs_world._spawn_players 注入）——輔助鎖敵用
 var opponent: VsPlayer = null
+
+## 轉向指定世界 x 座標（模擬資料 position，rollback 安全）。x 等於自己時不變。
+func face_towards_x(x: float) -> void:
+	if x > position.x:
+		facing_dir = 1
+	elif x < position.x:
+		facing_dir = -1
+
+## 待機時持續鎖定面向對手（輔助鎖敵）。由 VsIdle 在靜止（無移動輸入）時每幀呼叫。
+func face_opponent() -> void:
+	if opponent:
+		face_towards_x(opponent.position.x)
+
+## 動畫呼叫方法軌道專用（主遊戲 Player.strike_impulse 同款設計）：攻擊動畫的
+## 前衝/突刺幀直接注入水平速度，取代殘留動量——前衝力道由動畫軌道時間點與
+## strength 參數決定，不用程式碼排程（跟 can_combo/hitbox 軌道同一套原則）。
+## 只在攻擊狀態生效：若這幀之間已被打斷轉去別的狀態，該狀態 enter() 早已把
+## anim_player 換成別的動畫，這條 call method 軌道理論上不會再被觸發，這裡多一層防呆。
+func strike_impulse(strength: float) -> void:
+	if not (state_machine.current_state is VsAttack): return
+	velocity.x = facing_dir * strength
 
 # 脫戰計時器：用 float + 模擬 delta，不用 Timer 節點（Timer 用真實時間，rollback 下會飄）
 const OUT_OF_COMBAT_DELAY := 2.0
@@ -177,12 +198,14 @@ func _on_hurtbox_hurt(hitbox: VsHitbox) -> void:
 
 	if is_invincible(): return
 
-	# 計算攻擊方向（dir_x：受擊者相對攻擊來源的方向）
-	# 一律用模擬資料 position，不用 global_position（scene tree 快取在
-	# rollback 重模擬中可能過期，會算出不同的擊退方向 → desync）
-	var src_x := hitbox.owner_player.position.x if hitbox.owner_player else position.x
-	var dir_x := int(sign(src_x - position.x))
-	if dir_x == 0: dir_x = -facing_dir
+	# 被打時立刻轉向攻擊者（輔助鎖敵）——不管接下來走哪個分支（硬直/防禦/擊飛）
+	if hitbox.owner_player:
+		face_towards_x(hitbox.owner_player.position.x)
+
+	# 擊退方向：用「攻擊者當下面向」而非兩者相對座標——主遊戲 Hitbox.gd 同款做法。
+	# 出招時 hitbox 本就往攻擊者面向那側長出去，打中人時攻擊者幾乎必然面向被打者，
+	# 用相對座標算會依兩人誰在左右而正負顛倒（同樣正值擊退卻一下前一下後的 bug 根源）
+	var dir_x: int = hitbox.owner_player.facing_dir if hitbox.owner_player else -facing_dir
 
 	# 防禦：交由 VsGuard 處理（強霸體減傷 + 強破霸破防）
 	if cur is VsGuard:

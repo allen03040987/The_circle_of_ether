@@ -16,7 +16,5 @@ func physics_update(delta: float, input: InputState) -> StringName:
 		return &"vsdodge"
 
 	if _grounded():
-		if input.move_dir != 0.0:
-			return &"vsrun"
-		return &"vsidle"
+		return _recovery_transition(input)
 	return &""

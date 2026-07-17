@@ -22,17 +22,15 @@ func physics_update(delta: float, input: InputState) -> StringName:
 		if vs.use_dash_energy(30.0):
 			return &"vsdodge"
 	if not input.guard:
-		return &"vsidle" if _grounded() else &"vsfall"
+		return _recovery_transition(input)   # 支援跑步預輸入
 	return &""
 
 ## 由 VsPlayer._on_hurtbox_hurt() 在防禦狀態下呼叫
 ## 體質效果（強霸體）邏輯統一在此處理，不走一般 pending_hit 流程
 func on_guard_hit(hitbox: VsHitbox) -> void:
 	var vs := player as VsPlayer
-	# 用模擬資料 position 算方向，不用 global_position（rollback 重模擬中會過期）
-	var src_x := hitbox.owner_player.position.x if hitbox.owner_player else vs.position.x
-	var dir_x := int(sign(src_x - vs.position.x))
-	if dir_x == 0: dir_x = -vs.facing_dir
+	# 擊退方向用攻擊者面向，理由同 VsPlayer._on_hurtbox_hurt
+	var dir_x: int = hitbox.owner_player.facing_dir if hitbox.owner_player else -vs.facing_dir
 
 	vs.mark_in_combat()
 

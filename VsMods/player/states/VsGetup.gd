@@ -38,5 +38,5 @@ func physics_update(delta: float, input: InputState) -> StringName:
 		vs.invincible_time_left = 0.0
 		return &"vsdodge"
 	if elapsed >= _duration:
-		return &"vsidle"
+		return _recovery_transition(input)   # 支援跑步預輸入
 	return &""

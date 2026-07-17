@@ -29,3 +29,14 @@ func _apply_air_move(input: InputState) -> void:
 	if input.move_dir != 0.0:
 		player.velocity.x = input.move_dir * AIR_SPEED
 		(player as VsPlayer).facing_dir = int(sign(input.move_dir))
+
+## 恢復狀態（衝刺/硬直/起身/防禦…）結束時的共用收尾：地面且有方向輸入 → 直接
+## 接 vsrun（支援跑步預輸入，不強制先「無腦」進 idle 一幀）；地面無輸入 → vsidle；
+## 未落地 → vsfall。攻擊收招刻意不用這個（規則：攻擊不需要支援預輸入）。
+func _recovery_transition(input: InputState) -> StringName:
+	if not _grounded():
+		return &"vsfall"
+	if input.move_dir != 0.0:
+		(player as VsPlayer).facing_dir = int(sign(input.move_dir))
+		return &"vsrun"
+	return &"vsidle"
