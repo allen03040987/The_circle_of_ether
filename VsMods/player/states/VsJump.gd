@@ -15,6 +15,8 @@ func physics_update(delta: float, input: InputState) -> StringName:
 	var vs := player as VsPlayer
 	if input.dodge and vs.use_dash_energy(30.0):
 		return &"vsdodge"
+	if input.attack:
+		return &"vsairattack"
 
 	if player.velocity.y >= 0.0:
 		return &"vsfall"

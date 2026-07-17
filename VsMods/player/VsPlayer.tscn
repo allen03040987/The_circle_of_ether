@@ -38,6 +38,8 @@
 [ext_resource type="PackedScene" uid="uid://c1s06onyotqf3" path="res://Explod/tscn/cut.tscn" id="38_vfx_cut"]
 [ext_resource type="PackedScene" uid="uid://ejwp3sdtv1s3" path="res://Explod/tscn/whirlwind.tscn" id="39_vfx_whirlwind"]
 [ext_resource type="PackedScene" uid="uid://djfuu6roflvrt" path="res://Explod/tscn/Aggregation ring.tscn" id="40_vfx_agg_ring"]
+[ext_resource type="Texture2D" uid="uid://bpp801dar3y4i" path="res://player/Katana/air_A.png" id="41_tx_air_a"]
+[ext_resource type="Script" path="res://VsMods/player/states/VsAirAttack.gd" id="42_air_attack"]
 
 [sub_resource type="RectangleShape2D" id="Shape_body"]
 size = Vector2(16, 64)
