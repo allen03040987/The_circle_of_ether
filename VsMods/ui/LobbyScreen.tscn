@@ -10,3 +10,100 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_lobby")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 0
+offset_right = 384.0
+offset_bottom = 216.0
+color = Color(0.07, 0.07, 0.07, 1)
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 0
+offset_top = 8.0
+offset_right = 384.0
+offset_bottom = 28.0
+theme_override_font_sizes/font_size = 16
+text = "格鬥模式"
+horizontal_alignment = 1
+
+[node name="OfflineButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = 132.0
+offset_top = 45.0
+offset_right = 252.0
+offset_bottom = 66.0
+theme_override_font_sizes/font_size = 10
+text = "本機雙人"
+
+[node name="HostButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = 132.0
+offset_top = 71.0
+offset_right = 252.0
+offset_bottom = 92.0
+theme_override_font_sizes/font_size = 10
+text = "主機 (Host)"
+
+[node name="CodeEdit" type="LineEdit" parent="."]
+layout_mode = 0
+offset_left = 128.0
+offset_top = 97.0
+offset_right = 212.0
+offset_bottom = 118.0
+theme_override_font_sizes/font_size = 10
+placeholder_text = "1位房間代碼"
+max_length = 1
+
+[node name="JoinButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = 218.0
+offset_top = 97.0
+offset_right = 254.0
+offset_bottom = 118.0
+theme_override_font_sizes/font_size = 10
+text = "加入"
+
+[node name="StatusLabel" type="Label" parent="."]
+layout_mode = 0
+offset_top = 120.0
+offset_right = 384.0
+offset_bottom = 176.0
+theme_override_colors/font_color = Color(0.75, 0.75, 0.75, 1)
+theme_override_font_sizes/font_size = 14
+horizontal_alignment = 1
+
+[node name="CopyButton" type="Button" parent="."]
+visible = false
+layout_mode = 0
+offset_left = 152.0
+offset_top = 167.0
+offset_right = 232.0
+offset_bottom = 183.0
+theme_override_font_sizes/font_size = 10
+text = "複製代碼"
+
+[node name="BackButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = 6.0
+offset_top = 192.0
+offset_right = 62.0
+offset_bottom = 208.0
+theme_override_font_sizes/font_size = 10
+text = "← 返回"
+
+[node name="DevHint" type="Label" parent="."]
+layout_mode = 0
+offset_top = 192.0
+offset_right = 384.0
+offset_bottom = 208.0
+theme_override_colors/font_color = Color(0.4, 0.4, 0.4, 1)
+theme_override_font_sizes/font_size = 10
+text = "（此為開發測試版，出現異常對局請回報日誌）
+"
+horizontal_alignment = 1
+
+[connection signal="pressed" from="OfflineButton" to="." method="_on_offline"]
+[connection signal="pressed" from="HostButton" to="." method="_on_host"]
+[connection signal="pressed" from="JoinButton" to="." method="_on_join"]
+[connection signal="pressed" from="CopyButton" to="." method="_on_copy_code"]
+[connection signal="pressed" from="BackButton" to="." method="_on_back"]

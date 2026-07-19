@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://vxvpu5masw38"]
+[gd_scene load_steps=3 format=3 uid="uid://vxvpu5masw38"]
 
 [ext_resource type="Script" path="res://VsMods/ui/SelectScreen.gd" id="1_select"]
+[ext_resource type="Script" path="res://VsMods/ui/ArtSlotButton.gd" id="2_slotbtn"]
 
 [node name="SelectScreen" type="Control"]
 layout_mode = 3
@@ -10,3 +11,226 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_select")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 0
+offset_right = 384.0
+offset_bottom = 216.0
+mouse_filter = 2
+color = Color(0.07, 0.07, 0.07, 1)
+
+[node name="PanelA" type="Control" parent="."]
+anchors_preset = 0
+offset_top = 4.0
+offset_right = 186.0
+offset_bottom = 117.0
+mouse_filter = 2
+
+[node name="SectionLabel" type="Label" parent="PanelA"]
+layout_mode = 0
+offset_left = 4.0
+offset_right = 182.0
+offset_bottom = 12.0
+theme_override_font_sizes/font_size = 9
+text = "P1 PLAYER"
+
+[node name="CharacterAnchor" type="Control" parent="PanelA"]
+anchors_preset = 0
+offset_top = 16.0
+offset_right = 186.0
+offset_bottom = 28.0
+mouse_filter = 2
+
+[node name="ArtAnchor" type="Control" parent="PanelA"]
+anchors_preset = 0
+offset_top = 60.0
+offset_right = 186.0
+offset_bottom = 102.0
+mouse_filter = 2
+
+[node name="EquipLabel" type="Label" parent="PanelA"]
+layout_mode = 0
+offset_left = 4.0
+offset_top = 116.0
+offset_right = 64.0
+offset_bottom = 128.0
+theme_override_font_sizes/font_size = 9
+text = "裝備："
+
+[node name="SlotRow" type="Control" parent="PanelA"]
+anchors_preset = 0
+offset_top = 86.0
+offset_right = 186.0
+offset_bottom = 101.0
+mouse_filter = 2
+
+[node name="Slot0" type="Button" parent="PanelA/SlotRow"]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 46.0
+offset_right = 64.0
+offset_bottom = 65.0
+theme_override_font_sizes/font_size = 9
+text = "（空）"
+script = ExtResource("2_slotbtn")
+
+[node name="Slot1" type="Button" parent="PanelA/SlotRow"]
+layout_mode = 0
+offset_left = 67.0
+offset_top = 46.0
+offset_right = 123.0
+offset_bottom = 65.0
+theme_override_font_sizes/font_size = 9
+text = "（空）"
+script = ExtResource("2_slotbtn")
+
+[node name="Slot2" type="Button" parent="PanelA/SlotRow"]
+layout_mode = 0
+offset_left = 126.0
+offset_top = 46.0
+offset_right = 182.0
+offset_bottom = 65.0
+theme_override_font_sizes/font_size = 9
+text = "（空）"
+script = ExtResource("2_slotbtn")
+
+[node name="Hint" type="Label" parent="PanelA"]
+layout_mode = 0
+offset_top = 116.0
+offset_right = 186.0
+offset_bottom = 128.0
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 8
+text = "（空槽位：能量回復加成）"
+horizontal_alignment = 1
+
+[node name="VSeparator" type="ColorRect" parent="."]
+layout_mode = 0
+offset_left = 188.0
+offset_top = 4.0
+offset_right = 189.0
+offset_bottom = 105.0
+color = Color(0.3, 0.3, 0.3, 1)
+
+[node name="PanelB" type="Control" parent="."]
+anchors_preset = 0
+offset_left = 190.0
+offset_top = 4.0
+offset_right = 376.0
+offset_bottom = 117.0
+mouse_filter = 2
+
+[node name="SectionLabel" type="Label" parent="PanelB"]
+layout_mode = 0
+offset_left = 4.0
+offset_right = 182.0
+offset_bottom = 12.0
+theme_override_font_sizes/font_size = 9
+text = "P2 PLAYER"
+
+[node name="CharacterAnchor" type="Control" parent="PanelB"]
+anchors_preset = 0
+offset_top = 16.0
+offset_right = 186.0
+offset_bottom = 28.0
+mouse_filter = 2
+
+[node name="ArtAnchor" type="Control" parent="PanelB"]
+anchors_preset = 0
+offset_top = 60.0
+offset_right = 186.0
+offset_bottom = 102.0
+mouse_filter = 2
+
+[node name="EquipLabel" type="Label" parent="PanelB"]
+layout_mode = 0
+offset_left = 4.0
+offset_top = 116.0
+offset_right = 64.0
+offset_bottom = 128.0
+theme_override_font_sizes/font_size = 9
+text = "裝備："
+
+[node name="SlotRow" type="Control" parent="PanelB"]
+anchors_preset = 0
+offset_top = 86.0
+offset_right = 186.0
+offset_bottom = 101.0
+mouse_filter = 2
+
+[node name="Slot0" type="Button" parent="PanelB/SlotRow"]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 46.0
+offset_right = 64.0
+offset_bottom = 65.0
+theme_override_font_sizes/font_size = 9
+text = "（空）"
+script = ExtResource("2_slotbtn")
+
+[node name="Slot1" type="Button" parent="PanelB/SlotRow"]
+layout_mode = 0
+offset_left = 67.0
+offset_top = 46.0
+offset_right = 123.0
+offset_bottom = 65.0
+theme_override_font_sizes/font_size = 9
+text = "（空）"
+script = ExtResource("2_slotbtn")
+
+[node name="Slot2" type="Button" parent="PanelB/SlotRow"]
+layout_mode = 0
+offset_left = 126.0
+offset_top = 46.0
+offset_right = 182.0
+offset_bottom = 65.0
+theme_override_font_sizes/font_size = 9
+text = "（空）"
+script = ExtResource("2_slotbtn")
+
+[node name="Hint" type="Label" parent="PanelB"]
+layout_mode = 0
+offset_top = 116.0
+offset_right = 186.0
+offset_bottom = 128.0
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 8
+text = "（空槽位：能量回復加成）"
+horizontal_alignment = 1
+
+[node name="BottomSeparator" type="ColorRect" parent="."]
+layout_mode = 0
+offset_top = 117.0
+offset_right = 384.0
+offset_bottom = 118.0
+color = Color(0.3, 0.3, 0.3, 1)
+
+[node name="BackButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 184.0
+offset_right = 68.0
+offset_bottom = 203.0
+theme_override_font_sizes/font_size = 9
+text = "← 返回"
+
+[node name="StartButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = 112.0
+offset_top = 176.0
+offset_right = 272.0
+offset_bottom = 198.0
+theme_override_font_sizes/font_size = 11
+text = "開始對戰"
+
+[node name="StatusLabel" type="Label" parent="."]
+layout_mode = 0
+offset_top = 160.0
+offset_right = 384.0
+offset_bottom = 172.0
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 8
+horizontal_alignment = 1
+
+[connection signal="pressed" from="BackButton" to="." method="_on_back_pressed"]
+[connection signal="pressed" from="StartButton" to="." method="_on_start"]

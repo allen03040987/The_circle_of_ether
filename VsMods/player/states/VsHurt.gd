@@ -22,7 +22,7 @@ func physics_update(delta: float, input: InputState) -> StringName:
 	elapsed += delta
 	# 摩擦只在貼地時吃（擦地滑行）；空中保留水平動量，擊退才會走出弧線
 	if _grounded():
-		player.velocity.x = move_toward(player.velocity.x, 0.0, FRICTION * 1.5 * delta)
+		player.velocity.x = move_toward(player.velocity.x, 0.0, (player as VsPlayer).friction * 1.5 * delta)
 	_apply_gravity(delta)
 	if elapsed >= hitstun_time:
 		if knockdown_after:

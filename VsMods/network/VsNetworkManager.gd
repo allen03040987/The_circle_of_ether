@@ -19,7 +19,7 @@ signal room_created(code: String)    # HOST 建立房間成功，顯示此 code 
 signal connected()                    # 雙方資料通道開啟，可以開始遊戲
 signal disconnected()
 signal connection_error(msg: String)
-signal remote_arts_received(arts: Array)  # 收到對方的武藝選擇
+signal remote_arts_received(arts: Array, character_id: String)  # 收到對方的武藝選擇 + 角色
 signal desync_detected(frame: int, fields: Array)  # 兩端 checksum 不符，fields = 分叉欄位名稱清單
 signal sync_lost()                   # checksum 連續不符超過閾值 → 狀態已永久分歧，本場作廢
 signal opponent_forfeited()          # 對方主動放棄或無法回滾
@@ -92,9 +92,9 @@ func _process(delta: float) -> void:
 	_poll_rtc()
 
 # ── 公開 API ──────────────────────────────────────────────────────────────────
-## 透過信令伺服器把武藝選擇傳給對方（WebRTC 連線建立後仍可用 WS 傳）
-func send_arts(arts: Array) -> void:
-	var msg := JSON.stringify({"type": "arts", "room": _room_code, "arts": arts})
+## 透過信令伺服器把武藝選擇＋角色傳給對方（WebRTC 連線建立後仍可用 WS 傳）
+func send_arts(arts: Array, character_id: String) -> void:
+	var msg := JSON.stringify({"type": "arts", "room": _room_code, "arts": arts, "character": character_id})
 	_ws.send_text(msg)
 
 func start_offline() -> void:
@@ -465,7 +465,8 @@ func _handle_signal(msg) -> void:
 			)
 		"arts":
 			var arts: Array = msg.get("arts", [])
-			remote_arts_received.emit(arts)
+			var character_id: String = msg.get("character", VsCharacterRegistry.DEFAULT_CHARACTER)
+			remote_arts_received.emit(arts, character_id)
 		"error":
 			connection_error.emit(msg.get("msg", "未知錯誤"))
 

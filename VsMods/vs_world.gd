@@ -18,6 +18,12 @@ var _leaving:       bool         = false   # 避免多個離場信號重複觸�
 # 避免致命一擊的那個按鍵還沒放開就立刻跳轉場景
 var _accept_return_input: bool   = false
 
+# ── 回合間重選武藝（規則：每回合開打前雙方都能替換最多 2 種已裝備的武藝）──────
+## UI 全部搬進 VsMods/ui/ArtsReselectOverlay.tscn/.gd（自成一個場景，可在編輯器
+## 排版），這裡只負責在 Phase 轉換時 instantiate/init/free
+const ARTS_RESELECT_SCENE := preload("res://VsMods/ui/ArtsReselectOverlay.tscn")
+var _ar_overlay: ArtsReselectOverlay
+
 # ── DESYNC 記錄（事件發生時即時寫檔）──────────────────────────────────────────
 var _desync_log:       Array[String] = []
 var _desync_log_count: int           = 0   # 本場已記錄的事件數（防灌爆檔案）
@@ -39,6 +45,11 @@ var _frame_states: Dictionary = {}
 var _cs_history: Dictionary = {}
 ## 重模擬中 = true，讓信號處理器跳過 HUD / VFX 副作用
 var is_resimulating: bool = false
+
+## 脫手彈道（武藝用，見 VsProjectile.gd）。由 VsPlayer.fire_sword_wave() 這類
+## Call Method 動畫軌道呼叫 spawn_projectile() 動態生成，不是場景固定節點。
+const PROJECTILE_SCENE := preload("res://VsMods/combat/VsProjectile.tscn")
+var projectiles: Array[VsProjectile] = []
 
 # ── 初始化 ────────────────────────────────────────────────────────────────────
 func _ready() -> void:
@@ -63,6 +74,8 @@ func _ready() -> void:
 	VsNetworkManager.sync_lost.connect(_on_sync_lost)
 	VsNetworkManager.opponent_forfeited.connect(_on_forfeit_cb)
 	VsNetworkManager.disconnected.connect(_on_disconnect_cb)
+	if VsNetworkManager.mode != VsNetworkManager.Mode.OFFLINE:
+		VsNetworkManager.remote_arts_received.connect(_on_remote_round_arts)
 	_write_startup_log()  # 確認 user:// 可寫入，並讓玩家知道路徑
 
 ## 同一台電腦開兩個實例測試時共用 user://，log 必須按本機玩家分檔，
@@ -100,6 +113,8 @@ func _exit_tree() -> void:
 		VsNetworkManager.opponent_forfeited.disconnect(_on_forfeit_cb)
 	if _on_disconnect_cb.is_valid() and VsNetworkManager.disconnected.is_connected(_on_disconnect_cb):
 		VsNetworkManager.disconnected.disconnect(_on_disconnect_cb)
+	if VsNetworkManager.remote_arts_received.is_connected(_on_remote_round_arts):
+		VsNetworkManager.remote_arts_received.disconnect(_on_remote_round_arts)
 	PauseMenu.process_mode = Node.PROCESS_MODE_INHERIT
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_flush_desync_log()
@@ -127,9 +142,10 @@ func _flush_desync_log() -> void:
 	print("DESYNC log 已附加：", ProjectSettings.globalize_path(path))
 
 func _spawn_players() -> void:
-	var scene := preload("res://VsMods/player/VsPlayer.tscn")
+	var p1_scene := VsCharacterRegistry.get_scene(VsGameManager.p1_character)
+	var p2_scene := VsCharacterRegistry.get_scene(VsGameManager.p2_character)
 
-	p1 = scene.instantiate()
+	p1 = p1_scene.instantiate()
 	p1.player_id = 1
 	p1.position  = spawn_point_p1.position
 	add_child(p1)
@@ -137,7 +153,7 @@ func _spawn_players() -> void:
 	p1.apply_arts_bonus()
 	p1._load_arts()
 
-	p2 = scene.instantiate()
+	p2 = p2_scene.instantiate()
 	p2.player_id = 2
 	p2.position  = spawn_point_p2.position
 	add_child(p2)
@@ -164,6 +180,7 @@ func _spawn_round_manager() -> void:
 	round_manager.round_ended.connect(_on_round_ended)
 	round_manager.round_started.connect(_on_round_started)
 	round_manager.match_ended.connect(_on_match_ended)
+	round_manager.arts_reselect_started.connect(_on_arts_reselect_started)
 
 # ── 主循環 ────────────────────────────────────────────────────────────────────
 func _physics_process(delta: float) -> void:
@@ -245,6 +262,10 @@ func _save_snapshot(frame: int, inp1: InputState, inp2: InputState) -> void:
 		"p1":   p1.save_state(),
 		"p2":   p2.save_state(),
 		"rm":   round_manager.save_state(),
+		"proj": projectiles.map(func(p: VsProjectile) -> Dictionary:
+			var d := p.save_state()
+			d["owner"] = p.owner_player.player_id
+			return d),
 		"inp1": inp1,
 		"inp2": inp2,
 	}
@@ -259,6 +280,18 @@ func _restore_snapshot(frame: int) -> void:
 	p1.restore_state(s["p1"])
 	p2.restore_state(s["p2"])
 	round_manager.restore_state(s["rm"])
+	_restore_projectiles(s.get("proj", []))
+
+## 重建彈道清單以精確符合快照：直接砍掉現有節點重新生成，比逐一比對增刪
+## 簡單可靠——彈道數量少（同時最多幾顆），沒有效能顧慮。
+func _restore_projectiles(data: Array) -> void:
+	for p: VsProjectile in projectiles:
+		p.free()
+	projectiles.clear()
+	for d: Dictionary in data:
+		var owner: VsPlayer = p1 if d["owner"] == 1 else p2
+		var proj := _instantiate_projectile(owner)
+		proj.restore_state(d)
 
 # ── 單幀模擬 ──────────────────────────────────────────────────────────────────
 func _simulate_frame(delta: float, inp1: InputState, inp2: InputState) -> void:
@@ -266,7 +299,7 @@ func _simulate_frame(delta: float, inp1: InputState, inp2: InputState) -> void:
 	# 重複觸發（同一次命中/同一幀衝刺可能因多次 rollback 被重跑好幾遍）
 	p1.is_resimulating = is_resimulating
 	p2.is_resimulating = is_resimulating
-	round_manager.tick(delta)
+	round_manager.tick(delta, inp1, inp2)
 	if not round_manager.is_fighting():
 		# AnimationPlayer 是 MANUAL 模式（平時由 VsPlayer.apply_input 推進）；
 		# 非戰鬥階段玩家不被模擬，這裡純外觀推進動畫以免畫面凍住。
@@ -279,7 +312,8 @@ func _simulate_frame(delta: float, inp1: InputState, inp2: InputState) -> void:
 	p1.apply_input(delta, inp1)
 	p2.apply_input(delta, inp2)
 	# 打擊偵測統一在此執行（正常幀與 rollback 幀走同一路徑，保證兩端時機一致）
-	_check_manual_hits()
+	_check_manual_hits(delta)
+	_update_projectiles(delta)
 
 # ── 回合事件 ──────────────────────────────────────────────────────────────────
 func _on_round_ended(winner_id: int) -> void:
@@ -288,8 +322,49 @@ func _on_round_ended(winner_id: int) -> void:
 	hud.update_wins(round_manager.p1_wins, round_manager.p2_wins)
 
 func _on_round_started(round_num: int) -> void:
+	# 彈道清理是模擬狀態的一部分（跟 VsRoundManager._reset_round() 清判定框同
+	# 一類「回合重置=全新開始」語意），resim 也必須照跑，不能被 is_resimulating
+	# 擋掉；HUD 更新才是純外觀，才需要擋。之前沒做這段，殘留彈道會飛進新回合
+	# ——跟判定框連擊沒清乾淨是同一種「攻擊洩漏」bug，順手一起修掉。
+	for proj: VsProjectile in projectiles:
+		proj.free()
+	projectiles.clear()
 	if is_resimulating: return
+	if _ar_overlay:
+		_ar_overlay.queue_free()
+		_ar_overlay = null
 	hud.show_round_num(round_num)
+
+func _on_arts_reselect_started() -> void:
+	if is_resimulating: return
+	if _ar_overlay:
+		_ar_overlay.queue_free()
+	_ar_overlay = ARTS_RESELECT_SCENE.instantiate() as ArtsReselectOverlay
+	add_child(_ar_overlay)
+	_ar_overlay.init(p1, p2, round_manager)
+
+## 收到對方這回合的重選結果——只在雙方都在跑的固定倒數視窗內才有意義；
+## 直接信任對方送來的陣列已經套用過「最多改 2 種」的規則（送出前
+## ArtsReselectOverlay._commit() 已經算過），不用在這裡重算。
+func _on_remote_round_arts(arts: Array, _character_id: String) -> void:
+	if not round_manager or not round_manager.is_arts_reselect():
+		return
+	if VsNetworkManager.local_player_id == 1:
+		round_manager.p2_new_arts = arts
+	else:
+		round_manager.p1_new_arts = arts
+
+func _process(_delta: float) -> void:
+	# 滑鼠鎖定：比照主遊戲 Player.gd._process() 同款邏輯（按住 Alt 解鎖+顯示，
+	# 放開恢復鎖定置中），額外加上「任何浮層開著就不鎖」——回合間重選武藝的
+	# 浮層原本沒處理過滑鼠模式，導致滑鼠一直被鎖走看不到、點不到按鈕；暫停
+	# 選單原本各自在 _toggle_vs_pause() 手動切一次，現在統一收進這裡每幀判斷，
+	# 不用兩處分別維護。
+	var overlay_open := (_pause_overlay and _pause_overlay.visible) or _ar_overlay != null
+	if overlay_open or Input.is_physical_key_pressed(KEY_ALT):
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	else:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _on_match_ended(winner_id: int) -> void:
 	if is_resimulating: return
@@ -298,33 +373,114 @@ func _on_match_ended(winner_id: int) -> void:
 	get_tree().create_timer(0.8).timeout.connect(func(): _accept_return_input = true)
 
 # ── 手動打擊偵測（補足 rollback 中間幀 Area2D 訊號不觸發的缺口）────────────────
-func _check_manual_hits() -> void:
+func _check_manual_hits(delta: float) -> void:
 	for hb: VsHitbox in p1.hitboxes:
-		_manual_check(hb, p2.hurtbox, p1, p2)
+		_manual_check(delta, hb, p2.hurtbox, p1, p2)
 	for hb: VsHitbox in p2.hitboxes:
-		_manual_check(hb, p1.hurtbox, p2, p1)
+		_manual_check(delta, hb, p1.hurtbox, p2, p1)
 
-func _manual_check(hb: VsHitbox, hrb: VsHurtbox, hb_owner: VsPlayer, hrb_owner: VsPlayer) -> void:
+func _manual_check(delta: float, hb: VsHitbox, hrb: VsHurtbox, hb_owner: VsPlayer, hrb_owner: VsPlayer) -> void:
+	hb.tick_cooldown(delta)
+
+	# 連擊已經開始但還沒打完：不受動畫軌道自己的關閉 key 影響，強制保持開啟
+	# 直到連擊數用完——動畫上判定框的開關時間點是照單發攻擊設計的，關閉 key
+	# 不知道 combo_hits，時間一到就無條件把 monitoring 關掉，後面的連擊永遠打
+	# 不到（實測抓到：combo_hits 設 5/10 都只打出 4 下，就是卡在這個固定關閉
+	# 時間點；A1 設 2 連擊完全沒有第二下，也是同一個根因，只是視窗更短）。
+	if hb.combo_hits > 1 and hb.hits_dealt > 0 and not hb.has_hit:
+		hb.monitoring = true
 	if not hb.monitoring:
 		return
-	if hb.hit_targets.has(hrb):
+	# Rollback 安全防重複：has_hit（= 連擊全部打完）存於快照，還原後仍能阻擋
+	# 同一攻擊窗再次偵測。連擊間隔冷卻中（hit_cooldown_left>0）也先擋下——
+	# 1v1 只有一個對手，不用 hit_targets 分目標，連擊靠這兩個欄位控制節奏。
+	if hb.has_hit or hb.hit_cooldown_left > 0.0:
 		return
-	# Rollback 安全防重複：has_hit 存於快照，還原後仍能阻擋同一攻擊窗再次偵測
-	if hb.has_hit:
-		return
-	# 倒地目標：只有標記 can_hit_downed（OTG）的攻擊打得到——在偵測層擋下，
-	# 攻擊直接穿過（不消耗 has_hit），對方起身後同一攻擊窗仍可命中
-	if not hb.can_hit_downed and hrb_owner.state_machine.current_state is VsKnockdown:
-		return
-	if _sim_rect(hb, hb_owner).intersects(_sim_rect(hrb, hrb_owner)):
-		hb.hit_targets[hrb] = true
-		hb.has_hit = true
+	# sticky 且已經鎖定目標：跳過幾何重疊檢查，冷卻時間到就直接算命中（1v1
+	# 只有一個對手，鎖定=只認這唯一的目標，不用比對是不是同一顆 hurtbox）。
+	# 否則走一般的幾何相交判定（也是 sticky 連擊第一下命中前的必經路徑）。
+	var confirmed := (hb.sticky and hb.is_locked) or _sim_rect(hb, hb_owner).intersects(_sim_rect(hrb, hrb_owner))
+	if confirmed:
+		hb.register_hit()
 		hrb.receive_hit(hb)
+		if hb.has_hit:
+			hb.monitoring = false   # 連擊全部打完，立刻關閉，沒有殘留的必要
 		# 打擊回饋：火花釘在受害者身上、跟著移動；震動全域生效。純視覺，命中
 		# 判定/傷害邏輯完全不受影響——不管防禦/霸體/無敵吸收與否都照樣給回饋，
 		# 「打中了」跟「打中造成多少效果」是兩件事（比照主遊戲 Hitbox 的做法）
 		hb_owner.vfx_spark(hb, hrb.global_position, hrb_owner)
 		hb_owner.vfx_shake(hb.shake_intensity)
+		hb_owner.vfx_hit_sfx(hb)
+
+## 生成一顆脫手彈道（VsPlayer.fire_sword_wave() 的 Call Method 軌道呼叫入口）。
+## 呼叫時機發生在 apply_input() 內（見 _simulate_frame 順序），本幀稍後的
+## _update_projectiles() 就會立刻推進它，跟一般命中判定同一幀生效沒有延遲。
+func spawn_projectile(owner: VsPlayer, direction: int) -> VsProjectile:
+	var proj := _instantiate_projectile(owner)
+	proj.position  = owner.position + Vector2(30.0 * direction, -30.0)   # 出手位置微調，比照主遊戲 c_3_wave
+	proj.direction = direction
+	proj.scale.x   = direction   # 視覺鏡像；_ready() 時 direction 還是預設值 1，這裡才是真正的方向
+	proj.hitbox.direction_override = direction   # 鎖定擊退方向，見 VsHitbox.direction_override 註解
+	return proj
+
+func _instantiate_projectile(owner: VsPlayer) -> VsProjectile:
+	var proj := PROJECTILE_SCENE.instantiate() as VsProjectile
+	add_child(proj)
+	proj.owner_player       = owner
+	proj.hitbox.owner_player = owner   # 供火花/震動等 vfx 呼叫用
+	projectiles.append(proj)
+	return proj
+
+## 移動所有存活彈道 + 命中判定 + 收尾銷毀，每幀跑一次（正常幀與 rollback 重模擬
+## 幀走同一路徑）。彈道命中判定跟 _manual_check 同一套「settled 幾何 Rect2 相交」
+## 手法，只是位置基準換成彈道自己的 position（不是某個 VsPlayer.facing_dir 相對
+## 位移），所以另外寫一個 _sim_rect_projectile，不跟 _sim_rect 共用。
+func _update_projectiles(delta: float) -> void:
+	for proj: VsProjectile in projectiles:
+		proj.simulate(delta)
+		var target: VsPlayer = p2 if proj.owner_player == p1 else p1
+		_manual_check_projectile(delta, proj, target)
+
+	# 收尾：命中或超出射程的彈道本幀移除（先判定完才砍，不影響本幀已經算好的結果）
+	var i := projectiles.size() - 1
+	while i >= 0:
+		if projectiles[i].should_despawn():
+			var dead := projectiles[i]
+			projectiles.remove_at(i)
+			dead.free()
+		i -= 1
+
+func _manual_check_projectile(delta: float, proj: VsProjectile, hrb_owner: VsPlayer) -> void:
+	var hb := proj.hitbox
+	hb.tick_cooldown(delta)
+	# 跟 _manual_check 同一套防呆：連擊已開始但還沒打完，不讓別的東西關掉 monitoring
+	if hb.combo_hits > 1 and hb.hits_dealt > 0 and not hb.has_hit:
+		hb.monitoring = true
+	if not hb.monitoring or hb.has_hit or hb.hit_cooldown_left > 0.0:
+		return
+	var hrb := hrb_owner.hurtbox
+	var confirmed := (hb.sticky and hb.is_locked) or _sim_rect_projectile(hb, proj).intersects(_sim_rect(hrb, hrb_owner))
+	if confirmed:
+		hb.register_hit()
+		hrb.receive_hit(hb)
+		proj.owner_player.vfx_spark(hb, hrb.global_position, hrb_owner)
+		proj.owner_player.vfx_shake(hb.shake_intensity)
+		proj.owner_player.vfx_hit_sfx(hb)
+
+## 比照 _sim_rect，但基準點是彈道自己的 position（不是某個 VsPlayer 的
+## facing_dir 相對位移）——彈道在世界空間直線飛行，用 proj.direction 決定
+## hitbox 局部偏移的左右鏡像。
+func _sim_rect_projectile(hb: VsHitbox, proj: VsProjectile) -> Rect2:
+	var cs := hb.get_child(0) as CollisionShape2D
+	if not cs or not (cs.shape is RectangleShape2D):
+		return Rect2()
+	var size: Vector2 = (cs.shape as RectangleShape2D).size
+	var offset := hb.position + cs.position
+	var world_pos := Vector2(
+		proj.position.x + offset.x * proj.direction,
+		proj.position.y + offset.y
+	)
+	return Rect2(world_pos - size * 0.5, size)
 
 ## desync log 用：列出玩家所有判定框的 monitoring/has_hit（開著的才列，全關顯示 "-"）
 func _hb_summary(p: VsPlayer) -> String:
@@ -357,9 +513,15 @@ func _compute_checksums() -> Array:
 	if not p1 or not p2:
 		return [0, 0, 0, 0]
 	var rm_state := round_manager.save_state() if round_manager else {}
+	# 彈道數量/座標一起併進位置雜湊——脫手彈道也是需要兩端一致的模擬狀態，
+	# 數量或位置分歧（例如某一端漏生成/漏移動一顆）要能被 desync 偵測抓到
+	var proj_vals: Array = [projectiles.size()]
+	for proj: VsProjectile in projectiles:
+		proj_vals.append(roundi(proj.position.x * 100))
+		proj_vals.append(roundi(proj.position.y * 100))
 	return [
 		_fnv([roundi(p1.position.x*100), roundi(p1.position.y*100),
-			  roundi(p2.position.x*100), roundi(p2.position.y*100)]),
+			  roundi(p2.position.x*100), roundi(p2.position.y*100)] + proj_vals),
 		_fnv([roundi(p1.velocity.x*100), roundi(p1.velocity.y*100),
 			  roundi(p2.velocity.x*100), roundi(p2.velocity.y*100)]),
 		# 把回合管理器狀態與面向方向一起雜湊
@@ -436,12 +598,20 @@ func _on_sync_lost() -> void:
 	_flush_desync_log()
 	_leave_to_lobby("偵測到嚴重不同步，本場作廢，返回大廳...")
 
-## 統一離場入口：顯示訊息 → 2 秒後返回大廳
-func _leave_to_lobby(msg: String) -> void:
+## 統一離場入口：顯示訊息 → 2 秒後返回大廳。
+## `instant=true` 跳過訊息與等待、立刻切場景——玩家自己主動按「返回大廳」屬於
+## 這種：訊息是給「被動離場」（對方棄權/斷線/desync）的情況看的，讓玩家在畫面
+## 消失前看懂發生了什麼事；主動點擊的按鈕玩家自己知道要離開，不需要這段緩衝，
+## 之前不分青紅皂白全部套用 2 秒等待，被使用者抓出來是不必要的等待。
+func _leave_to_lobby(msg: String, instant: bool = false) -> void:
 	if _leaving:
 		return
 	_leaving = true
 	_vs_paused = false   # 確保不卡在暫停狀態
+	if instant:
+		VsGameManager.selection_confirmed = false
+		get_tree().change_scene_to_file("res://VsMods/ui/LobbyScreen.tscn")
+		return
 	if hud:
 		hud.show_message(msg)
 	await get_tree().create_timer(2.0).timeout
@@ -462,7 +632,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _toggle_vs_pause() -> void:
 	var showing := !_pause_overlay.visible
 	_pause_overlay.visible = showing
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if showing else Input.MOUSE_MODE_CAPTURED
+	# 滑鼠模式改由 _process() 每幀統一判斷（overlay_open 檢查），這裡不用再管
 	# 離線才真正凍結模擬；聯機只顯示 overlay，模擬繼續跑（避免兩端不同步）
 	if VsNetworkManager.mode == VsNetworkManager.Mode.OFFLINE:
 		_vs_paused = showing
@@ -514,6 +684,6 @@ func _build_pause_overlay() -> void:
 	lobby_btn.pressed.connect(func():
 		if VsNetworkManager.mode != VsNetworkManager.Mode.OFFLINE:
 			VsNetworkManager.send_forfeit()
-		_leave_to_lobby("正在返回大廳...")
+		_leave_to_lobby("", true)
 	)
 	vbox.add_child(lobby_btn)

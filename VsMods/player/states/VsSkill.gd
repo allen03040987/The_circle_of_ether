@@ -66,7 +66,9 @@ func physics_update(delta: float, input: InputState) -> StringName:
 
 func exit() -> void:
 	var vs := player as VsPlayer
-	_reset_hitbox(vs)
+	# sticky（連擊還沒打完）交給它自己跑完，不強制關閉，見 VsHitbox.close_on_state_exit()
+	if is_instance_valid(vs.skill_hitbox):
+		vs.skill_hitbox.close_on_state_exit()
 
 func _reset_hitbox(vs: VsPlayer) -> void:
 	if is_instance_valid(vs.skill_hitbox):

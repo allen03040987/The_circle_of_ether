@@ -1,0 +1,199 @@
+[gd_scene load_steps=3 format=3 uid="uid://dqxr8w3keslr7"]
+
+[ext_resource type="Script" path="res://VsMods/ui/ArtsReselectOverlay.gd" id="1_overlay"]
+[ext_resource type="Script" path="res://VsMods/ui/ArtSlotButton.gd" id="2_slotbtn"]
+
+[node name="ArtsReselectOverlay" type="CanvasLayer"]
+layer = 15
+script = ExtResource("1_overlay")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 384.0
+offset_bottom = 216.0
+mouse_filter = 2
+color = Color(0.05, 0.05, 0.05, 0.92)
+
+[node name="Title" type="Label" parent="."]
+offset_top = 4.0
+offset_right = 384.0
+offset_bottom = 16.0
+theme_override_font_sizes/font_size = 10
+text = "回合間重選武藝"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="."]
+offset_top = 17.0
+offset_right = 384.0
+offset_bottom = 27.0
+theme_override_colors/font_color = Color(0.6, 0.75, 0.9, 1)
+theme_override_font_sizes/font_size = 7
+text = "點下方已裝備的武藝可取消，點武藝池中未裝備的可換上（最多替換 2 種），選好按確認"
+horizontal_alignment = 1
+
+[node name="TimerLabel" type="Label" parent="."]
+offset_top = 28.0
+offset_right = 384.0
+offset_bottom = 40.0
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+theme_override_font_sizes/font_size = 9
+horizontal_alignment = 1
+
+[node name="PanelA" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_top = 44.0
+offset_right = 186.0
+offset_bottom = 141.0
+mouse_filter = 2
+
+[node name="PidLabel" type="Label" parent="PanelA"]
+layout_mode = 0
+offset_left = 4.0
+offset_right = 182.0
+offset_bottom = 12.0
+theme_override_font_sizes/font_size = 9
+text = "P1"
+
+[node name="ArtAnchor" type="Control" parent="PanelA"]
+anchors_preset = 0
+offset_top = 12.0
+offset_right = 186.0
+offset_bottom = 54.0
+mouse_filter = 2
+
+[node name="SlotRow" type="Control" parent="PanelA"]
+anchors_preset = 0
+offset_top = 54.0
+offset_right = 186.0
+offset_bottom = 69.0
+mouse_filter = 2
+
+[node name="Slot0" type="Button" parent="PanelA/SlotRow"]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 38.0
+offset_right = 64.0
+offset_bottom = 57.0
+theme_override_font_sizes/font_size = 9
+text = "（空）"
+script = ExtResource("2_slotbtn")
+
+[node name="Slot1" type="Button" parent="PanelA/SlotRow"]
+layout_mode = 0
+offset_left = 67.0
+offset_top = 38.0
+offset_right = 123.0
+offset_bottom = 57.0
+theme_override_font_sizes/font_size = 9
+text = "（空）"
+script = ExtResource("2_slotbtn")
+
+[node name="Slot2" type="Button" parent="PanelA/SlotRow"]
+layout_mode = 0
+offset_left = 126.0
+offset_top = 38.0
+offset_right = 182.0
+offset_bottom = 57.0
+theme_override_font_sizes/font_size = 9
+text = "（空）"
+script = ExtResource("2_slotbtn")
+
+[node name="StatusLabel" type="Label" parent="PanelA"]
+layout_mode = 0
+offset_top = 69.0
+offset_right = 186.0
+offset_bottom = 79.0
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 7
+horizontal_alignment = 1
+
+[node name="ConfirmButton" type="Button" parent="PanelA"]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 134.0
+offset_right = 186.0
+offset_bottom = 155.0
+theme_override_font_sizes/font_size = 10
+text = "確認"
+
+[node name="PanelB" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 190.0
+offset_top = 44.0
+offset_right = 376.0
+offset_bottom = 141.0
+mouse_filter = 2
+
+[node name="PidLabel" type="Label" parent="PanelB"]
+layout_mode = 0
+offset_left = 4.0
+offset_right = 182.0
+offset_bottom = 12.0
+theme_override_font_sizes/font_size = 9
+text = "P2"
+
+[node name="ArtAnchor" type="Control" parent="PanelB"]
+anchors_preset = 0
+offset_top = 12.0
+offset_right = 186.0
+offset_bottom = 54.0
+mouse_filter = 2
+
+[node name="SlotRow" type="Control" parent="PanelB"]
+anchors_preset = 0
+offset_top = 54.0
+offset_right = 186.0
+offset_bottom = 69.0
+mouse_filter = 2
+
+[node name="Slot0" type="Button" parent="PanelB/SlotRow"]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 38.0
+offset_right = 64.0
+offset_bottom = 57.0
+theme_override_font_sizes/font_size = 9
+text = "（空）"
+script = ExtResource("2_slotbtn")
+
+[node name="Slot1" type="Button" parent="PanelB/SlotRow"]
+layout_mode = 0
+offset_left = 67.0
+offset_top = 38.0
+offset_right = 123.0
+offset_bottom = 57.0
+theme_override_font_sizes/font_size = 9
+text = "（空）"
+script = ExtResource("2_slotbtn")
+
+[node name="Slot2" type="Button" parent="PanelB/SlotRow"]
+layout_mode = 0
+offset_left = 126.0
+offset_top = 38.0
+offset_right = 182.0
+offset_bottom = 57.0
+theme_override_font_sizes/font_size = 9
+text = "（空）"
+script = ExtResource("2_slotbtn")
+
+[node name="StatusLabel" type="Label" parent="PanelB"]
+layout_mode = 0
+offset_top = 69.0
+offset_right = 186.0
+offset_bottom = 79.0
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 7
+horizontal_alignment = 1
+
+[node name="ConfirmButton" type="Button" parent="PanelB"]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 134.0
+offset_right = 186.0
+offset_bottom = 155.0
+theme_override_font_sizes/font_size = 10
+text = "確認"
+
+[connection signal="pressed" from="PanelA/ConfirmButton" to="." method="_on_confirm_a_pressed"]
+[connection signal="pressed" from="PanelB/ConfirmButton" to="." method="_on_confirm_b_pressed"]

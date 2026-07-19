@@ -1,0 +1,32 @@
+[gd_scene load_steps=5 format=3 uid="uid://c8k2n5x8h3q7w"]
+
+[ext_resource type="Script" path="res://VsMods/combat/VsProjectile.gd" id="1_proj"]
+[ext_resource type="Script" path="res://VsMods/combat/VsHitbox.gd" id="2_hitbox"]
+[ext_resource type="Texture2D" uid="uid://dcn8f4jcmw8tm" path="res://Explod/Sprite-0004.png" id="3_tx_wave"]
+
+[sub_resource type="RectangleShape2D" id="Shape_proj"]
+size = Vector2(100, 50)
+
+[node name="VsProjectile" type="Node2D"]
+script = ExtResource("1_proj")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+modulate = Color(0.52372, 1, 0.996343, 0.788235)
+scale = Vector2(1.2, 1.2)
+texture = ExtResource("3_tx_wave")
+hframes = 2
+vframes = 2
+region_enabled = true
+region_rect = Rect2(0, 0, 200, 200)
+
+[node name="VsHitbox" type="Area2D" parent="."]
+collision_layer = 1024
+collision_mask = 512
+script = ExtResource("2_hitbox")
+damage = 120.0
+hitstun_time = 0.4
+knockback = Vector2(200.0, -100.0)
+hit_sfx_type = "hit"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="VsHitbox"]
+shape = SubResource("Shape_proj")

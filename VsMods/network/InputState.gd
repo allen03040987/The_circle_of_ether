@@ -12,6 +12,13 @@ var art_2: bool = false     # 武藝 2
 var art_3: bool = false     # 武藝 3
 var dodge: bool = false     # 閃避
 var guard: bool = false     # 防禦（長按）
+## 非戰鬥選單確認（例如回合間重選武藝的「確認」鍵）。刻意跟其他戰鬥動作走
+## 同一份 InputState/rollback 管線，不是另開一條 WS 側路——「雙方都確認了才
+## 進下一回合」這件事需要兩端在同一個模擬幀達成一致，如果直接用 WS 訊息到達
+## 時間去觸發回合轉場，兩端收到的真實時間點必有落差，回合重置就會在不同幀
+## 發生 → checksum 分歧。走這條輸入管線就自動獲得跟其他輸入一樣的確定性
+## 保證（延遲＋預測＋rollback 修正）。見 VsRoundManager._tick_arts_reselect()。
+var confirm: bool = false
 
 # === 序列化（2 bytes，傳輸用）======================================
 func to_bytes() -> PackedByteArray:
@@ -21,6 +28,7 @@ func to_bytes() -> PackedByteArray:
 	if move_dir < -0.1: m |= 1
 	if move_dir > 0.1:  m |= 2
 	if is_crouch:       m |= 4
+	if confirm:         m |= 8
 	buf[0] = m
 	var a: int = 0
 	if jump:   a |= 1 << 0
@@ -43,6 +51,7 @@ static func from_bytes(buf: PackedByteArray) -> InputState:
 	if   m & 1: s.move_dir = -1.0
 	elif m & 2: s.move_dir =  1.0
 	s.is_crouch = bool(m & 4)
+	s.confirm   = bool(m & 8)
 	s.jump   = bool(a & (1 << 0))
 	s.attack = bool(a & (1 << 1))
 	s.skill  = bool(a & (1 << 2))
@@ -78,5 +87,16 @@ static func from_input(player_id: int) -> InputState:
 		s.art_1  = Input.is_action_just_pressed(p + "special")
 		s.art_2  = Input.is_action_just_pressed(p + "ultimate")
 		s.art_3  = Input.is_action_just_pressed(p + "custom")
+
+	# 選單確認：UI 按鈕點擊（不是鍵盤/滑鼠 action）沒辦法用 is_action_just_pressed
+	# 偵測，改成 VsGameManager 上的一次性旗標——ArtsReselectOverlay 的確認鍵
+	# 點擊時設 true，這裡讀到就消費掉（清回 false），模擬「這一幀剛按下」的
+	# just_pressed 語意，讓它能正確搭上這一幀的 InputState 送出。
+	if player_id == 1 and VsGameManager.pending_confirm_1:
+		s.confirm = true
+		VsGameManager.pending_confirm_1 = false
+	elif player_id == 2 and VsGameManager.pending_confirm_2:
+		s.confirm = true
+		VsGameManager.pending_confirm_2 = false
 
 	return s

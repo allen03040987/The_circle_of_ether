@@ -12,9 +12,11 @@ extends VsPlayerState
 # ⚠ 必須小於所有段的 can_combo 窗口開啟時間，否則「起手那一下按鍵」的緩衝會
 #   撐到窗口開啟、自動多接一段（enter() 會清緩衝，所以段與段之間不會誤傳）。
 const ATTACK_BUFFER: float = 0.2
-const MAX_COMBO:     int   = 5
+## 連段總段數——@export 而非 const，讓角色專屬的 derived 場景能覆寫成不同數字
+## （對應 attack_1..attack_N 動畫＋N 顆 HitboxA1..N），Clotty 預設 5 段。
+@export var max_combo: int = 5
 # 攻擊期間水平減速率——比照主遊戲 Katana.gd 的 FLOOR_ACCELERATION
-# (RUN_SPEED/0.04 = 8750px/s²)，而不是一般移動用的 VsPlayerState.FRICTION（900）。
+# (RUN_SPEED/0.04 = 8750px/s²)，而不是一般移動用的 VsPlayer.friction（預設 900）。
 # strike_impulse 的前衝力道要靠這麼強的摩擦力才煞得住：用一般移動摩擦力的話，
 # 同樣的衝力強度會滑出將近 20 倍遠（滑行距離 ∝ v²/摩擦力），主遊戲數值搬過來
 # 測試會直接飛超遠就是這個落差。
@@ -71,7 +73,7 @@ func physics_update(delta: float, input: InputState) -> StringName:
 
 	# 4. 連段派生：窗口（動畫軌道的 can_combo）開啟且有緩衝輸入
 	#    → 立刻取消剩餘動畫接下一段（不等動畫播完）
-	if vs.can_combo and attack_buffer_left > 0.0 and combo_step < MAX_COMBO:
+	if vs.can_combo and attack_buffer_left > 0.0 and combo_step < max_combo:
 		combo_step += 1
 		enter(&"vsattack")   # 直接重啟，繞過防重入（exit() 不會被呼叫；enter() 會清窗口/緩衝/hitbox）
 		return &""
@@ -95,7 +97,10 @@ func exit() -> void:
 	combo_step = 1
 	var vs := player as VsPlayer
 	vs.can_combo = false
-	_reset_hitboxes(vs)
+	# sticky 判定框（連擊還沒打完）交給它自己跑完，不強制關閉；其餘一律
+	# 硬關閉＋重置，見 VsHitbox.close_on_state_exit()
+	for hb: VsHitbox in vs.hitboxes:
+		hb.close_on_state_exit()
 
 func _reset_hitboxes(vs: VsPlayer) -> void:
 	for hb: VsHitbox in vs.hitboxes:

@@ -6,10 +6,13 @@ extends VsPlayerState
 ## (2) 結束後再給 2 秒強霸體。兩者都綁在「有沒有被打到」上——沒被打到、
 ## 或雖被打到但衝刺被打斷，都不給結束後強霸體。
 
-const DODGE_SPEED:    float = 300.0
 const DODGE_DURATION: float = 0.35
 const PERFECT_WINDOW: float = 0.3   # 完美閃避判定窗（與 invincible_time_left 初始值同步）
 const GHOST_INTERVAL: float = 0.05  # 殘影間隔（秒），比照主遊戲 Slide.gd
+
+const SLIDING_SFX_2 := preload("res://sound/SFX/sprint.wav")
+const SLIDING_SFX_3 := preload("res://sound/SFX/attack/wind_2.wav")
+const SUCCESS_SFX := preload("res://sound/SFX/Successfully_dodged.wav")
 
 var dodge_dir:     int   = 1
 var elapsed:       float = 0.0
@@ -31,10 +34,12 @@ func enter(_prev: StringName) -> void:
 	vs.facing_dir = dodge_dir
 	vs.anim_player.play("sliding")
 	vs.invincible_time_left = PERFECT_WINDOW
+	vs.vfx_sfx(SLIDING_SFX_2, -12.0)
+	vs.vfx_sfx(SLIDING_SFX_3, -8.0)
 
 func physics_update(delta: float, input: InputState) -> StringName:
 	elapsed             += delta
-	player.velocity.x    = dodge_dir * DODGE_SPEED
+	player.velocity.x    = dodge_dir * (player as VsPlayer).dodge_speed
 	player.velocity.y    = 0.0   # 衝刺期間不受重力影響
 
 	_ghost_timer += delta
@@ -82,3 +87,4 @@ func trigger_perfect_dodge() -> void:
 	var vs := player as VsPlayer
 	vs.invincible_time_left = maxf(vs.invincible_time_left, DODGE_DURATION - elapsed)
 	vs.vfx_dodge_spark()
+	vs.vfx_sfx(SUCCESS_SFX)

@@ -1,0 +1,160 @@
+[gd_scene load_steps=19 format=3 uid="uid://431fpia1g7sg"]
+
+[ext_resource type="Script" path="res://VsMods/player/VsPlayer.gd" id="1_dqtb6"]
+[ext_resource type="Script" path="res://VsMods/combat/VsHurtbox.gd" id="14_21vgy"]
+[ext_resource type="Script" path="res://VsMods/combat/VsHitbox.gd" id="15_yonet"]
+[ext_resource type="Script" path="res://VsMods/StateMachine/VsStateMachine.gd" id="16_uoukq"]
+[ext_resource type="Script" path="res://VsMods/player/states/VsIdle.gd" id="17_47do6"]
+[ext_resource type="Script" path="res://VsMods/player/states/VsRun.gd" id="18_s4dba"]
+[ext_resource type="Script" path="res://VsMods/player/states/VsJump.gd" id="19_ltgc2"]
+[ext_resource type="Script" path="res://VsMods/player/states/VsFall.gd" id="20_usum4"]
+[ext_resource type="Script" path="res://VsMods/player/states/VsDodge.gd" id="21_q8mh5"]
+[ext_resource type="Script" path="res://VsMods/player/states/VsGuard.gd" id="22_u50yh"]
+[ext_resource type="Script" path="res://VsMods/player/states/VsHurt.gd" id="23_160lb"]
+[ext_resource type="Script" path="res://VsMods/player/states/VsKnockdown.gd" id="24_ifyuk"]
+[ext_resource type="Script" path="res://VsMods/player/states/VsGetup.gd" id="25_jdv24"]
+[ext_resource type="Script" path="res://VsMods/player/states/VsLaunched.gd" id="26_27l3v"]
+[ext_resource type="Script" path="res://VsMods/player/states/VsAttack.gd" id="27_ylqiu"]
+[ext_resource type="Script" path="res://VsMods/player/states/VsAirAttack.gd" id="28_etbpn"]
+[ext_resource type="Script" path="res://VsMods/player/states/VsSkill.gd" id="29_wgxlq"]
+
+[sub_resource type="RectangleShape2D" id="Shape_body"]
+size = Vector2(16, 16)
+
+[node name="VsPlayer" type="CharacterBody2D"]
+collision_layer = 256
+collision_mask = 128
+script = ExtResource("1_dqtb6")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -8)
+shape = SubResource("Shape_body")
+debug_color = Color(0, 0.0684478, 0.0872947, 0.42)
+
+[node name="Graphics" type="Node2D" parent="."]
+
+[node name="Sprite2D" type="Sprite2D" parent="Graphics"]
+
+[node name="VsHurtbox" type="Area2D" parent="Graphics"]
+collision_layer = 512
+collision_mask = 0
+script = ExtResource("14_21vgy")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/VsHurtbox"]
+
+[node name="HitboxA1" type="Area2D" parent="Graphics"]
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("15_yonet")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxA1"]
+
+[node name="HitboxA2" type="Area2D" parent="Graphics"]
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("15_yonet")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxA2"]
+
+[node name="HitboxA3" type="Area2D" parent="Graphics"]
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("15_yonet")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxA3"]
+
+[node name="HitboxA4" type="Area2D" parent="Graphics"]
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("15_yonet")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxA4"]
+
+[node name="HitboxA5" type="Area2D" parent="Graphics"]
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("15_yonet")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxA5"]
+
+[node name="HitboxAir1" type="Area2D" parent="Graphics"]
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("15_yonet")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxAir1"]
+
+[node name="HitboxAir2" type="Area2D" parent="Graphics"]
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("15_yonet")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxAir2"]
+
+[node name="HitboxAir3" type="Area2D" parent="Graphics"]
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("15_yonet")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxAir3"]
+
+[node name="HitboxSkill" type="Area2D" parent="Graphics"]
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("15_yonet")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxSkill"]
+
+[node name="VsStateMachine" type="Node" parent="."]
+script = ExtResource("16_uoukq")
+
+[node name="VsIdle" type="Node" parent="VsStateMachine"]
+script = ExtResource("17_47do6")
+
+[node name="VsRun" type="Node" parent="VsStateMachine"]
+script = ExtResource("18_s4dba")
+
+[node name="VsJump" type="Node" parent="VsStateMachine"]
+script = ExtResource("19_ltgc2")
+
+[node name="VsFall" type="Node" parent="VsStateMachine"]
+script = ExtResource("20_usum4")
+
+[node name="VsDodge" type="Node" parent="VsStateMachine"]
+script = ExtResource("21_q8mh5")
+
+[node name="VsGuard" type="Node" parent="VsStateMachine"]
+script = ExtResource("22_u50yh")
+
+[node name="VsHurt" type="Node" parent="VsStateMachine"]
+script = ExtResource("23_160lb")
+
+[node name="VsKnockdown" type="Node" parent="VsStateMachine"]
+script = ExtResource("24_ifyuk")
+
+[node name="VsGetup" type="Node" parent="VsStateMachine"]
+script = ExtResource("25_jdv24")
+
+[node name="VsLaunched" type="Node" parent="VsStateMachine"]
+script = ExtResource("26_27l3v")
+
+[node name="VsAttack" type="Node" parent="VsStateMachine"]
+script = ExtResource("27_ylqiu")
+
+[node name="VsAirAttack" type="Node" parent="VsStateMachine"]
+script = ExtResource("28_etbpn")
+
+[node name="VsSkill" type="Node" parent="VsStateMachine"]
+script = ExtResource("29_wgxlq")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+callback_mode_process = 0

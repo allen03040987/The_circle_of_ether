@@ -18,6 +18,17 @@ enum ArmorTier {
 @export var max_dash_energy: float = 100.0
 @export var dash_regen_rate: float = 10.0   # 每秒回復量（永遠生效）
 
+# ── 基礎移動數值（原本是 VsPlayerState.gd 的共用 const，改成這裡的 @export
+# 讓角色專屬的 derived 場景能覆寫成不同手感；VsPlayerState 的共用輔助方法與
+# 各狀態腳本改讀 (player as VsPlayer).xxx，不再用裸露的常數名稱）──────────────
+@export_group("基礎移動數值")
+@export var gravity:     float = 980.0   # px/s²
+@export var move_speed:  float = 150.0   # px/s（地面）
+@export var air_speed:   float = 130.0   # px/s（空中）
+@export var friction:    float = 900.0   # px/s²（地面減速）
+@export var jump_force:  float = -420.0  # px/s（負號朝上）
+@export var dodge_speed: float = 300.0   # px/s（衝刺）
+
 # ── VFX 字典庫（比照主遊戲 Player.gd 的 vfx_common/vfx_weapon/vfx_system）─────
 # 用途：登記「名稱 → 特效場景」，動畫 Call Method 軌道或程式碼直接用字串名稱
 # 呼叫 spawn_anim_vfx(name, ...)，不用像 vfx_spark_self 那樣被固定在單一枚舉
@@ -167,6 +178,24 @@ func strike_impulse(strength: float) -> void:
 	if not allowed: return
 	velocity.x = facing_dir * strength
 
+## 動畫呼叫方法軌道專用：脫手發射彈道（比照主遊戲武藝的「劍氣」設計，簡化版，
+## 見 Art_Clotty_5）。只在武藝狀態生效；跟 strike_impulse 同一套 rollback 防呆
+## 原則——只擋 `_resyncing_anim`（純視覺 seek resync 誤觸發），不擋
+## `is_resimulating`：這裡是「生成彈道」這個模擬狀態的一部分，rollback 重模擬
+## 同一幀時必須照樣真的生成一顆新的彈道節點，兩端結果才會一致，跟 vfx_* 系列
+## （純視覺、必須被 is_resimulating 擋掉重複觸發）性質不同，別搞混。
+## damage_override > 0 時覆寫這顆彈道的傷害（例如 Art_Clotty_1 反擊劍氣的
+## 700 傷害，跟 Art_Clotty_5 一般劍氣的預設值不同）；<=0（預設）就用
+## VsProjectile.tscn 節點上的預設值，不用每個呼叫端都指定。
+func fire_sword_wave(damage_override: float = -1.0) -> void:
+	if _resyncing_anim: return
+	if not (state_machine.current_state is VsMartialArt): return
+	var vw := get_parent()
+	if vw and vw.has_method("spawn_projectile"):
+		var proj: VsProjectile = vw.spawn_projectile(self, facing_dir)
+		if damage_override > 0.0:
+			proj.hitbox.damage = damage_override
+
 # 脫戰計時器：用 float + 模擬 delta，不用 Timer 節點（Timer 用真實時間，rollback 下會飄）
 const OUT_OF_COMBAT_DELAY := 2.0
 var out_of_combat_left: float = 0.0
@@ -176,6 +205,7 @@ func _ready() -> void:
 	hp          = max_hp
 	arts_energy = max_arts_energy
 	dash_energy = max_dash_energy
+	_base_arts_regen_rate = arts_regen_rate   # apply_arts_bonus() 的疊加基準，見該函式註解
 	# MANUAL 模式在運行時才切（rollback 需要：動畫由 apply_input 以模擬 delta 推進）。
 	# 不寫死在 tscn——編輯器預覽在 MANUAL 模式下不會推進，動畫面板會壞掉不能播
 	anim_player.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
@@ -306,14 +336,37 @@ func _on_hurtbox_hurt(hitbox: VsHitbox) -> void:
 
 	if is_invincible(): return
 
+	# 反擊型武藝（例如逆鱗返 Art_Clotty_1）：格擋窗口內、且攻擊破霸等級夠低
+	# 就完全格擋+觸發反擊，這下攻擊直接被吃掉，不進入後續傷害/硬直流程。
+	# duck-typed 呼叫（比照專案既有的 has_method 慣例）——之後任何武藝想做
+	# 類似的「條件性完全格擋」都可以照這個介面接，不用改這裡。
+	if cur and cur.has_method("try_parry") and cur.try_parry(hitbox):
+		return
+
 	# 被打時立刻轉向攻擊者（輔助鎖敵）——不管接下來走哪個分支（硬直/防禦/擊飛）
 	if hitbox.owner_player:
 		face_towards_x(hitbox.owner_player.position.x)
 
 	# 擊退方向：用「攻擊者當下面向」而非兩者相對座標——主遊戲 Hitbox.gd 同款做法。
 	# 出招時 hitbox 本就往攻擊者面向那側長出去，打中人時攻擊者幾乎必然面向被打者，
-	# 用相對座標算會依兩人誰在左右而正負顛倒（同樣正值擊退卻一下前一下後的 bug 根源）
-	var dir_x: int = hitbox.owner_player.facing_dir if hitbox.owner_player else -facing_dir
+	# 用相對座標算會依兩人誰在左右而正負顛倒（同樣正值擊退卻一下前一下後的 bug 根源）。
+	# 例外：彈道判定框（VsProjectile.hitbox）有 direction_override，優先採用——
+	# 彈道命中當下，施放者早就可能轉身/移動走了，讀 owner_player.facing_dir
+	# 會讓擊退方向跟著施放者事後的動作亂變，見 VsHitbox.direction_override 註解。
+	var dir_x: int = hitbox.direction_override if hitbox.direction_override != 0 \
+		else (hitbox.owner_player.facing_dir if hitbox.owner_player else -facing_dir)
+
+	# 多段連擊方向鎖定：第一下命中（hits_dealt 剛被 register_hit() 設成 1）
+	# 時把這次算出來的方向存進 direction_override，後續每一下（上面那行的
+	# 判斷式會優先採用 direction_override）直接沿用同一個值，不再重新讀
+	# owner_player 當下面向。見 VsHitbox.direction_override 欄位註解：sticky
+	# 連擊時間跨度可能很長，攻擊者早就可能已經打完整招、回到自由操作，後續
+	# 每一下若還即時讀當下面向會整個亂跳（2026-07-19 實測抓到：HitboxArt2Air
+	# 落地後角色在 VsRun 自由移動，owner.facing 隨移動方向不斷改變，殘留命中
+	# 的擊退方向跟著亂跳）。不管是不是 guard 擋下的第一下都照樣鎖定，純粹
+	# 記錄用不影響本次判定流程。
+	if hitbox.combo_hits > 1 and hitbox.hits_dealt == 1:
+		hitbox.direction_override = dir_x
 
 	# 防禦：交由 VsGuard 處理（強霸體減傷 + 強破霸破防）
 	if cur is VsGuard:
@@ -404,9 +457,12 @@ func save_state() -> Dictionary:
 		"qhit":   queued_hitstun,
 		"qkd":    queued_knockdown,
 		"ctimer": out_of_combat_left,
-		# 每顆判定框的 [monitoring, has_hit]：monitoring 平時由動畫軌道驅動，
-		# has_hit 防 rollback 重模擬時同一攻擊窗重複命中
-		"hbs":    hitboxes.map(func(h: VsHitbox) -> Array: return [h.monitoring, h.has_hit]),
+		# 每顆判定框的 [monitoring, has_hit, hits_dealt, hit_cooldown_left, is_locked]：
+		# monitoring 平時由動畫軌道驅動，has_hit（=連擊全部打完）防 rollback
+		# 重模擬時同一攻擊窗重複命中；hits_dealt/hit_cooldown_left/is_locked
+		# 是連擊系統（含 sticky 鎖定）的進度，一併存進快照才能正確還原連擊節奏
+		"hbs":    hitboxes.map(func(h: VsHitbox) -> Array:
+			return [h.monitoring, h.has_hit, h.hits_dealt, h.hit_cooldown_left, h.is_locked]),
 		"sname":  state_machine.current_state_name,
 		"sdata":  cur.save_state() if cur else {},
 	}
@@ -430,8 +486,11 @@ func restore_state(s: Dictionary) -> void:
 	graphics.scale.x     = facing_dir
 	var hbs: Array = s["hbs"]
 	for i in hitboxes.size():
-		hitboxes[i].monitoring = hbs[i][0]
-		hitboxes[i].has_hit    = hbs[i][1]
+		hitboxes[i].monitoring        = hbs[i][0]
+		hitboxes[i].has_hit           = hbs[i][1]
+		hitboxes[i].hits_dealt        = hbs[i][2]
+		hitboxes[i].hit_cooldown_left = hbs[i][3]
+		hitboxes[i].is_locked         = hbs[i][4]
 		hitboxes[i].hit_targets.clear()
 	state_machine.set_state_quiet(s["sname"])
 	if state_machine.current_state:
@@ -448,10 +507,45 @@ func sync_anim_to_state() -> void:
 		state_machine.current_state.sync_anim()
 		_resyncing_anim = false
 
-# ── 武藝加成（vs_world 注入 art_slots 後呼叫）────────────────────────────────
+# ── 武藝加成（vs_world 注入 art_slots 後呼叫；reload_arts() 換裝後也會重呼叫，
+# 見下方）────────────────────────────────────────────────────────────────────
+var _base_arts_regen_rate: float = 0.0   # _ready() 捕捉的 @export 原始值，見下
+
+## 從 _base_arts_regen_rate 重新算，不是疊加——換裝武藝（reload_arts()）可能
+## 讓空槽數量變動，這裡要能重複呼叫且每次都是「乾淨地」依當下空槽數重算，
+## 不能像原本那樣 `+=`（重呼叫會疊加出雪球式暴增的回復速率）。
 func apply_arts_bonus() -> void:
 	var empty := art_slots.count("")
-	arts_regen_rate += empty * VsGameManager.EMPTY_SLOT_REGEN_BONUS
+	arts_regen_rate = _base_arts_regen_rate + empty * VsGameManager.EMPTY_SLOT_REGEN_BONUS
+
+## 回合間重選武藝用：卸下舊的動態武藝狀態節點，依 new_slots 重新載入。
+## 只能在玩家不處於任何武藝狀態時呼叫（VsRoundManager 在 _reset_round() 裡
+## transition_to(&"vsidle") 之後才呼叫，此時 current_state 保證不是任何
+## VsMartialArt 節點，可以安全移除舊節點不會留下懸空的 current_state 參照）。
+func reload_arts(new_slots: Array) -> void:
+	for i in loaded_arts.size():
+		var old: VsMartialArt = loaded_arts[i]
+		if is_instance_valid(old):
+			state_machine.states.erase(StringName(old.name.to_lower()))
+			# ⚠ 必須先 remove_child() 再 queue_free()，不能只呼叫 queue_free()：
+			# queue_free() 只是排到這一幀結束才真正移除，這一幀稍後 _load_arts()
+			# 馬上又會 add_child() 一個同名的新節點（例如同樣叫 "VsArt1"）——
+			# 舊節點這時還「活」在場景樹裡（只是排隊等刪），Godot 偵測到同名
+			# 衝突會自動幫新節點改名（例如變成 "VsArt1@2"），register_state()
+			# 就會用錯誤的 key 登記進 states 字典，之後 transition_to("vsart1")
+			# 就會找不到狀態（實測：VsStateMachine: 找不到狀態 'vsart1'）。
+			# remove_child() 立刻把舊節點從樹上摘掉、釋放名稱，新節點才能順利
+			# 沿用同一個名字；queue_free() 仍然安全處理之後的記憶體釋放。
+			state_machine.remove_child(old)
+			old.queue_free()
+		loaded_arts[i] = null
+	# .assign() 而非直接指派——new_slots 常常是外部傳來的純 Array（例如
+	# VsRoundManager.p1_new_arts），直接指派給 Array[String] 型別的 art_slots
+	# 會因為型別不符出錯，跟 vs_world._spawn_players() 用 art_slots.assign(...)
+	# 而非 = 的理由一樣
+	art_slots.assign(new_slots)
+	_load_arts()
+	apply_arts_bonus()
 
 # ==========================================
 # 🎇 打擊回饋 VFX
@@ -613,6 +707,31 @@ func spawn_anim_vfx(
 	vfx.rotation_degrees = rotation_deg * facing_dir
 	var hdr_color := Color(custom_color.r * raw_intensity, custom_color.g * raw_intensity, custom_color.b * raw_intensity, custom_color.a)
 	CombatManager._apply_vfx_colors(vfx, hdr_color, aura_color)
+
+## 音效——跟 vfx_shake/vfx_ghost 同一套 rollback 防呆（_vfx_blocked()）：
+## rollback 重模擬同一真實影格可能重跑好幾次，音效是一次性副作用，沒防呆
+## 會重複播放。三個包裝函式對應主遊戲 AudioManager 的三種呼叫方式：
+##   - vfx_sfx：直接給 AudioStream（play_sfx 的包裝，低階用法）
+##   - vfx_action_sfx：用字串 key 查 action_sfx_bank（play_action_sfx 的包裝，
+##     動作/演出類音效，例如格擋、防禦成功、彈反成功）
+##   - vfx_hit_sfx：命中專用，讀 VsHitbox.hit_sfx_type 查 hit_sfx_bank
+##     （play_hit_sfx 的包裝，比照主遊戲 classes/Hitbox.gd::_execute_hit()）
+## 三者都可直接當動畫 Call Method 軌道呼叫（NodePath 打 `.`）。
+func vfx_sfx(stream: AudioStream, volume_db: float = 0.0, pitch_scale: float = 1.0) -> void:
+	if _vfx_blocked() or stream == null: return
+	AudioManager.play_sfx(stream, volume_db, pitch_scale)
+
+func vfx_action_sfx(key: String, volume_db: float = -8.0) -> void:
+	if _vfx_blocked() or key == "": return
+	AudioManager.play_action_sfx(key, volume_db)
+
+## 打擊命中音效——由 vs_world._manual_check()/_manual_check_projectile() 命中
+## 確認後呼叫，跟 vfx_spark/vfx_shake 同一個呼叫點：不管防禦/霸體/無敵吸收
+## 與否都照樣給回饋（「打中了」跟「打中造成多少效果」是兩件事，比照主遊戲
+## Hitbox._execute_hit() 的做法，這裡不加條件判斷）。
+func vfx_hit_sfx(hb: VsHitbox) -> void:
+	if _vfx_blocked() or hb.hit_sfx_type == "": return
+	AudioManager.play_hit_sfx(hb.hit_sfx_type, -2.0)
 
 # ==========================================
 # 🎨 狀態輪廓描邊（主遊戲 StatusOutline 同款）：藍=霸體、黃=強霸體、紅=無敵

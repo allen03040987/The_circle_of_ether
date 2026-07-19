@@ -31,7 +31,7 @@ func sync_anim() -> void:
 func physics_update(delta: float, input: InputState) -> StringName:
 	elapsed += delta
 	# 承接倒地彈起的殘留滑行動量，摩擦減速（不瞬間黏住）
-	player.velocity.x = move_toward(player.velocity.x, 0.0, FRICTION * 1.5 * delta)
+	player.velocity.x = move_toward(player.velocity.x, 0.0, (player as VsPlayer).friction * 1.5 * delta)
 	# 衝刺打斷起身：無敵提前結束（VsDodge.enter 會另設它自己的完美閃避窗）
 	var vs := player as VsPlayer
 	if input.dodge and vs.use_dash_energy(30.0):

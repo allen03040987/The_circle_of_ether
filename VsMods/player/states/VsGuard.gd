@@ -44,5 +44,8 @@ func on_guard_hit(hitbox: VsHitbox) -> void:
 		}
 		return
 
-	# 強霸體：50% 減傷，免疫擊退/硬直
+	# 強霸體：50% 減傷，免疫擊退/硬直——格擋成功，比照主遊戲 Guard.gd::try_block()
+	# 音效組合（hit_2 疊 hit_8）
 	vs.hp = maxf(vs.hp - hitbox.damage * 0.5, 0.0)
+	vs.vfx_action_sfx("hit_2", 0.0)
+	vs.vfx_action_sfx("hit_8", -10.0)
