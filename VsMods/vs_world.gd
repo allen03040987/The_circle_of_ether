@@ -405,12 +405,25 @@ func _manual_check(delta: float, hb: VsHitbox, hrb: VsHurtbox, hb_owner: VsPlaye
 		hrb.receive_hit(hb)
 		if hb.has_hit:
 			hb.monitoring = false   # 連擊全部打完，立刻關閉，沒有殘留的必要
-		# 打擊回饋：火花釘在受害者身上、跟著移動；震動全域生效。純視覺，命中
-		# 判定/傷害邏輯完全不受影響——不管防禦/霸體/無敵吸收與否都照樣給回饋，
-		# 「打中了」跟「打中造成多少效果」是兩件事（比照主遊戲 Hitbox 的做法）
-		hb_owner.vfx_spark(hb, hrb.global_position, hrb_owner)
-		hb_owner.vfx_shake(hb.shake_intensity)
-		hb_owner.vfx_hit_sfx(hb)
+		# 打擊回饋：純視覺，命中判定/傷害邏輯完全不受影響。原則上不管霸體/
+		# 一般吸收與否都照樣給回饋（「打中了」跟「打中造成多少效果」是兩件
+		# 事，比照主遊戲 Hitbox 的做法），但兩個全角色共同例外（使用者規則）：
+		# 無敵目標完全不給回饋（音效+火花，攻擊視覺上「根本沒打到」）；防禦
+		# 成功目標的火花換成主遊戲同款格擋火花（釘在防禦方身上，不是攻擊方
+		# 的角色/hitbox 火花設定）。`receive_hit()` 內 `_on_hurtbox_hurt()` 是
+		# 同幀同步呼叫，這裡讀 `hrb_owner.last_hit_outcome` 保證是本次判定的
+		# 結果，不是上一次殘留值。
+		match hrb_owner.last_hit_outcome:
+			VsPlayer.HitOutcome.INVINCIBLE:
+				pass
+			VsPlayer.HitOutcome.GUARDED:
+				hrb_owner.vfx_block_spark()
+				hb_owner.vfx_shake(hb.shake_intensity)
+				hb_owner.vfx_hit_sfx(hb)
+			_:
+				hb_owner.vfx_spark(hb, hrb.global_position, hrb_owner)
+				hb_owner.vfx_shake(hb.shake_intensity)
+				hb_owner.vfx_hit_sfx(hb)
 
 ## 生成一顆脫手彈道（VsPlayer.fire_sword_wave() 的 Call Method 軌道呼叫入口）。
 ## 呼叫時機發生在 apply_input() 內（見 _simulate_frame 順序），本幀稍後的
@@ -463,9 +476,18 @@ func _manual_check_projectile(delta: float, proj: VsProjectile, hrb_owner: VsPla
 	if confirmed:
 		hb.register_hit()
 		hrb.receive_hit(hb)
-		proj.owner_player.vfx_spark(hb, hrb.global_position, hrb_owner)
-		proj.owner_player.vfx_shake(hb.shake_intensity)
-		proj.owner_player.vfx_hit_sfx(hb)
+		# 打擊回饋例外規則跟 _manual_check 同一套，見該處註解
+		match hrb_owner.last_hit_outcome:
+			VsPlayer.HitOutcome.INVINCIBLE:
+				pass
+			VsPlayer.HitOutcome.GUARDED:
+				hrb_owner.vfx_block_spark()
+				proj.owner_player.vfx_shake(hb.shake_intensity)
+				proj.owner_player.vfx_hit_sfx(hb)
+			_:
+				proj.owner_player.vfx_spark(hb, hrb.global_position, hrb_owner)
+				proj.owner_player.vfx_shake(hb.shake_intensity)
+				proj.owner_player.vfx_hit_sfx(hb)
 
 ## 比照 _sim_rect，但基準點是彈道自己的 position（不是某個 VsPlayer 的
 ## facing_dir 相對位移）——彈道在世界空間直線飛行，用 proj.direction 決定

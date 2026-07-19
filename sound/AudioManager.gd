@@ -58,6 +58,8 @@ var action_sfx_bank: Dictionary = {
 	# --- 武器收招/位移 (Sheath & Movement) ---
 	"Sheath": preload("res://sound/SFX/attack/Sheath.wav"),
 	"sprint": preload("res://sound/SFX/sprint.wav"),
+	"move_1": preload("res://sound/SFX/move_1.wav"),
+	"move_2": preload("res://sound/SFX/move_2.wav"),
 
 	# --- UI/場景提示音 (UI & Scene Cues，非戰鬥用) ---
 	"Prompt_tone": preload("res://sound/SFX/Prompt tone.wav"),

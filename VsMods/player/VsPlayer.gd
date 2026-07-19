@@ -8,6 +8,12 @@ enum ArmorTier {
 	STRONG_HYPER # 強霸體：免疫非強破霸攻擊的擊退/硬直，並獲得 50% 減傷
 }
 
+## 這次命中的結果分類——供 vs_world 在命中判定後決定要給哪種打擊回饋
+## （無敵目標不給音效/火花；防禦成功目標的火花換成格擋專用款）。純粹是
+## 同一幀內「_on_hurtbox_hurt() 設定 → vs_world 立刻讀取」的執行期通訊，
+## 不影響後續模擬，不進快照（跟 is_resimulating 同一類，不是模擬狀態）。
+enum HitOutcome { NORMAL, GUARDED, INVINCIBLE }
+
 # ── 設定 ─────────────────────────────────────────────────────────────────────
 @export var player_id:       int   = 1
 @export var max_hp:          float = 1000.0
@@ -112,6 +118,32 @@ var pending_hit:           Dictionary = {}    # 本幀設定，下幀處理（�
 var queued_hitstun:        float      = 0.4   # VsHurt.enter() 讀取的硬直時長
 var queued_knockdown:      bool       = false # 落地屬性（y=0）：VsHurt 硬直完進倒地
 var last_input:            InputState         # 當幀輸入備份（供 enter() 讀取方向）
+var last_hit_outcome:      HitOutcome = HitOutcome.NORMAL   # 見 HitOutcome 註解
+
+## 受身（全角色通用）：受擊硬直（VsHurt）或擊飛（VsLaunched）期間——這兩個
+## 狀態本來就「無法操作」——按下技能鍵立刻獲得 UKEMI_DURATION 秒強霸體，藉此
+## 打斷正在進行中的連段/juggle（強霸體讓後續非強破霸的攻擊只扣血不再重新
+## 進硬直，VsHurt 自己的 elapsed 倒數不會被打斷重置，juggle 到此為止）。不
+## 取消當下狀態本身——角色仍照原本的硬直/落地時間軸走，只是變得打不動。
+## 每回合限用 UKEMI_MAX_USES 次（VsRoundManager._reset_round() 重置）。
+const UKEMI_DURATION:  float = 2.0
+const UKEMI_MAX_USES:  int   = 2
+var ukemi_uses_left: int = UKEMI_MAX_USES
+
+## 由 VsHurt/VsLaunched 的 physics_update() 在 input.skill 時呼叫。
+## 次數用完回傳 false（呼叫端不用另外檢查次數，這裡就是唯一入口）。
+func try_ukemi() -> bool:
+	if ukemi_uses_left <= 0:
+		return false
+	ukemi_uses_left -= 1
+	post_dash_armor_left = maxf(post_dash_armor_left, UKEMI_DURATION)
+	# 觸發回饋：黃色十字特效（Cross slash sparks，套用跟強霸體描邊同一個金色
+	# HDR 值 OUTLINE_COLOR_STRONG_HYPER，視覺語彙一致）+ beam_2 音效。兩個
+	# 呼叫內建各自的 _vfx_blocked() 防呆，rollback 重模擬不會重複觸發，
+	# try_ukemi() 不用另外處理
+	spawn_anim_vfx("Cross slash sparks", 0.0, -30.0, Vector2(1.0, 1.0), 0.0, OUTLINE_COLOR_STRONG_HYPER)
+	vfx_action_sfx("beam_2")
+	return true
 
 # ── 節點 ─────────────────────────────────────────────────────────────────────
 @onready var state_machine: VsStateMachine  = $VsStateMachine
@@ -308,7 +340,8 @@ func _update_energy_regen(delta: float) -> void:
 func get_armor_tier() -> ArmorTier:
 	var cur := state_machine.current_state
 	if cur is VsGuard:
-		return ArmorTier.STRONG_HYPER
+		# 後搖（defense_2）期間沒有霸體，見 VsGuard.is_blocking() 註解
+		return ArmorTier.STRONG_HYPER if (cur as VsGuard).is_blocking() else ArmorTier.NONE
 	# 規則：武藝施放全程要有霸體或以上——多數武藝維持 HYPER（免疫非破霸攻擊）
 	# 即符合下限，個別招式想要強霸體就設 armor_tier_override_strong
 	if cur is VsMartialArt:
@@ -328,13 +361,17 @@ func is_invincible() -> bool:
 # ── 受傷信號（Area 重疊時由 VsHurtbox 觸發）─────────────────────────────────
 func _on_hurtbox_hurt(hitbox: VsHitbox) -> void:
 	var cur := state_machine.current_state
+	last_hit_outcome = HitOutcome.NORMAL   # 預設；下面各分支視情況覆寫
 
 	# 完美閃避：判定窗（VsDodge 前 PERFECT_WINDOW 秒，同時 invincible_time_left > 0）
 	if cur is VsDodge and invincible_time_left > 0.0:
 		(cur as VsDodge).trigger_perfect_dodge()
+		last_hit_outcome = HitOutcome.INVINCIBLE
 		return
 
-	if is_invincible(): return
+	if is_invincible():
+		last_hit_outcome = HitOutcome.INVINCIBLE
+		return
 
 	# 反擊型武藝（例如逆鱗返 Art_Clotty_1）：格擋窗口內、且攻擊破霸等級夠低
 	# 就完全格擋+觸發反擊，這下攻擊直接被吃掉，不進入後續傷害/硬直流程。
@@ -368,8 +405,14 @@ func _on_hurtbox_hurt(hitbox: VsHitbox) -> void:
 	if hitbox.combo_hits > 1 and hitbox.hits_dealt == 1:
 		hitbox.direction_override = dir_x
 
-	# 防禦：交由 VsGuard 處理（強霸體減傷 + 強破霸破防）
-	if cur is VsGuard:
+	# 防禦：只有還在按住階段（有霸體）才交給 VsGuard 處理格擋減傷/破防；
+	# 後搖（defense_2）期間 is_blocking()==false，直接落到下面一般體質流程，
+	# 這時 get_armor_tier() 也會回傳 NONE，等同正常受傷
+	if cur is VsGuard and (cur as VsGuard).is_blocking():
+		# 只有真的擋下來（非強破霸）才算 GUARDED 回饋；強破霸直接破防，走完整
+		# 傷害/擊退/硬直，視覺上跟一般受擊沒兩樣，維持 NORMAL 預設值
+		if hitbox.break_level != VsHitbox.BreakLevel.STRONG_ARMOR_BREAK:
+			last_hit_outcome = HitOutcome.GUARDED
 		(cur as VsGuard).on_guard_hit(hitbox)
 		return
 
@@ -453,6 +496,7 @@ func save_state() -> Dictionary:
 		"aau":    air_attack_used,
 		"inv":    invincible_time_left,
 		"pda":    post_dash_armor_left,
+		"ukemi":  ukemi_uses_left,
 		"phit":   pending_hit.duplicate(true),
 		"qhit":   queued_hitstun,
 		"qkd":    queued_knockdown,
@@ -479,6 +523,7 @@ func restore_state(s: Dictionary) -> void:
 	air_attack_used      = s["aau"]
 	invincible_time_left = s["inv"]
 	post_dash_armor_left = s["pda"]
+	ukemi_uses_left      = s.get("ukemi", UKEMI_MAX_USES)
 	pending_hit          = s["phit"].duplicate(true)
 	queued_hitstun       = s["qhit"]
 	queued_knockdown     = s["qkd"]
@@ -654,6 +699,16 @@ func vfx_ghost(color: Color = Color(1.0, 1.0, 1.0, 0.4)) -> void:
 func vfx_dodge_spark() -> void:
 	if _vfx_blocked(): return
 	CombatManager.spawn_dodge_spark(vfx_anchor_position())
+
+## 格擋成功火花——比照主遊戲 player/state/Guard.gd::try_block() 的火花參數
+## （BLUNT 鈍擊型、貼在防禦方身上、朝防禦方面向），跟一般命中火花 vfx_spark
+## （貼在受害者身上但套用「攻擊方」的火花預設/角色設定）是不同的視覺語彙：
+## 全角色共用同一款固定外觀，不走 use_character_default_spark 那套 fallback。
+## 由 vs_world 在判定命中結果是 VsPlayer.HitOutcome.GUARDED 時對防禦方呼叫。
+func vfx_block_spark() -> void:
+	if _vfx_blocked(): return
+	var pos := vfx_anchor_position() + Vector2(20.0 * facing_dir, -30.0)
+	CombatManager.spawn_spark(Hitbox.SparkType.BLUNT, pos, facing_dir)
 
 ## 特寫運鏡——鏡頭短暫拉近盯著自己再自動恢復一般立回模式。可直接當動畫 Call
 ## Method 軌道呼叫（NodePath 打 `.`，方法名 vfx_closeup）。

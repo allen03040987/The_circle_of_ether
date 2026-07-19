@@ -175,6 +175,7 @@ func _reset_round() -> void:
 		vs.arts_energy     = vs.max_arts_energy
 		vs.dash_energy     = vs.max_dash_energy
 		vs.post_dash_armor_left = 0.0
+		vs.ukemi_uses_left = VsPlayer.UKEMI_MAX_USES
 		vs.velocity        = Vector2.ZERO
 		vs.pending_hit     = {}
 		vs.invincible_time_left = 0.5   # 開局 0.5s 無敵，避免立即被打

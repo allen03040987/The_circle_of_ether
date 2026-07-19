@@ -16,6 +16,9 @@ const VIEW_H  := 216
 const DOT_SIZE := 7    # 勝場指示點大小
 const DOT_GAP  := 3    # 點之間間距
 
+const UKEMI_DOT_SIZE := 4   # 受身次數指示點——刻意比勝場點小很多，只是個小提示
+const UKEMI_DOT_GAP  := 2
+
 # ── 顏色 ──────────────────────────────────────────────────────────────────────
 const C_BG     := Color(0.08, 0.08, 0.08, 0.88)
 const C_BORDER := Color(0.35, 0.35, 0.35, 1.0)
@@ -25,6 +28,8 @@ const C_ENERGY := Color(1.0,  0.85, 0.1,  1.0)   # 武藝能量（金色）
 const C_DASH   := Color(0.3,  0.85, 1.0,  1.0)   # 衝刺能量（青色）
 const C_DOT_ON := Color(1.0,  1.0,  1.0,  1.0)
 const C_DOT_OFF:= Color(0.25, 0.25, 0.25, 1.0)
+const C_UKEMI_ON  := Color(1.0,  0.85, 0.1,  1.0)   # 金色，跟武藝能量條同色
+const C_UKEMI_OFF := Color(0.3,  0.27, 0.1,  1.0)   # 暗金＝用掉了
 
 # ── 玩家參照 ──────────────────────────────────────────────────────────────────
 var _p1: VsPlayer
@@ -41,6 +46,10 @@ var _p2_dash: ColorRect
 # ── 勝場點 ────────────────────────────────────────────────────────────────────
 var _p1_dots: Array = []   # Array[ColorRect]
 var _p2_dots: Array = []
+
+# ── 受身次數點（金色，貼在能量條下方跟 P1/P2 標籤同一列）───────────────────────
+var _p1_ukemi_dots: Array = []
+var _p2_ukemi_dots: Array = []
 
 # ── 文字 ──────────────────────────────────────────────────────────────────────
 var _result_label: Label   # 回合結果（平時隱藏）
@@ -70,6 +79,11 @@ func _process(_delta: float) -> void:
 	var r2 := _p2.hp / _p2.max_hp if _p2.max_hp > 0.0 else 0.0
 	_p1_hp.color = C_HP_LOW if r1 < 0.25 else C_HP
 	_p2_hp.color = C_HP_LOW if r2 < 0.25 else C_HP
+
+	for i in _p1_ukemi_dots.size():
+		_p1_ukemi_dots[i].color = C_UKEMI_ON if i < _p1.ukemi_uses_left else C_UKEMI_OFF
+	for i in _p2_ukemi_dots.size():
+		_p2_ukemi_dots[i].color = C_UKEMI_ON if i < _p2.ukemi_uses_left else C_UKEMI_OFF
 
 	# 延遲顯示：讀取預測深度，換算為 ms（60fps → 每幀 ≈ 16.67ms）
 	if _ping_label.visible:
@@ -131,8 +145,17 @@ func _build_ui() -> void:
 	_p2_dash = _make_bar(root, rx, y2, BAR_W, DASH_H, C_DASH)
 
 	# 玩家標籤
-	_make_label(root, "P1", lx,              y2 + DASH_H + 2, 8)
-	_make_label(root, "P2", rx + BAR_W - 14, y2 + DASH_H + 2, 8)
+	var label_y := y2 + DASH_H + 2
+	_make_label(root, "P1", lx,              label_y, 8)
+	_make_label(root, "P2", rx + BAR_W - 14, label_y, 8)
+
+	# 受身次數點（跟 P1/P2 標籤同一列，貼在該側能量條的另一端，避免跟文字重疊）
+	var ukemi_w := VsPlayer.UKEMI_MAX_USES * UKEMI_DOT_SIZE + (VsPlayer.UKEMI_MAX_USES - 1) * UKEMI_DOT_GAP
+	var ukemi_y := label_y + 2
+	for i in VsPlayer.UKEMI_MAX_USES:
+		_p1_ukemi_dots.append(_make_ukemi_dot(root, lx + BAR_W - ukemi_w + i * (UKEMI_DOT_SIZE + UKEMI_DOT_GAP), ukemi_y))
+	for i in VsPlayer.UKEMI_MAX_USES:
+		_p2_ukemi_dots.append(_make_ukemi_dot(root, rx + i * (UKEMI_DOT_SIZE + UKEMI_DOT_GAP), ukemi_y))
 
 	# 勝場指示點（中央上方）
 	var cx     := VIEW_W / 2
@@ -197,6 +220,14 @@ func _make_dot(parent: Control, x: int, y: int) -> ColorRect:
 	dot.position = Vector2(x, y)
 	dot.size     = Vector2(DOT_SIZE, DOT_SIZE)
 	dot.color    = C_DOT_OFF
+	parent.add_child(dot)
+	return dot
+
+func _make_ukemi_dot(parent: Control, x: int, y: int) -> ColorRect:
+	var dot := ColorRect.new()
+	dot.position = Vector2(x, y)
+	dot.size     = Vector2(UKEMI_DOT_SIZE, UKEMI_DOT_SIZE)
+	dot.color    = C_UKEMI_ON
 	parent.add_child(dot)
 	return dot
 

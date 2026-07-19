@@ -62,7 +62,7 @@ size = Vector2(185, 80.5)
 size = Vector2(125, 75)
 
 [node name="VsPlayer" instance=ExtResource("1_mcd3v")]
-max_hp = 500.0
+max_hp = 8000.0
 vfx_common = {
 "Aggregation ring": ExtResource("5_ring"),
 "Circular cut": ExtResource("6_ccut"),
