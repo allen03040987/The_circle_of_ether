@@ -83,17 +83,18 @@ func physics_update(delta: float, input: InputState) -> StringName:
 
 	# 2. 防禦：規則明講空中不能防禦，這裡不做地面 VsAttack 那樣的分支
 
-	# 3. 武藝取消：權限僅次衝刺、不受連段窗限制（是否能在空中放由該武藝自己的
-	#    can_use_in_air 決定，_check_art_cast 內部已經檢查過）
-	var art_transition := _check_art_cast(input)
-	if art_transition != &"":
-		return art_transition
-
-	# 4. 連段派生：窗口開啟且有緩衝輸入 → 立刻取消剩餘動畫接下一段
-	if vs.can_combo and attack_buffer_left > 0.0 and combo_step < max_combo:
-		combo_step += 1
-		enter(&"vsairattack")   # 直接重啟，繞過防重入
-		return &""
+	# 3. 連段窗口（can_combo 開啟時）：武藝取消或連段派生，兩者共用同一個窗口
+	#    ——使用者已明確拿掉「武藝可在任何時點打斷普攻」的舊規則，改成只能從
+	#    這個窗口進（全角色通用，跟地面 VsAttack 同一套）。是否能在空中放由
+	#    該武藝自己的 can_use_in_air 決定，_check_art_cast 內部已經檢查過。
+	if vs.can_combo:
+		var art_transition := _check_art_cast(input)
+		if art_transition != &"":
+			return art_transition
+		if attack_buffer_left > 0.0 and combo_step < max_combo:
+			combo_step += 1
+			enter(&"vsairattack")   # 直接重啟，繞過防重入
+			return &""
 
 	player.velocity.x = move_toward(player.velocity.x, 0.0, IMPULSE_FRICTION * delta)
 	_apply_gravity(delta)   # 3 段統一一般重力（見上方註解）

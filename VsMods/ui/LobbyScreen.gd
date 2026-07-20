@@ -47,7 +47,13 @@ func _start_connecting() -> void:
 	_connect_timer = 0.0
 
 func _on_back() -> void:
+	# 真正離開整個 VsMods 流程，這裡才是還原主遊戲 PauseMenu 的時機——見
+	# ui/title_screen.gd::_on_vs_game_pressed() 的停用註解
+	PauseMenu.process_mode = Node.PROCESS_MODE_INHERIT
 	get_tree().change_scene_to_file("res://ui/title_screen.tscn")
+
+func _on_settings() -> void:
+	VsSettingsPanel.open_over(self)
 
 # ── VsNetworkManager 信號 ─────────────────────────────────────────────────────
 func _on_room_created(code: String) -> void:

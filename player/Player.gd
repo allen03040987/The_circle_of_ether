@@ -253,17 +253,22 @@ func _input(event: InputEvent) -> void:
 
 ## 處理玩家主動操作的輸入緩衝 (跳躍、攻擊、閃避)
 func _unhandled_input(event: InputEvent) -> void:
+	# 武藝修飾鍵：跟 attack/heavy_attack 一樣，閃避/防禦的按鍵也要能被使用者
+	# 重新綁定成跟某個武藝槽重疊（靠按不按 E 消歧義）——2026-07-20 使用者
+	# 明確要求跟 VsMods 同一套規則，接受「按著 E 時閃避這一幀會偵測不到」
+	# 的代價。這不違反「閃避永遠最高優先權」的規則：那條規則保證閃避一旦
+	# 被偵測到就能打斷任何狀態，不保證閃避一定會被偵測到。
+	var is_mod_held = Input.is_action_pressed("martial_modifier")
+
 	# 🌟 閃避最高權限：即使輸入被鎖（例如長槍收槍強化技/大招）也要能啟動閃避預輸入，
 	# 其餘一般操作照舊被 is_input_locked 擋下
-	if event.is_action_pressed("slide"):
+	if event.is_action_pressed("slide") and not is_mod_held:
 		slide_request_timer.start()
 
 	if is_input_locked: return
 
 	if event.is_action_pressed("toggle_walk"): toggle_walk_mode()
-		
-	var is_mod_held = Input.is_action_pressed("martial_modifier")
-	
+
 	if is_mod_held:
 		if event.is_action_pressed("art_1"):
 			if _has_martial_art(0):
@@ -298,7 +303,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				can_buffer = current_weapon.can_use_heavy()
 			if can_buffer: is_heavy_requested = true; heavy_buffer_time = ATTACK_BUFFER_DURATION
 		
-	if event.is_action_pressed("guard"): guard_request_timer.start()
+	if event.is_action_pressed("guard") and not is_mod_held: guard_request_timer.start()
 
 	# 🎒 消耗道具：沒有招式優先級判定，純粹按了就用，不用像武藝一樣搶連段輸入緩衝
 	if event.is_action_pressed("use_health_item"):

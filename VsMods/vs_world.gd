@@ -61,8 +61,12 @@ func _ready() -> void:
 	else:
 		# 保留 WebRTC 連線，只清上一場的幀計數 / 輸入殘留
 		VsNetworkManager.reset_for_match()
-	# 停用主遊戲 PauseMenu，改用 VsMods 自己的暫停
-	PauseMenu.process_mode = Node.PROCESS_MODE_DISABLED
+	# 主遊戲 PauseMenu 的停用/還原範圍是整個 VsMods 流程（title_screen 進入
+	# LobbyScreen 時就關、LobbyScreen 返回 title_screen 時才還原），不是這裡
+	# ——這裡只是對戰中，如果在這裡開/關會漏掉 LobbyScreen/SelectScreen 這兩段
+	# 期間（2026-07-20 實測抓到：大廳畫面按下主遊戲的暫停鍵，主遊戲 PauseMenu
+	# 真的跳出來了），見 title_screen.gd::_on_vs_game_pressed()／
+	# LobbyScreen.gd::_on_back()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_spawn_players()
 	_spawn_hud()
@@ -115,7 +119,8 @@ func _exit_tree() -> void:
 		VsNetworkManager.disconnected.disconnect(_on_disconnect_cb)
 	if VsNetworkManager.remote_arts_received.is_connected(_on_remote_round_arts):
 		VsNetworkManager.remote_arts_received.disconnect(_on_remote_round_arts)
-	PauseMenu.process_mode = Node.PROCESS_MODE_INHERIT
+	# PauseMenu 的還原不在這裡做——這個函式在「回大廳」時也會跑，太早還原
+	# 會導致大廳畫面又能叫出主遊戲的暫停選單，見上面 _ready() 的說明
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_flush_desync_log()
 

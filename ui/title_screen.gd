@@ -108,4 +108,7 @@ func _on_exit_game_pressed() -> void:
 ## 進入格鬥對戰模式
 func _on_vs_game_pressed() -> void:
 	AudioManager.stop_bgm(1.0)
+	# 停用主遊戲 PauseMenu，整個 VsMods 流程（大廳/選角/對戰）都不該叫得出來，
+	# 直到 LobbyScreen.gd::_on_back() 真正離開 VsMods 才還原
+	PauseMenu.process_mode = Node.PROCESS_MODE_DISABLED
 	get_tree().change_scene_to_file("res://VsMods/ui/LobbyScreen.tscn")

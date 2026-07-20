@@ -36,12 +36,17 @@ func _recovery_transition(input: InputState) -> StringName:
 		return &"vsrun"
 	return &"vsidle"
 
-## 武藝施放共用檢查（規則：可打斷普攻施放，權限僅次衝刺/防禦）。任何狀態的
-## physics_update() 在打斷優先權合適的位置呼叫這個——有輸入、對應槽位有裝
-## 武藝、地面限制符合（can_use_in_air）、能量夠、而且不是同一招正在施放中
-## （連按同招不重啟，比照主遊戲 is_same_art_still_running 的防呆）—— 全部
-## 成立才會扣能量並回傳武藝的狀態名稱（"vsart1"/"vsart2"/"vsart3"）；不然
-## 回傳空字串代表不觸發，呼叫端跟平常一樣把空字串當「維持原狀態」處理。
+## 武藝施放共用檢查。任何狀態的 physics_update() 在打斷優先權合適的位置呼叫
+## 這個——有輸入、對應槽位有裝武藝、地面限制符合（can_use_in_air）、能量夠、
+## 而且不是同一招正在施放中（連按同招不重啟，比照主遊戲 is_same_art_still_running
+## 的防呆）—— 全部成立才會扣能量並回傳武藝的狀態名稱（"vsart1"/"vsart2"/
+## "vsart3"）；不然回傳空字串代表不觸發，呼叫端跟平常一樣把空字串當「維持
+## 原狀態」處理。
+##
+## ⚠ 這個函式本身不管「什麼時候允許呼叫」——那是呼叫端的責任。VsIdle/VsRun/
+## VsJump/VsFall/VsSkill 隨時可呼叫（沒有額外限制）；VsAttack/VsAirAttack
+## （2026-07-20 起）只在 `vs.can_combo` 開啟的連段窗口內呼叫，不是任何時點都
+## 能打斷普攻——見 VsMartialArt.gd 開頭的規則說明。
 func _check_art_cast(input: InputState) -> StringName:
 	var vs := player as VsPlayer
 	var slot := 0

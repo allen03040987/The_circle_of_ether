@@ -70,18 +70,27 @@ static func from_input(player_id: int) -> InputState:
 	if Input.is_action_pressed(p + "right"): s.move_dir += 1.0
 	s.is_crouch = Input.is_action_pressed(p + "down")
 	s.jump  = Input.is_action_just_pressed(p + "jump")
-	s.dodge = Input.is_action_just_pressed(p + "big_dash")
-	s.guard = Input.is_action_pressed(p + "small_dash")
 
 	if player_id == 1:
-		# P1 滑鼠操作：普攻/技能 = 無修飾左/右鍵；武藝 = E(martial_modifier) + 左/右/中鍵
+		# P1 滑鼠操作：普攻/技能/閃避/防禦 = 無修飾鍵；武藝 = E(martial_modifier) + 同一批鍵。
+		# 閃避/防禦跟普攻/技能同待遇（and not martial）——這樣任何一個動作的按鍵
+		# 都能被使用者重新綁定成跟某個武藝槽重疊，靠 E 消歧義。⚠ 代價：只要
+		# 按著 E（哪怕沒重疊綁定任何鍵），閃避/防禦這一幀就會暫時發不出來——
+		# 使用者 2026-07-20 明確接受這個取捨，見 InputState.gd 呼叫端的說明。
+		# 這跟「閃避永遠是最高優先權、不能被其他規則擋掉」的全域規則不衝突：
+		# 那條規則講的是閃避一旦被偵測到就能打斷任何狀態，不保證閃避「一定會
+		# 被偵測到」——這裡影響的是偵測本身，不是偵測到之後的優先權。
 		var martial := Input.is_action_pressed("martial_modifier")
+		s.dodge  = Input.is_action_just_pressed(p + "big_dash")   and not martial
+		s.guard  = Input.is_action_pressed(p + "small_dash")      and not martial
 		s.attack = Input.is_action_just_pressed(p + "attack") and not martial
 		s.skill  = Input.is_action_just_pressed(p + "skill")  and not martial
 		s.art_1  = Input.is_action_just_pressed("art_1") and martial
 		s.art_2  = Input.is_action_just_pressed("art_2") and martial
 		s.art_3  = Input.is_action_just_pressed("art_3") and martial
 	else:
+		s.dodge  = Input.is_action_just_pressed(p + "big_dash")
+		s.guard  = Input.is_action_pressed(p + "small_dash")
 		s.attack = Input.is_action_just_pressed(p + "attack")
 		s.skill  = Input.is_action_just_pressed(p + "skill")
 		s.art_1  = Input.is_action_just_pressed(p + "special")

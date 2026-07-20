@@ -106,7 +106,13 @@ func _load_custom_keybindings_at_launch() -> void:
 	
 	InputMap.load_from_project_settings()
 	
-	var actions = ["move_left", "move_right", "jump", "attack", "heavy_attack", "martial_modifier", "art_1", "art_2", "art_3", "guard", "slide", "switch_weapon", "interact"]
+	var actions = ["move_left", "move_right", "jump", "attack", "heavy_attack", "martial_modifier", "art_1", "art_2", "art_3", "guard", "slide", "switch_weapon", "interact",
+		# VsMods（P1/P2）—— art_1/art_2/art_3/martial_modifier 跟上面主遊戲共用，
+		# 不用重複列；其餘是 VsMods 專屬的 p1_*/p2_* 動作，跟 VsKeybindMenu.ACTIONS
+		# 同一份清單，兩處都要記得同步維護
+		"p1_left", "p1_right", "p1_down", "p1_jump", "p1_attack", "p1_skill", "p1_big_dash", "p1_small_dash",
+		"p2_left", "p2_right", "p2_down", "p2_jump", "p2_attack", "p2_skill", "p2_special", "p2_ultimate", "p2_custom", "p2_big_dash", "p2_small_dash",
+	]
 	
 	for action_name in actions:
 		var has_key = config.has_section_key("Controls", action_name + "_key")

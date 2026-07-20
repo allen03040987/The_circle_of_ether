@@ -17,7 +17,7 @@ extends VsMartialArt
 
 func _init() -> void:
 	art_name       = "武藝四"
-	energy_cost    = 20.0
+	energy_cost    = 30.0
 	can_use_in_air = true
 
 const IMPULSE_FRICTION: float = 8750.0
@@ -37,6 +37,11 @@ func enter(_prev: StringName) -> void:
 
 func physics_update(delta: float, input: InputState) -> StringName:
 	elapsed += delta
+	var vs := player as VsPlayer
+	# 衝刺取消：任何時點都適用（全域規則：衝刺可打斷任何非受擊動作）——之前
+	# 漏加，這招（跟其他幾支武藝）按了衝刺鍵完全沒反應
+	if input.dodge and vs.use_dash_energy(30.0):
+		return &"vsdodge"
 	player.velocity.x = move_toward(player.velocity.x, 0.0, IMPULSE_FRICTION * delta)
 	if not _grounded():
 		player.velocity.y = 0.0   # 無視重力：全程原地懸空，不套用任何重力係數

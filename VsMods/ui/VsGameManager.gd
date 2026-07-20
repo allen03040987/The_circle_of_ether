@@ -12,8 +12,9 @@ const ART_DISPLAY: Dictionary = {
 	"": "（空）",
 }
 
-## 每個空槽位給予的能量回復加成（/s）
-const EMPTY_SLOT_REGEN_BONUS := 5.0
+## 每個空槽位給予的屬性加成比例——套用在最大生命/衝刺能量回復速率/移速，
+## 三項都用同一個比例對各自的角色基準值算百分比（見 VsPlayer.apply_arts_bonus()）
+const EMPTY_SLOT_STAT_BONUS_PCT := 0.08
 
 # ── 選擇快取 ──────────────────────────────────────────────────────────────────
 var p1_arts: Array = ["", "", ""]   # 3 槽位，空字串 = 未裝

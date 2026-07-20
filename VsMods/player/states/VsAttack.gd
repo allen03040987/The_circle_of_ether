@@ -66,17 +66,18 @@ func physics_update(delta: float, input: InputState) -> StringName:
 	if input.guard and _grounded():
 		return &"vsguard"
 
-	# 3. 武藝取消：權限僅次衝刺/防禦、不受連段窗限制（規則：武藝可打斷普攻施放）
-	var art_transition := _check_art_cast(input)
-	if art_transition != &"":
-		return art_transition   # exit() 會清 hitbox / can_combo 並重置 combo_step
-
-	# 4. 連段派生：窗口（動畫軌道的 can_combo）開啟且有緩衝輸入
-	#    → 立刻取消剩餘動畫接下一段（不等動畫播完）
-	if vs.can_combo and attack_buffer_left > 0.0 and combo_step < max_combo:
-		combo_step += 1
-		enter(&"vsattack")   # 直接重啟，繞過防重入（exit() 不會被呼叫；enter() 會清窗口/緩衝/hitbox）
-		return &""
+	# 3. 連段窗口（動畫軌道的 can_combo 開啟時）：武藝取消或連段派生，兩者共用
+	#    同一個窗口——使用者已明確拿掉「武藝可在任何時點打斷普攻」的舊規則，
+	#    改成只能從這個窗口進（全角色通用），跟接續下一段普攻同待遇。窗口內
+	#    武藝輸入優先於單純接續下一段（玩家按了武藝鍵代表要取消進武藝）。
+	if vs.can_combo:
+		var art_transition := _check_art_cast(input)
+		if art_transition != &"":
+			return art_transition   # exit() 會清 hitbox / can_combo 並重置 combo_step
+		if attack_buffer_left > 0.0 and combo_step < max_combo:
+			combo_step += 1
+			enter(&"vsattack")   # 直接重啟，繞過防重入（exit() 不會被呼叫；enter() 會清窗口/緩衝/hitbox）
+			return &""
 
 	# 地面慣性衰減（攻擊期間不接受移動輸入）——用 IMPULSE_FRICTION 而非一般
 	# 移動摩擦力，讓 strike_impulse 打出的前衝力道快速收回，不會飛太遠

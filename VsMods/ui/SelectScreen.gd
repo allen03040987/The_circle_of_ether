@@ -101,7 +101,7 @@ func _build_ui() -> void:
 		var refs:  Dictionary = _p1_refs if local_is_p1 else _p2_refs
 		_layout_panel(panel, refs, 0.0, VIEW_W)
 		refs["section_label"].text = "P%d（你）" % _local_pid
-		refs["hint"].text = "（空槽位：能量回復 +%.0f/s）" % VsGameManager.EMPTY_SLOT_REGEN_BONUS
+		refs["hint"].text = "（空槽位：生命/衝刺回復/移速 +%.0f%%）" % (VsGameManager.EMPTY_SLOT_STAT_BONUS_PCT * 100.0)
 		var character := VsGameManager.p1_character if local_is_p1 else VsGameManager.p2_character
 		_populate_character_row(refs, _local_pid)
 		_populate_art_grid(refs, _local_pid, VsCharacterRegistry.get_arts(character))
@@ -115,7 +115,7 @@ func _build_ui() -> void:
 		_layout_panel($PanelB, _p2_refs, COL_W + GAP * 2, COL_W)
 		_p1_refs["section_label"].text = "P1 PLAYER"
 		_p2_refs["section_label"].text = "P2 PLAYER"
-		var hint_text := "（空槽位：能量回復 +%.0f/s）" % VsGameManager.EMPTY_SLOT_REGEN_BONUS
+		var hint_text := "（空槽位：生命/衝刺回復/移速 +%.0f%%）" % (VsGameManager.EMPTY_SLOT_STAT_BONUS_PCT * 100.0)
 		_p1_refs["hint"].text = hint_text
 		_p2_refs["hint"].text = hint_text
 		_populate_character_row(_p1_refs, 1)

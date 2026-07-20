@@ -237,7 +237,11 @@ func _ready() -> void:
 	hp          = max_hp
 	arts_energy = max_arts_energy
 	dash_energy = max_dash_energy
-	_base_arts_regen_rate = arts_regen_rate   # apply_arts_bonus() 的疊加基準，見該函式註解
+	# apply_arts_bonus() 的計算基準：角色場景本身設定的原始值（各角色可能不同），
+	# 空槽加成永遠從這幾個值重算百分比，不是疊加在「上次算出來的結果」上
+	_base_max_hp          = max_hp
+	_base_dash_regen_rate = dash_regen_rate
+	_base_move_speed      = move_speed
 	# MANUAL 模式在運行時才切（rollback 需要：動畫由 apply_input 以模擬 delta 推進）。
 	# 不寫死在 tscn——編輯器預覽在 MANUAL 模式下不會推進，動畫面板會壞掉不能播
 	anim_player.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
@@ -554,14 +558,26 @@ func sync_anim_to_state() -> void:
 
 # ── 武藝加成（vs_world 注入 art_slots 後呼叫；reload_arts() 換裝後也會重呼叫，
 # 見下方）────────────────────────────────────────────────────────────────────
-var _base_arts_regen_rate: float = 0.0   # _ready() 捕捉的 @export 原始值，見下
+var _base_max_hp:          float = 0.0   # _ready() 捕捉的 @export 原始值，見下
+var _base_dash_regen_rate: float = 0.0
+var _base_move_speed:      float = 0.0
 
-## 從 _base_arts_regen_rate 重新算，不是疊加——換裝武藝（reload_arts()）可能
-## 讓空槽數量變動，這裡要能重複呼叫且每次都是「乾淨地」依當下空槽數重算，
-## 不能像原本那樣 `+=`（重呼叫會疊加出雪球式暴增的回復速率）。
+## 空槽加成：每個空槽位讓最大生命/衝刺能量回復速率/移速各 +EMPTY_SLOT_STAT_BONUS_PCT
+## （目前 8%）。從 _base_* 重新算，不是疊加——換裝武藝（reload_arts()）可能讓
+## 空槽數量變動，這裡要能重複呼叫且每次都是「乾淨地」依當下空槽數重算，不能
+## 直接乘在「上次算出來的結果」上（重呼叫會疊加出雪球式暴增）。
+## 最後同步 hp = max_hp：目前僅有的兩個呼叫點（vs_world._spawn_players() 初始
+## 生成、VsRoundManager._reset_round() 的回合間換裝）都是「這一刻該滿血」的
+## 時機——換裝可能改變 max_hp，若不在這裡同步，呼叫順序早於/晚於既有的
+## hp=max_hp 重置都可能讓 hp 沒跟上新的 max_hp（例如四個空槽讓 max_hp 從
+## 100 漲到 120，但 hp 停在舊的 100，變成沒滿血）。
 func apply_arts_bonus() -> void:
 	var empty := art_slots.count("")
-	arts_regen_rate = _base_arts_regen_rate + empty * VsGameManager.EMPTY_SLOT_REGEN_BONUS
+	var mult := 1.0 + empty * VsGameManager.EMPTY_SLOT_STAT_BONUS_PCT
+	max_hp          = _base_max_hp * mult
+	dash_regen_rate = _base_dash_regen_rate * mult
+	move_speed      = _base_move_speed * mult
+	hp = max_hp
 
 ## 回合間重選武藝用：卸下舊的動態武藝狀態節點，依 new_slots 重新載入。
 ## 只能在玩家不處於任何武藝狀態時呼叫（VsRoundManager 在 _reset_round() 裡

@@ -63,6 +63,7 @@ size = Vector2(125, 75)
 
 [node name="VsPlayer" instance=ExtResource("1_mcd3v")]
 max_hp = 8000.0
+max_arts_energy = 100.0
 vfx_common = {
 "Aggregation ring": ExtResource("5_ring"),
 "Circular cut": ExtResource("6_ccut"),
@@ -107,7 +108,6 @@ shape = SubResource("Shape_hbA1")
 
 [node name="HitboxA2" parent="Graphics" index="3"]
 position = Vector2(30, -20)
-damage = 150.0
 hitstun_time = 0.5
 knockback = Vector2(300, 0)
 hit_sfx_type = "hit"
@@ -120,7 +120,7 @@ shape = SubResource("Shape_hbA2")
 
 [node name="HitboxA3" parent="Graphics" index="4"]
 position = Vector2(30, -20)
-damage = 120.0
+damage = 80.0
 hitstun_time = 0.5
 knockback = Vector2(200, 0)
 hit_sfx_type = "hit"
@@ -133,7 +133,7 @@ shape = SubResource("Shape_hbA3")
 
 [node name="HitboxA4" parent="Graphics" index="5"]
 position = Vector2(30, -20)
-damage = 150.0
+damage = 80.0
 hitstun_time = 0.6
 knockback = Vector2(200, 0)
 hit_sfx_type = "hit"
@@ -146,10 +146,11 @@ shape = SubResource("Shape_hbA4")
 
 [node name="HitboxA5" parent="Graphics" index="6"]
 position = Vector2(34, -20)
-damage = 150.0
+damage = 140.0
 hitstun_time = 0.0
 knockback = Vector2(400, -400)
 causes_knockdown = true
+sticky = true
 hit_sfx_type = "hit_5"
 shake_intensity = 10.0
 use_character_default_spark = false
@@ -194,7 +195,7 @@ shape = SubResource("Shape_hbAir2")
 
 [node name="HitboxAir3" parent="Graphics" index="9"]
 position = Vector2(30, -30)
-knockback = Vector2(100, -400)
+knockback = Vector2(100, -200)
 causes_knockdown = true
 guard_damage = 10.0
 hit_sfx_type = "hit"
@@ -222,7 +223,8 @@ collision_layer = 1024
 collision_mask = 512
 monitoring = false
 script = ExtResource("4_hitbox")
-damage = 200.0
+damage = 120.0
+hitstun_time = 0.0
 knockback = Vector2(200, -400)
 causes_knockdown = true
 combo_hits = 5
@@ -243,7 +245,7 @@ collision_mask = 512
 monitoring = false
 script = ExtResource("4_hitbox")
 damage = 120.0
-hitstun_time = 1.0
+hitstun_time = 0.0
 knockback = Vector2(250, 0)
 combo_hits = 5
 combo_interval = 0.1
@@ -262,10 +264,12 @@ collision_layer = 1024
 collision_mask = 512
 monitoring = false
 script = ExtResource("4_hitbox")
-damage = 600.0
+damage = 400.0
 hitstun_time = 1.5
 knockback = Vector2(400, 0)
 break_level = 2
+combo_hits = 3
+combo_interval = 0.1
 hit_sfx_type = "hit"
 shake_intensity = 20.0
 
@@ -280,7 +284,6 @@ collision_layer = 1024
 collision_mask = 512
 monitoring = false
 script = ExtResource("4_hitbox")
-damage = 200.0
 hitstun_time = 0.0
 knockback = Vector2(200, -200)
 causes_knockdown = true
