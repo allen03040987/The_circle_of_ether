@@ -68,12 +68,19 @@ async def handle(ws) -> None:
 ## 純粹只講 WebSocket，沒有這個 handler 的話，健康檢查的請求會被 websockets
 ## 函式庫當成無效的 WS handshake直接拒絕/掛著，Render 在部署時等不到成功回應
 ## 就會 "Timed Out"（process 其實早就正常啟動、正常監聽，只是過不了健康檢查，
-## 從 log 的 "監聽 :port" 那行有印出來就能確認）。回傳 200 給任何非 WS 的
-## 一般 HTTP 請求即可。不加型別註解（跟 handle() 的既有慣例一致）——避免
-## 跟著 websockets 函式庫版本（此專案不釘死版本，requirements.txt 是
-## >=12.0）改變 API 而壞掉。
+## 從 log 的 "監聽 :port" 那行有印出來就能確認）。不加型別註解（跟 handle()
+## 的既有慣例一致）——避免跟著 websockets 函式庫版本（此專案不釘死版本，
+## requirements.txt 是 >=12.0）改變 API 而壞掉。
+##
+## ⚠ 第一版寫錯：對「除了 favicon.ico 以外的任何請求」都回 200，結果連真正的
+## WebSocket 連線請求也被攔截回 200（不是 WS handshake 期望的 101），導致
+## Godot 客戶端連線直接失敗（wsl_peer.cpp 報 "Invalid status code. Got: '200',
+## expected '101'"）——process_request 回傳非 None 的 Response 就等於整個
+## 短路掉、不會再進入正常的 WS handshake 流程，一定要先判斷這個請求本身
+## 是不是真的在嘗試 WS 升級，只有「不是」的時候才能攔截回 HTTP 200；「是」
+## 就要回傳 None 放行讓 websockets 函式庫自己完成正常握手。
 async def _health_check(connection, request):
-    if request.path != "/favicon.ico":
+    if request.headers.get("Upgrade", "").lower() != "websocket":
         return connection.respond(200, "OK\n")
     return None
 
