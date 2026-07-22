@@ -1,0 +1,38 @@
+[gd_scene load_steps=2 format=3 uid="uid://cqpmoiat0rnc8"]
+
+[ext_resource type="Script" path="res://VsMods/ui/VsArtButton.gd" id="1_artbtn"]
+
+[node name="VsArtButton" type="Button"]
+custom_minimum_size = Vector2(56, 15)
+offset_left = -2.0
+offset_top = -5.0
+offset_right = 54.0
+offset_bottom = 18.0
+theme_override_font_sizes/font_size = 9
+script = ExtResource("1_artbtn")
+
+[node name="NameLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -13.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 9
+text = "武藝一"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="InfoButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -19.0
+offset_top = 3.0
+offset_right = -2.0
+offset_bottom = 20.0
+grow_horizontal = 0
+theme_override_font_sizes/font_size = 7
+text = "!"

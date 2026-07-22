@@ -19,3 +19,18 @@ static func get_art_script(art_name: String) -> Script:
 	if SCRIPTS.has(art_name):
 		return load(SCRIPTS[art_name])
 	return null
+
+## 查詢某招的能量消耗，不需要一個真的裝在玩家身上的 VsPlayer 實例——選角/彈窗
+## 畫面此時還沒有 VsPlayer 可以問。energy_cost 是每個武藝在 _init() 裡設的
+## （不是靜態 @export 預設值，見各 Art_Clotty_*.gd），所以要真的建一個實例才
+## 讀得到；六招的 _init() 目前都只是設幾個簡單欄位（art_name/energy_cost/
+## can_use_in_air），沒有依賴 player/state_machine，臨時建立、讀完立刻 free()
+## 是安全的。
+static func get_energy_cost(art_name: String) -> float:
+	var script := get_art_script(art_name)
+	if script == null:
+		return 0.0
+	var temp: VsMartialArt = script.new()
+	var cost := temp.energy_cost
+	temp.free()
+	return cost

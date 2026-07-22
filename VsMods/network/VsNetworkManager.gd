@@ -20,6 +20,7 @@ signal connected()                    # 雙方資料通道開啟，可以開始�
 signal disconnected()
 signal connection_error(msg: String)
 signal remote_arts_received(arts: Array, character_id: String)  # 收到對方的武藝選擇 + 角色
+signal remote_arena_received(arena_id: String)  # 收到對方的選場地狀態，空字串＝對方取消/尚未確認
 signal desync_detected(frame: int, fields: Array)  # 兩端 checksum 不符，fields = 分叉欄位名稱清單
 signal sync_lost()                   # checksum 連續不符超過閾值 → 狀態已永久分歧，本場作廢
 signal opponent_forfeited()          # 對方主動放棄或無法回滾
@@ -95,6 +96,13 @@ func _process(delta: float) -> void:
 ## 透過信令伺服器把武藝選擇＋角色傳給對方（WebRTC 連線建立後仍可用 WS 傳）
 func send_arts(arts: Array, character_id: String) -> void:
 	var msg := JSON.stringify({"type": "arts", "room": _room_code, "arts": arts, "character": character_id})
+	_ws.send_text(msg)
+
+## MapSelectScreen 每次本機確認/取消場地選擇時呼叫（空字串＝取消）。跟
+## send_arts() 同一個 WS relay 管道——訊令伺服器對未知 type 一律原樣轉發
+## （見 CLAUDE.md「"arts" 訊息型別是 relay-only」），不用改伺服器端。
+func send_arena_choice(arena_id: String) -> void:
+	var msg := JSON.stringify({"type": "arena", "room": _room_code, "arena": arena_id})
 	_ws.send_text(msg)
 
 func start_offline() -> void:
@@ -467,6 +475,8 @@ func _handle_signal(msg) -> void:
 			var arts: Array = msg.get("arts", [])
 			var character_id: String = msg.get("character", VsCharacterRegistry.DEFAULT_CHARACTER)
 			remote_arts_received.emit(arts, character_id)
+		"arena":
+			remote_arena_received.emit(msg.get("arena", ""))
 		"error":
 			connection_error.emit(msg.get("msg", "未知錯誤"))
 

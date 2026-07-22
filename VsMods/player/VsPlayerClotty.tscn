@@ -20,7 +20,7 @@
 size = Vector2(14, 63)
 
 [sub_resource type="RectangleShape2D" id="Shape_hbA1"]
-size = Vector2(63, 66.5)
+size = Vector2(74.5, 66.5)
 
 [sub_resource type="RectangleShape2D" id="Shape_hbA2"]
 size = Vector2(106, 35)
@@ -64,6 +64,11 @@ size = Vector2(125, 75)
 [node name="VsPlayer" instance=ExtResource("1_mcd3v")]
 max_hp = 8000.0
 max_arts_energy = 100.0
+arts_regen_rate = 15.0
+gravity = 750.0
+move_speed = 250.0
+air_speed = 230.0
+dodge_speed = 500.0
 vfx_common = {
 "Aggregation ring": ExtResource("5_ring"),
 "Circular cut": ExtResource("6_ccut"),
@@ -103,7 +108,7 @@ shake_intensity = 2.0
 
 [node name="CollisionShape2D" parent="Graphics/HitboxA1" index="0"]
 visible = false
-position = Vector2(6, -14)
+position = Vector2(0.25, -14)
 shape = SubResource("Shape_hbA1")
 
 [node name="HitboxA2" parent="Graphics" index="3"]

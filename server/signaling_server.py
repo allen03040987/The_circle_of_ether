@@ -46,7 +46,7 @@ async def handle(ws) -> None:
                 await ws.send(json.dumps({"type": "joined"}))
                 print(f"[{room_code}] 玩家加入，開始 WebRTC 握手")
 
-            elif t in ("offer", "answer", "ice", "arts"):
+            elif t in ("offer", "answer", "ice", "arts", "arena"):
                 code = msg.get("room", room_code)
                 if not code or code not in rooms:
                     continue

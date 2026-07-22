@@ -1,0 +1,129 @@
+[gd_scene load_steps=2 format=3 uid="uid://dqk8v2n5x3wbt"]
+
+[ext_resource type="Script" path="res://VsMods/ui/MapSelectScreen.gd" id="1_mapselect"]
+
+[node name="MapSelectScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_mapselect")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 0
+offset_right = 384.0
+offset_bottom = 216.0
+mouse_filter = 2
+color = Color(0.07, 0.07, 0.07, 1)
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 0
+offset_top = 4.0
+offset_right = 384.0
+offset_bottom = 16.0
+theme_override_font_sizes/font_size = 11
+text = "選擇場地"
+horizontal_alignment = 1
+
+[node name="ControlHint" type="Label" parent="."]
+layout_mode = 0
+offset_top = 17.0
+offset_right = 384.0
+offset_bottom = 27.0
+theme_override_colors/font_color = Color(0.6, 0.75, 0.9, 1)
+theme_override_font_sizes/font_size = 7
+text = "P1：A/D 選擇．左鍵確認．右鍵取消　｜　P2：←/→ 選擇．數字鍵1確認．數字鍵2取消"
+horizontal_alignment = 1
+
+[node name="PanelA" type="Control" parent="."]
+anchors_preset = 0
+offset_top = 40.0
+offset_right = 186.0
+offset_bottom = 100.0
+mouse_filter = 2
+
+[node name="SectionLabel" type="Label" parent="PanelA"]
+layout_mode = 0
+offset_left = 4.0
+offset_right = 182.0
+offset_bottom = 12.0
+theme_override_font_sizes/font_size = 9
+text = "P1 PLAYER"
+
+[node name="MapAnchor" type="Control" parent="PanelA"]
+anchors_preset = 0
+offset_top = 16.0
+offset_right = 186.0
+offset_bottom = 32.0
+mouse_filter = 2
+
+[node name="StatusLabel" type="Label" parent="PanelA"]
+layout_mode = 0
+offset_top = 36.0
+offset_right = 186.0
+offset_bottom = 48.0
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 8
+horizontal_alignment = 1
+
+[node name="VSeparator" type="ColorRect" parent="."]
+layout_mode = 0
+offset_left = 188.0
+offset_top = 40.0
+offset_right = 189.0
+offset_bottom = 100.0
+color = Color(0.3, 0.3, 0.3, 1)
+
+[node name="PanelB" type="Control" parent="."]
+anchors_preset = 0
+offset_left = 190.0
+offset_top = 40.0
+offset_right = 376.0
+offset_bottom = 100.0
+mouse_filter = 2
+
+[node name="SectionLabel" type="Label" parent="PanelB"]
+layout_mode = 0
+offset_left = 4.0
+offset_right = 182.0
+offset_bottom = 12.0
+theme_override_font_sizes/font_size = 9
+text = "P2 PLAYER"
+
+[node name="MapAnchor" type="Control" parent="PanelB"]
+anchors_preset = 0
+offset_top = 16.0
+offset_right = 186.0
+offset_bottom = 32.0
+mouse_filter = 2
+
+[node name="StatusLabel" type="Label" parent="PanelB"]
+layout_mode = 0
+offset_top = 36.0
+offset_right = 186.0
+offset_bottom = 48.0
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 8
+horizontal_alignment = 1
+
+[node name="StatusLabel" type="Label" parent="."]
+layout_mode = 0
+offset_top = 160.0
+offset_right = 384.0
+offset_bottom = 172.0
+theme_override_colors/font_color = Color(0.9, 0.85, 0.3, 1)
+theme_override_font_sizes/font_size = 9
+horizontal_alignment = 1
+
+[node name="BackButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 190.0
+offset_right = 68.0
+offset_bottom = 209.0
+theme_override_font_sizes/font_size = 9
+text = "← 返回"
+
+[connection signal="pressed" from="BackButton" to="." method="_on_back_pressed"]

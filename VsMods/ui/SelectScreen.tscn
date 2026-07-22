@@ -43,7 +43,7 @@ mouse_filter = 2
 
 [node name="ArtAnchor" type="Control" parent="PanelA"]
 anchors_preset = 0
-offset_top = 60.0
+offset_top = 36.0
 offset_right = 186.0
 offset_bottom = 102.0
 mouse_filter = 2
@@ -96,8 +96,9 @@ script = ExtResource("2_slotbtn")
 
 [node name="Hint" type="Label" parent="PanelA"]
 layout_mode = 0
+offset_left = 16.0
 offset_top = 116.0
-offset_right = 186.0
+offset_right = 202.0
 offset_bottom = 128.0
 theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
 theme_override_font_sizes/font_size = 8
@@ -137,7 +138,7 @@ mouse_filter = 2
 
 [node name="ArtAnchor" type="Control" parent="PanelB"]
 anchors_preset = 0
-offset_top = 60.0
+offset_top = 36.0
 offset_right = 186.0
 offset_bottom = 102.0
 mouse_filter = 2
@@ -190,8 +191,9 @@ script = ExtResource("2_slotbtn")
 
 [node name="Hint" type="Label" parent="PanelB"]
 layout_mode = 0
+offset_left = 18.0
 offset_top = 116.0
-offset_right = 186.0
+offset_right = 204.0
 offset_bottom = 128.0
 theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
 theme_override_font_sizes/font_size = 8

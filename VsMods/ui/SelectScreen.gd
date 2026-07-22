@@ -17,7 +17,6 @@ extends Control
 ## 哪裡才有效），槽位選取狀態明確可見，比對齊像素更不容易出錯。
 
 const VIEW_W := 384
-const BTN_H  := 15
 const GAP    := 4
 ## 離線模式左右欄寬度（兩欄之間留一道 GAP 寬的分隔溝）
 const COL_W  := (VIEW_W - GAP * 3) / 2
@@ -144,7 +143,13 @@ func _layout_panel(panel: Control, refs: Dictionary, x: float, width: float) -> 
 		btn.position.x = GAP + i * (bw + GAP)
 		btn.size.x     = bw
 
+const ART_BUTTON_SCENE := preload("res://VsMods/ui/VsArtButton.tscn")
+
 # ── 武藝按鈕（動態，塞進 ArtAnchor）─────────────────────────────────────────────
+## 每顆按鈕都是 VsArtButton.tscn 的實例——名稱文字/「!」詳情按鈕的排版是場景
+## 裡的真實節點（可在編輯器直接調），這裡只負責產生格數、餵資料、接訊號，
+## 不用再手動建子節點，也不用管字體覆寫順序（.tscn 本身就帶著字級設定，
+## 沒有「進場景樹當下用錯字級」這個時序問題）。
 func _populate_art_grid(refs: Dictionary, pid: int, arts: Array) -> void:
 	var anchor: Control = refs["art_anchor"]
 	for c in anchor.get_children():
@@ -155,24 +160,22 @@ func _populate_art_grid(refs: Dictionary, pid: int, arts: Array) -> void:
 	for i in arts.size():
 		var col := i % 3
 		var row := i / 3
-		var btn := DraggableArtButton.new()
-		btn.text   = VsGameManager.get_display_name(arts[i])
-		btn.art_id = arts[i]
-		btn.add_theme_font_size_override("font_size", 9)
 		var art_id: String = arts[i]
-		btn.pressed.connect(func(): _on_art_clicked(pid, art_id))
-		# ⚠ 字體覆寫必須在 add_child()（真正進場景樹）之前設定、且晚於 .size
-		# 賦值前生效——字體覆寫決定 Button 的最小尺寸計算，如果先設 .size 才設
-		# 字體，Button 進場景樹當下還在用專案全域主題的預設字級（PixelTheme.tres
-		# 的 Button/font_sizes/font_size=14，比這裡要的 9 大上不少）算出一個較大
-		# 的最小尺寸，把我剛設定的小 size 蓋掉；且事後字體覆寫生效也不會回頭
-		# 縮小已經定案的尺寸。實測抓到：兩排按鈕實際渲染大小一致（58×25），
-		# 但因為原本用 15px 排版間距算兩排位置，25px 高的按鈕會讓第二排往上
-		# 疊到第一排，看起來像「上排矮、下排高」。改成字體覆寫→進場景樹→最後
-		# 才設 position/size，讓小字體先定案，size 賦值才不會被蓋掉。
+		var btn := ART_BUTTON_SCENE.instantiate() as VsArtButton
+		# 高度讀樣板場景自己的大小（instantiate() 當下就已經套用 .tscn 存的
+		# offset_bottom，不用等進場景樹）——這樣你在編輯器改 VsArtButton.tscn
+		# 的大小才會真的生效，不會被寫死的常數蓋掉（BTN_H 已經拿掉了）
+		var btn_h := btn.size.y
+		# setup() 讀寫 name_label/info_button 這兩個 @onready 節點，必須在
+		# add_child() 之後才呼叫——@onready 要等節點真正進場景樹（_ready()
+		# 觸發）才會解析，太早呼叫會拿到 null（"Invalid set index 'text' on
+		# base: 'Nil'"）
 		anchor.add_child(btn)
-		btn.position = Vector2(GAP + col * (bw + GAP), row * (BTN_H + GAP))
-		btn.size     = Vector2(bw, BTN_H)
+		btn.setup(art_id, VsGameManager.get_display_name(art_id))
+		btn.pressed.connect(func(): _on_art_clicked(pid, art_id))
+		btn.info_requested.connect(func(id: String): VsArtInfoPopup.open_over(self, id))
+		btn.position = Vector2(GAP + col * (bw + GAP), row * (btn_h + GAP))
+		btn.size     = Vector2(bw, btn_h)
 		btns.append(btn)
 	if pid == 1: _p1_art_btns = btns
 	else:        _p2_art_btns = btns
@@ -292,7 +295,7 @@ func _on_start() -> void:
 		VsGameManager.p1_character = _p1_character
 		VsGameManager.p2_character = _p2_character
 		VsGameManager.selection_confirmed = true
-		get_tree().change_scene_to_file("res://VsMods/vs_world.tscn")
+		get_tree().change_scene_to_file("res://VsMods/ui/MapSelectScreen.tscn")
 
 func _on_remote_arts(arts: Array, character_id: String) -> void:
 	_received_arts      = arts
@@ -311,7 +314,7 @@ func _try_enter_game() -> void:
 		VsGameManager.p1_arts      = _received_arts
 		VsGameManager.p1_character = _received_character
 	VsGameManager.selection_confirmed = true
-	get_tree().change_scene_to_file("res://VsMods/vs_world.tscn")
+	get_tree().change_scene_to_file("res://VsMods/ui/MapSelectScreen.tscn")
 
 # ── 刷新顯示 ──────────────────────────────────────────────────────────────────
 func _refresh_all() -> void:
@@ -350,5 +353,11 @@ func _set_btn_style(btn: Button, active: bool, selected: bool) -> void:
 	btn.add_theme_stylebox_override("normal",  style)
 	btn.add_theme_stylebox_override("hover",   style)
 	btn.add_theme_stylebox_override("pressed", style)
-	btn.add_theme_color_override("font_color",
-		Color(0.08, 0.08, 0.08) if active else Color(0.8, 0.8, 0.8))
+	var font_color := Color(0.08, 0.08, 0.08) if active else Color(0.8, 0.8, 0.8)
+	# 武藝池按鈕（VsArtButton）的招式名稱是獨立的 NameLabel 子節點，不是按鈕
+	# 本體的 .text，字色要走 set_name_color() 才會生效；裝備槽按鈕（slots）
+	# 還是普通 Button，走原本的 font_color 覆寫
+	if btn is VsArtButton:
+		(btn as VsArtButton).set_name_color(font_color)
+	else:
+		btn.add_theme_color_override("font_color", font_color)

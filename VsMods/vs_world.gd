@@ -1,8 +1,12 @@
 extends Node2D
 
 # ── 節點 ─────────────────────────────────────────────────────────────────────
-@onready var spawn_point_p1: Node2D = $SpawnPoint_P1
-@onready var spawn_point_p2: Node2D = $SpawnPoint_P2
+## SpawnPoint_P1/P2 不再是 vs_world.tscn 的固定節點——場地本身是資料驅動的
+## （VsArenaRegistry），這兩個現在指向 _spawn_arena() 掛進 arena_root 的那份
+## 場地實例底下的 Marker2D，_ready() 一開始就會設好，晚於這裡才用得到。
+var spawn_point_p1: Node2D
+var spawn_point_p2: Node2D
+@onready var arena_root: Node2D = $ArenaRoot
 @onready var camera: VsCamera = $Camera2D
 
 var p1:            VsPlayer
@@ -68,6 +72,7 @@ func _ready() -> void:
 	# 真的跳出來了），見 title_screen.gd::_on_vs_game_pressed()／
 	# LobbyScreen.gd::_on_back()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_spawn_arena()
 	_spawn_players()
 	_spawn_hud()
 	_spawn_round_manager()
@@ -145,6 +150,21 @@ func _flush_desync_log() -> void:
 	fa.close()
 	_desync_log.clear()   # 清空，避免 _exit_tree 重複寫入
 	print("DESYNC log 已附加：", ProjectSettings.globalize_path(path))
+
+## 依 VsGameManager.selected_arena_id 動態掛載場地（VsArenaRegistry 查表→
+## instantiate→塞進 arena_root），並把場地帶來的重生點/攝影機邊界接回
+## spawn_point_p1/p2、camera.limit_*——這幾個原本是 vs_world.tscn 寫死的固定
+## 節點/屬性，現在改成場地資料驅動，別的地方（_spawn_players/_spawn_round_manager）
+## 完全不用跟著改，只要在這之後執行即可。
+func _spawn_arena() -> void:
+	var arena_scene := VsArenaRegistry.get_scene(VsGameManager.selected_arena_id)
+	var arena := arena_scene.instantiate() as VsArena
+	arena_root.add_child(arena)
+	spawn_point_p1 = arena.get_node("SpawnPoint_P1") as Node2D
+	spawn_point_p2 = arena.get_node("SpawnPoint_P2") as Node2D
+	camera.limit_left   = arena.camera_limit_left
+	camera.limit_right  = arena.camera_limit_right
+	camera.limit_bottom = arena.camera_limit_bottom
 
 func _spawn_players() -> void:
 	var p1_scene := VsCharacterRegistry.get_scene(VsGameManager.p1_character)

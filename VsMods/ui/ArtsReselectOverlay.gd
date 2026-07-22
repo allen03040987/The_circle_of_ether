@@ -13,7 +13,6 @@ class_name ArtsReselectOverlay
 ## 呼叫 init() 注入 p1/p2/round_manager 參照，離開時交給 vs_world free 掉。
 
 const GAP    := 4
-const BTN_H  := 15
 const COL_W  := (384 - GAP * 3) / 2
 
 const C_AVAILABLE       := Color(0.18, 0.18, 0.18)
@@ -141,7 +140,10 @@ func _layout_panel(panel: Control, refs: Dictionary, x: float, width: float) -> 
 		btn.position.x = GAP + i * (bw + GAP)
 		btn.size.x     = bw
 
+const ART_BUTTON_SCENE := preload("res://VsMods/ui/VsArtButton.tscn")
+
 # ── 武藝按鈕（動態，塞進 ArtAnchor）─────────────────────────────────────────────
+## 每顆按鈕都是 VsArtButton.tscn 的實例，見 SelectScreen.gd 同款函式的完整說明。
 func _populate_art_grid(refs: Dictionary, pid: int, arts: Array) -> void:
 	var anchor: Control = refs["art_anchor"]
 	for c in anchor.get_children():
@@ -152,15 +154,18 @@ func _populate_art_grid(refs: Dictionary, pid: int, arts: Array) -> void:
 	for i in arts.size():
 		var col := i % 3
 		var row := i / 3
-		var btn := DraggableArtButton.new()
-		btn.text   = VsGameManager.get_display_name(arts[i])
-		btn.art_id = arts[i]
-		btn.add_theme_font_size_override("font_size", 9)
 		var art_id: String = arts[i]
+		var btn := ART_BUTTON_SCENE.instantiate() as VsArtButton
+		# 高度讀樣板場景自己的大小，見 SelectScreen.gd 同款註解——BTN_H 已拿掉
+		var btn_h := btn.size.y
+		# setup() 要在 add_child() 之後呼叫，見 SelectScreen.gd 同款註解
+		# （@onready 節點太早存取會是 null）
+		anchor.add_child(btn)
+		btn.setup(art_id, VsGameManager.get_display_name(art_id))
 		btn.pressed.connect(func(): _on_art_clicked(pid, art_id))
-		anchor.add_child(btn)   # 字體覆寫要先於 add_child()，見 SelectScreen.gd 同款註解
-		btn.position = Vector2(GAP + col * (bw + GAP), row * (BTN_H + GAP))
-		btn.size     = Vector2(bw, BTN_H)
+		btn.info_requested.connect(func(id: String): VsArtInfoPopup.open_over(self, id))
+		btn.position = Vector2(GAP + col * (bw + GAP), row * (btn_h + GAP))
+		btn.size     = Vector2(bw, btn_h)
 		btns.append(btn)
 	if pid == 1: _p1_art_btns = btns
 	else:        _p2_art_btns = btns
@@ -290,8 +295,13 @@ func _set_btn_style(btn: Button, active: bool, selected: bool) -> void:
 	btn.add_theme_stylebox_override("normal",  style)
 	btn.add_theme_stylebox_override("hover",   style)
 	btn.add_theme_stylebox_override("pressed", style)
-	btn.add_theme_color_override("font_color",
-		Color(0.08, 0.08, 0.08) if active else Color(0.8, 0.8, 0.8))
+	var font_color := Color(0.08, 0.08, 0.08) if active else Color(0.8, 0.8, 0.8)
+	# 武藝池按鈕（VsArtButton）走 set_name_color()，裝備槽按鈕（slots）是普通
+	# Button，走原本的 font_color 覆寫，見 SelectScreen.gd 同款函式的說明
+	if btn is VsArtButton:
+		(btn as VsArtButton).set_name_color(font_color)
+	else:
+		btn.add_theme_color_override("font_color", font_color)
 
 func _on_confirm_a_pressed() -> void:
 	VsGameManager.pending_confirm_1 = true

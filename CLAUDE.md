@@ -51,9 +51,9 @@ A fully parallel framework, isolated from `classes/` — do not mix the two. The
 
 `VsPlayerState`'s `MOVE_SPEED`/`AIR_SPEED` (150/130) and `VsDodge.DODGE_SPEED` (300) are intentionally lower than the main game's `Player.gd` `RUN_SPEED`/dash speed (350/400) — tried matching them 1:1 once, user reverted it (VsMods speed is tuned separately, not meant to mirror the main game's feel). Gravity (980, matches engine default) and jump force (VsMods -420 vs main game -410) are close and not a concern.
 
-`VsMods/player/VsPlayer.gd` (`CharacterBody2D`) — HP/energy/invincibility, `apply_input(delta, input)` driven each frame by `vs_world`. Has `save_state()`/`restore_state()`/`sync_anim_to_state()` for rollback. States live under `VsMods/player/states/` and are all scene children in `VsPlayer.tscn`: `VsIdle`, `VsRun`, `VsJump`, `VsFall`, `VsHurt`, `VsKnockdown`, `VsGetup`, `VsDodge`, `VsGuard`, `VsAttack`.
+`VsMods/player/VsPlayer.gd` (`CharacterBody2D`) — HP/energy/invincibility, `apply_input(delta, input)` driven each frame by `vs_world`. Has `save_state()`/`restore_state()`/`sync_anim_to_state()` for rollback. States live under `VsMods/player/states/` and are scene children of whichever character scene is actually instantiated — see "VsMods 選角色系統" below for why that's `VsPlayerClotty.tscn` (an Inherited Scene), not the flat `VsPlayer.tscn` this paragraph originally described.
 
-Scene flow: `title_screen.gd` → `VsMods/ui/LobbyScreen.tscn` (離線/主機/加入) → `VsMods/ui/SelectScreen.tscn` (角色+3 武藝槽選擇) → `VsMods/vs_world.tscn` (戰鬥). `VsGameManager` (autoload, `VsMods/ui/VsGameManager.gd`) caches `p1_arts`/`p2_arts`/`selection_confirmed` across scene changes.
+Scene flow: `title_screen.gd` → `VsMods/ui/LobbyScreen.tscn` (離線/主機/加入) → `VsMods/ui/SelectScreen.tscn` (角色+3 武藝槽選擇) → `VsMods/ui/MapSelectScreen.tscn` (選場地，見「VsMods 選場地系統」) → `VsMods/vs_world.tscn` (戰鬥). `VsGameManager` (autoload, `VsMods/ui/VsGameManager.gd`) caches `p1_arts`/`p2_arts`/`p1_character`/`p2_character`/`selected_arena_id`/`selection_confirmed` across scene changes.
 
 ### VsMods rollback netcode (`VsMods/network/`)
 
@@ -77,7 +77,9 @@ Scene flow: `title_screen.gd` → `VsMods/ui/LobbyScreen.tscn` (離線/主機/�
 - **Hit detection** — done exclusively by `_manual_check()` in `_check_manual_hits()`, never via Area2D overlap signals (which don't fire during re-simulation). `VsHitbox.has_hit` is saved in every snapshot to prevent a hit from being re-applied when rollback re-runs the same attack window.
 - **Checksums** — `_compute_checksums()` hashes position, velocity, hp/energy/round-manager-state, and player state names into 4 independent u32 values sent with every packet. Divergence is logged as `⚠ DESYNC frame N: 欄位` and shown in BattleHUD. Desync alone does NOT kick players; only exceeding the rollback window triggers `_on_hard_desync()`.
 
-**Signaling server** (`server/signaling_server.py`) — deployed at `wss://the-circle-of-ether-signal.onrender.com` (Render.com free tier, `server/requirements.txt` in subdirectory — Render Build Command must be `pip install -r server/requirements.txt`). Do **not** use `websockets ≥ 14.x` type annotations (`WebSocketServerProtocol` was removed). The `"arts"` message type is relay-only (server passes it through unchanged like `"offer"`/`"answer"`/`"ice"`). Room code is currently **1 character** (set in `_new_code()` with `k=1`) for easier testing; change `k` to restore longer codes for production.
+**Signaling server** (`server/signaling_server.py`) — deployed at `wss://the-circle-of-ether-signal.onrender.com` (Render.com free tier, `server/requirements.txt` in subdirectory — Render Build Command must be `pip install -r server/requirements.txt`). Do **not** use `websockets ≥ 14.x` type annotations (`WebSocketServerProtocol` was removed). Room code is currently **1 character** (set in `_new_code()` with `k=1`) for easier testing; change `k` to restore longer codes for production.
+
+**⚠ Message relay is an explicit whitelist, not a generic passthrough** — `handle()`'s `elif t in ("offer", "answer", "ice", "arts", "arena"):` only forwards those five `type` values; anything else is silently dropped (no error, no log). This was previously (incorrectly) described here as "the `\"arts\"` message type is relay-only, server passes it through unchanged" in a way that implied any new `type` would automatically relay — it does not. **Adding a new pre-match message type (like `"arena"` was) requires manually adding it to this tuple**, and since this is a live deployed service, the change only takes effect once the Render service is redeployed — a local edit to `signaling_server.py` alone does nothing for the running server.
 
 ### VsMods rollback 確定性規則
 
@@ -113,6 +115,8 @@ Rollback netcode 的正確性完全依賴「兩端從相同初始狀態 + 相同
 | `guard` | bool | 防禦 pressed（長按） |
 
 **P1 操作特殊**：普攻/技能 = 無修飾左/右鍵；武藝 = E（`martial_modifier`）+ 左/右/中鍵。P2 純鍵盤，無修飾鍵。
+
+**⚠ 連線模式：本機不管佔線上哪個網路身分，操作永遠是 P1 那套配置（A/D+滑鼠），不是依 `VsNetworkManager.local_player_id` 切換讀 `p1_*`/`p2_*`。** `vs_world.gd` 收集本機輸入固定呼叫 `InputState.from_input(1)`（`_physics_process()` 裡 `var local_input := InputState.from_input(1)`，跟 `local_player_id` 無關）；`VsNetworkManager.tick()` 內部才依 `local_player_id` 把這份輸入放進正確的 P1/P2 輸出槽位（`return [li, ri] if local_player_id == 1 else [ri, li]`）。這條規則不是 rollback 戰鬥迴圈專屬——任何畫面（包含純 UI 選單、不受確定性規則約束的地方）只要要讀「本機玩家按了什麼」，一律讀 `p1_*` 動作名稱；只有「這個輸入結果要更新哪一份狀態/顯示在哪個欄位」才依 `local_player_id` 決定。**已經在兩個不同地方因為誤判「這裡不在 rollback 範圍內，可以自己決定要不要套用」而踩過這個坑**（`BattleHud` 的武藝修飾鍵高亮動畫、`MapSelectScreen` 的選場地互動——CLIENT 角色一度改讀 `p2_*` 導致本機按 A/D+滑鼠完全沒反應），判斷這條規則適不適用時，問題永遠不是「在不在 rollback 範圍內」，而是「這是不是本機物理裝置配置」。
 
 ### VsMods 體質效果與能量系統（已實作）
 
@@ -196,7 +200,82 @@ Rollback netcode 的正確性完全依賴「兩端從相同初始狀態 + 相同
 
 ⚠ **`can_hit_downed`/`can_hit_launched` 這整個機制已經拿掉（2026-07-18，使用者最終決定）**：VsMods 曾經短暫做過一個「這顆判定框能不能打中擊飛中（`VsLaunched`）目標」的欄位（一開始誤植成檢查 `VsKnockdown`，除錯後發現使用者的真實設計意圖是 `VsLaunched`，比照 MUGEN 的 `S`/`C`/`A` 攻擊分類），配套還做了「啟動快照」防呆（`VsHitbox._was_monitoring`/`blocked_by_launched_snapshot`，防止 `causes_knockdown` 自己造成的狀態變化鑽漏洞）。使用者實際用過後覺得「每招預設打不到擊飛目標」造成連段很難用，權衡過「預設改成可以打、少數招式手動關」的折衷方案後，最終決定**整個刪掉**，不留任何命中限制欄位——現在任何攻擊都能命中任何狀態的目標（`VsKnockdown`/`VsLaunched` 皆然），倒地/擊飛流程的保護單純靠自己的無敵/彈起時序（見上），不受攻擊屬性影響。如果之後又想做類似限制，記得問清楚是要「打倒地的人」的 OTG 概念、還是「打擊飛/追打空中對手」的 juggle 限制——這兩者當初被搞混、一路除錯又重新定義又整個拿掉，是這幾輪反覆的根本原因，別重蹈覆轍。
 
-⚠ **除錯方法論**：這次抓漏洞的過程是先在 `vs_world._manual_check()` 的關鍵分支加 `print()`（判定框開窗當下的快照結果、每次真正命中時的完整狀態），請使用者重現一次、貼 Godot 輸出面板的訊息回來，直接比對「目標當時到底是什麼狀態」——比純推理有效很多，兩次都是這樣才分別揪出「causes_knockdown 一直重新打飛」和「使用者對倒地/擊飛的定義從一開始就跟我以為的不同」這兩層問題。之後遇到類似「邏輯看起來對、但實測不對」的情況，優先加 print 讓使用者重現再看 log，不要一直憑推理猜測。
+⚠ **除錯方法論**：這次抓漏洞的過程是先在 `vs_world._manual_check()` 的關鍵分支加 `print()`（判定框開窗當下的快照結果、每次真正命中時的完整狀態），請使用者重現一次、貼 Godot 輸出面板的訊息回來，直接比對「目標當時到底是什麼狀態」——比純推理有效很多，兩次都是這樣才分別揪出「causes_knockdown 一直重新打飛」和「使用者對倒地/擊飛的定義從一開始就跟我以為的不同」這兩層問題。之後遇到類似「邏輯看起來對、但實測不對」的情況，優先加 print 讓使用者重現再看 log，不要一直憑推理猜測。這個方法論後續在 Phase 9 的擊退方向 bug 上又驗證了一次（見下）。
+
+**多段連擊的擊退方向鎖定**（Phase 9，補充上面 sticky 段落）——`VsHitbox.direction_override`（0=未覆寫，非 0=鎖定方向）：`VsPlayer._on_hurtbox_hurt()` 在 `hitbox.combo_hits > 1 and hitbox.hits_dealt == 1` 時把命中當下的 `dir_x` 存進去，之後連擊每一下優先讀這個值，不再重新讀 `owner_player.facing_dir`。根因：sticky 連擊允許存活超過施放者離開該狀態之後（見上），如果每一下命中都重新讀「攻擊者當下面向」，攻擊者事後自由移動轉身會讓殘留的連擊擊退方向跟著亂跳（實測案例：`HitboxArt2Air` 落地後角色已經在 `VsRun` 到處走，擊退方向跟著遊走）。`VsHitbox.reset_hits()` 會清空這個欄位，每次重新施放都要重新鎖。**第一版修法方向錯了**：曾經嘗試把 `close_on_state_exit()` 限縮成只給同招內部換階段用、所有狀態真正 `exit()` 一律硬重置——這樣是解決了方向亂跑，但也讓 sticky 連擊只要玩家離開招式就被提前砍斷，等於在兩個各自成立的需求之間選錯了要犧牲哪一個。正確做法是鎖定方向而不是限制存活時間，`close_on_state_exit()` 維持原本寬鬆語意不變。彈道類武藝（`Art_Clotty_1`/`5`）也有同款問題與同款修法：`VsProjectile` 生成/`restore_state()` 時就把方向鎖死，不會因為飛行途中施放者轉身而改變。
+
+### VsMods 選角色系統（角色繼承拆分）
+
+`VsMods/player/VsCharacterRegistry.gd` — 角色 id → `{display_name, scene_path, arts}` 靜態表（跟 `VsArtRegistry.gd` 同一套 pattern，`class_name` 不掛 autoload），`get_scene()`/`get_arts()`/`get_display_name()`/`all_ids()`。`vs_world._spawn_players()` 用這個查表各自生成兩個玩家的場景，不再共用同一份 `preload`。
+
+角色資料透過 Godot Inherited Scene 拆分成框架/角色兩層：`VsMods/player/VsPlayerBase.tscn`（真正空白骨架——碰撞層慣例、13 個狀態子節點、9 顆通用判定框節點但無數值/shape、Sprite2D 無貼圖、AnimationPlayer 無 libraries）+ `VsMods/player/VsPlayerClotty.tscn`（Inherited Scene，繼承 base，覆寫根節點屬性、Sprite2D 貼圖、9 顆通用判定框完整數值+shape、動畫庫指到外部資源 `VsMods/player/anim/ClottyAnimLib.tres`，並**新增** Clotty 專屬的 5 顆武藝判定框 `HitboxArt2`/`HitboxArt2Air`/`HitboxArt3`/`HitboxArt4`/`HitboxArt6`——這些不在 base 裡）。`VsCharacterRegistry.CHARACTERS["Clotty"].scene_path` 指向 `VsPlayerClotty.tscn`；原始未拆分的 `VsMods/player/VsPlayer.tscn` 保留但未被使用，當作保險備份。
+
+**Godot Inherited Scene 的文字格式其實就是普通場景檔**，不是特殊的 diff 語法——derived 場景只是 `[node name="X" parent="Y"]` 列出覆寫過的屬性（沒有 `type=`），只有真正新增的節點才需要 `type=`。可以直接文字編輯（確認編輯器完全關閉後），不需要靠編輯器「還原箭頭」清空 base 值再手動覆寫（那個不可靠，實測會漏清部分屬性、CollisionShape2D 的 shape 反而被誤清成 `null`）。
+
+角色專屬的基礎數值全部走 `@export`，不是共用 const：`VsAttack.max_combo`/`VsAirAttack.max_combo`（連段段數，原本是 5/3 的寫死 const）、`VsPlayer` 的 `@export_group("基礎移動數值")`（`gravity`/`move_speed`/`air_speed`/`friction`/`jump_force`，原本是 `VsPlayerState.gd` 的共用基底 const；`VsDodge.DODGE_SPEED` 原本也是獨立 const）——各狀態腳本改讀 `(player as VsPlayer).xxx`。之後角色想要不同跑速/跳躍高度/連段數，直接在自己的 derived 場景改根節點屬性即可，不用碰程式碼。
+
+### VsMods 選場地系統
+
+`VsMods/arenas/` — 場地跟角色同一套資料驅動設計：`VsArenaRegistry.gd`（id → `{display_name, scene_path}` 靜態表）+ `VsArena.gd`（場地根節點基底，`@export camera_limit_left/right/bottom`，子節點固定用 `SpawnPoint_P1`/`SpawnPoint_P2` 兩個 Marker2D）+ 每張場地各自一個 `Arena_XXX.tscn`（例如 `Arena_Sunnyland.tscn`，含 `TileMap`/裝飾/`ParallaxBackground` 跟兩個重生點）。
+
+`vs_world.tscn` 本身**不內嵌任何場地內容**，只留 `Camera2D` 跟一個空的 `ArenaRoot`（`Node2D`）掛載點。`vs_world.gd::_spawn_arena()`（`_ready()` 最前面呼叫，早於 `_spawn_players()`/`_spawn_round_manager()`）依 `VsGameManager.selected_arena_id` 查 `VsArenaRegistry` 動態 `instantiate()` 一份掛進 `ArenaRoot`，讀回 `VsArena.camera_limit_*` 設定 `Camera2D.limit_*`，並把 `spawn_point_p1`/`spawn_point_p2`（plain var，不是 `@onready` 固定節點路徑）指向剛掛進去的場地實例底下的 Marker2D。想加新場地：複製一份 `Arena_XXX.tscn`（或全新設計，數值/collision 自己重新調）+ 在 `VsArenaRegistry.ARENAS` 加一筆資料，`vs_world`/`MapSelectScreen` 完全不用改。
+
+選場地畫面 `VsMods/ui/MapSelectScreen.gd`/`.tscn`——`SelectScreen`（角色/武藝）確認後的下一步，取代原本直接進 `vs_world.tscn`。純鍵盤操作（不走滑鼠點擊當主要互動，避免雙人共用同一顆滑鼠時「這次點擊算誰的」的歧義）：方向鍵移動游標、`attack` 動作鎖定確認、`skill` 動作解鎖取消，雙方鎖定同一張地圖才寫入 `VsGameManager.selected_arena_id` 並轉場。賽前跨端同步（`VsNetworkManager.send_arena_choice()`/`remote_arena_received`）走跟武藝選擇（`send_arts()`）同一套 WS JSON relay 機制（`type="arena"`，見上方「Signaling server」一節的白名單注意事項），不是 rollback pipeline 的一部分。連線模式的本機按鍵讀取要套用上面 InputState 章節那條「本機永遠用 P1 配置」規則。
+
+### VsMods 回合流程（`VsRoundManager.gd`）
+
+三戰兩勝，`Phase` 除了戰鬥/回合結算，還有 `Phase.ARTS_RESELECT`（血量見底進下一輪前，雙方可替換最多 2 種已裝備武藝）：
+
+- **回合間重選武藝**：固定 `ARTS_RESELECT_DURATION`（目前 30 秒）倒數 + 雙方都按確認鍵可提早結束。**確認鍵走 `InputState`（塞進 2 bytes 封包 byte 0 的空位），不是 WS 訊息**——因為「兩端何時都按下確認」本身會影響模擬幀轉場時機，若靠 WS 訊息到達的真實時間觸發，兩端網路延遲落差會導致轉場發生在不同模擬幀 → checksum 分歧；改走 `InputState` 就跟其他輸入共用同一條延遲+預測+rollback 修正管線，天生同步。`VsRoundManager.p1_confirmed`/`p2_confirmed` 因此**要**進 `save_state()`/`restore_state()`。UI 按鈕點擊透過 `VsGameManager.pending_confirm_1`/`pending_confirm_2` 一次性旗標橋接，`InputState.from_input()` 下次讀取時消費掉。**線上模式本機面板的確認鍵永遠要設 `pending_confirm_1`**，不能照面板是哪一側決定——本機輸入固定走 `from_input(1)`（見上方那條全域規則），`from_input(2)` 在線上模式永遠不會被呼叫，設成 `pending_confirm_2` 會讓確認鍵在本機是 CLIENT 時完全沒反應。
+  - 「原始裝備武藝」的比對基準要讀 `VsPlayer.art_slots`（活的、隨 `reload_arts()` 更新），不是 `VsGameManager.p1_arts`/`p2_arts`（那份只在賽前 `SelectScreen` 寫一次，中途重選不會更新）。
+  - `VsPlayer.reload_arts(new_slots)` 只能在 `transition_to(&"vsidle")` 之後呼叫（保證 `current_state` 不是任何 `VsMartialArt` 節點）。**⚠ Godot 同名節點命名陷阱**：卸載舊武藝節點時必須先 `state_machine.remove_child(old)`（同步立刻釋放名稱）再 `old.queue_free()`——只呼叫 `queue_free()` 的話，舊節點要到這一幀結束才真正離開場景樹，這一幀稍後 `_load_arts()` 馬上 `add_child()` 一個同名新節點會被 Godot 自動改名（例如 `"VsArt1@2"`），導致 `register_state()` 用錯誤的 key 登記，`transition_to("vsart1")` 找不到狀態。任何「同一幀內刪除再新增同名節點」的場合都要記得這個順序。
+- **回合重置要無條件清空判定框/彈道**（`_reset_round()`）——sticky 連擊在「同一場對局內」刻意放行讓它跑完，但「回合」是更高一層邊界，上一回合沒打完的連擊/飛在空中的彈道不該延續到下一回合。`vs_world._on_round_started()` 同步清空 `projectiles`；彈道清理**不受** `is_resimulating` 擋（是模擬狀態的一部分，resim 要照跑），HUD 更新才受擋。
+- 返回大廳分兩種等待：暫停選單主動點「返回大廳」立即切場景（`instant=true`）；對方棄權/斷線/desync 等**被動**離場保留 2 秒說明訊息（讓玩家看懂發生什麼事）——`vs_world._leave_to_lobby(msg, instant)`。
+- 滑鼠鎖定邏輯統一收進 `vs_world._process()`（比照主遊戲 `Player.gd._process()`）：`overlay_open`（任何暫停/選單/重選浮層開著）或按住 `KEY_ALT` → `MOUSE_MODE_VISIBLE`，否則 `MOUSE_MODE_CAPTURED`。任何新增的全螢幕浮層都要記得加進 `overlay_open` 的判斷條件。
+
+### VsMods 音效
+
+沿用主遊戲既有的 `AudioManager` autoload（`sound/AudioManager.gd`），VsMods 沒有另外蓋一套音效系統。`VsPlayer.gd` 三個包裝函式，跟 `vfx_*` 系列同一套 `_vfx_blocked()` rollback 防呆：`vfx_sfx(stream, volume_db, pitch_scale)`（`play_sfx` 包裝）、`vfx_action_sfx(key, volume_db=-8.0)`（`play_action_sfx` 包裝，等同主遊戲 `trigger_swing_sfx`，可直接當動畫 Call Method 軌道呼叫）、`vfx_hit_sfx(hb)`（`play_hit_sfx` 包裝，讀 `VsHitbox.hit_sfx_type`）。`vs_world._manual_check()`/`_manual_check_projectile()` 命中判定呼叫 `vfx_hit_sfx`，跟 `vfx_spark`/`vfx_shake` 同一個位置、同一個原則（不管防禦/霸體/無敵吸收與否都給回饋）。**BGM 刻意留白**——VsMods 對戰全程無配樂是設計決定，等場地系統做完才會一併處理，不要在那之前主動補。
+
+### VsMods 防禦分階段 + 受身（全角色通用防禦技）
+
+`VsGuard.gd` 按住循環播 `defense`（強霸體）、放開播一次性後搖 `defense_2`（**後搖無霸體**——`VsGuard.is_blocking()` 只有按住階段回傳 true，`VsPlayer.get_armor_tier()`/`_on_hurtbox_hurt()` 的 `cur is VsGuard` 分支都先檢查這個，後搖期間視同 `ArmorTier.NONE`，會被打斷走一般受擊流程）。
+
+**全角色通用命中回饋規則**：`VsPlayer.HitOutcome { NORMAL, GUARDED, INVINCIBLE }` + `last_hit_outcome`（同幀執行期通訊，不進快照），`_on_hurtbox_hurt()` 在完美閃避/`is_invincible()`/格擋成功（非強破霸）三個分支各自標記。`vs_world` 命中後三分支處理：`INVINCIBLE` → 完全不給回饋（無音效無火花，震動不受影響）；`GUARDED` → 火花換成 `VsPlayer.vfx_block_spark()`（BLUNT 火花，貼防禦方身上朝防禦方面向，跟一般命中火花是不同視覺語彙）；其餘維持「不管防禦/霸體/無敵與否都給回饋」的既有邏輯。
+
+**受身**（VsMods 原創設計，非移植自主遊戲）：`VsHurt`（受擊硬直）或 `VsLaunched`（擊飛）這兩個「無法操作」狀態期間，按技能鍵觸發 `VsPlayer.try_ukemi()`——**主動打斷當下狀態**（`velocity` 歸零、`VsLaunched` 直接 `return &"vsfall"`、`VsHurt` 直接 `return _recovery_transition(input)`，跳過剩餘硬直/`knockdown_after` 強制倒地分流），不是被動加防護。扣一次 `ukemi_uses_left`（限 2 次，每回合在 `_reset_round()` 重置，不是整場共用）、給 2 秒強霸體（複用既有 `post_dash_armor_left` 機制）、播黃色十字特效+音效。⚠ 第一版做成「不取消狀態、只疊霸體」被使用者實測推翻（「按了根本沒用」）——這類「防禦性技能該擋什麼」的機制，設計時要先問清楚是「取消當下狀態」還是「只加保護後續攻擊」，不要照字面「獲得霸體」自己腦補。
+
+受擊動畫在 `hurt`/`hurt_2` 兩支之間隨機挑一支（`VsHurt.enter()` 用未共享種子的 `randi()%2`——純視覺、硬直時長固定讀 `queued_hitstun` 跟動畫無關，安全；選擇結果存進快照，只在 `enter()` 骰一次，避免 rollback resync 中途重骰造成畫面跳變）。
+
+### VsMods 武藝打斷規則
+
+**衝刺可打斷任何武藝，但每支武藝的 `physics_update()` 都要自己接這行檢查**（`VsMartialArt.gd` 沒辦法統一生效，因為每支武藝完全覆寫 `physics_update()`、不呼叫 `super`）：`if input.dodge and vs.use_dash_energy(30.0): return &"vsdodge"`，放在函式最前面。新增武藝時務必手動加這行（已經漏過不只一次）。
+
+**武藝打斷普攻只能發生在連段窗口內**（`VsAttack.gd`/`VsAirAttack.gd` 的 `can_combo` 開啟期間），不是任意時點——舊規則「武藝可在普攻施放期間任何時點打斷」已拿掉，因為空中普攻在任意幀取消進武藝是「無限空中連段」bug 的根因之一。`_check_art_cast()` 呼叫從獨立的打斷優先級改成包進 `if vs.can_combo:` 區塊。**不影響** `VsIdle`/`VsRun`/`VsJump`/`VsFall`/`VsSkill`（這幾個不是「普攻」，隨時可放武藝）。
+
+### VsMods 專屬設定選單
+
+`VsMods/ui/VsSettingsPanel.gd`（全程式碼建立節點，無 `.tscn`）——刻意做成精簡版而不是直接沿用主遊戲 `settings_panel.tscn`（那份混了很多跟 VsMods 無關的選項）。只放 3 項：霸體輪廓開關、震動開關（都直接讀寫 `Game.config_*`，跟主遊戲共用同一份持久化設定，不是 VsMods 自己另開一份）、「更改按鍵」按鈕開 `VsKeybindMenu`。
+
+`VsMods/ui/VsKeybindMenu.gd`（同樣全程式碼、無 `.tscn`）——跟主遊戲 `ui/KeybindMenu.gd` 是同一套機制（InputMap 動態綁定 + ConfigFile 持久化），**刻意不共用同一支腳本**（避免改動風險外溢到主遊戲設定選單），但共用同一個 `user://keybindings.cfg` 檔案跟 `"Controls"` section——因為 key 用 action 名稱當前綴，VsMods 的 `p1_*`/`p2_*` 動作名稱天生不會跟主遊戲的 `move_left`/`attack` 撞。「還原預設」只清 VsMods 這份清單涉及的動作，不像主遊戲的還原鈕整個 `keybindings.cfg` 砍掉重來。
+
+**⚠ `globals/game.gd::_load_custom_keybindings_at_launch()` 的 `actions` 清單要跟 `VsKeybindMenu.ACTIONS_P1`/`ACTIONS_P2` 保持同步**——這是開機時把 `user://keybindings.cfg` 存的自訂鍵重新套用回 `InputMap` 的清單，之前只列主遊戲動作、不含任何 `p1_*`/`p2_*`，導致在 `VsKeybindMenu` 改的按鍵存檔正確但**重開遊戲後會消失**（開機從沒讀過那些 key）。兩處都有寫註解互相提醒，之後改一邊要記得同步另一邊。
+
+`vs_world.gd` 暫停選單在「繼續」跟「返回大廳」中間插「設定」按鈕，用獨立 `CanvasLayer`（layer 21，蓋在暫停選單 layer 20 之上）承載 `VsSettingsPanel`，關閉時整層 `queue_free()`。
+
+### VsMods 局內 HUD（`VsMods/ui/BattleHud.gd`）
+
+主要靠程式碼建立節點（`_build_ui()`），例外是頭頂身份標籤 `VsMods/ui/VsNameTag.tscn`（見下）——外觀需要頻繁微調的 UI 元素改走可視化編輯，不要重蹈之前 `VsArtButton`/`VsArtInfoPopup` 那種「先寫死常數→使用者不滿意→回頭轉可視化編輯」的來回。
+
+- **武藝能量顯示縮放**：`VsGameManager.ARTS_ENERGY_DISPLAY_SCALE`（目前 0.1）——底層 `VsPlayer.arts_energy`/`VsMartialArt.energy_cost` 數值不變，玩家看到的數字統一乘這個比例。能量條數字、徽章耗能數字、選角彈窗（`VsArtInfoPopup`）說明文字全部要套同一個常數，唯一權威來源放這裡，不要各自維護一份。
+- **裝備武藝徽章**（局內顯示 3 槽裝備+耗能）：黑底白框（有裝備=白框、空槽=暗灰框）+ 招式正式名稱的第一個字（`VsGameManager.get_art_badge_char()`），統一黑白配色，不靠顏色分辨招式。按下武藝修飾鍵（E）時徽章放大高亮+耗能數字淡入，數值比照主遊戲 `player/UI/CombatUI.gd::_on_player_martial_mode_changed()`（0.12s/0.15s tween，`Vector2(1.15,1.15)`）。施放成功時的脈衝殘影比照 `CombatUI._spawn_cast_afterimage()`（同尺寸色塊放大 1.5 倍同時淡出，0.2s/0.4s），由新增的 `VsPlayer.art_cast(slot)` signal（`_check_art_cast()` 施放成功時 emit，套 `_vfx_blocked()` 防呆）觸發。單字字體可換：`BattleHud.BADGE_FONT_PATH`（`res://VsMods/ui/badge_font.ttf`）若存在檔案就自動套用，不存在就退回專案預設字體。
+- **能量滿動態彩色**：`arts_energy >= max_arts_energy` 時能量條用 `Color.from_hsv()` 連續變色相（`Time.get_ticks_msec()` 驅動）——這是 `BattleHud._process()` 自己的純視覺邏輯，不是 `_simulate_frame` 呼叫鏈內的東西，不受確定性規則約束，可以放心用真實時間。
+- **頭頂身份標籤**（`VsMods/ui/VsNameTag.gd`/`.tscn`，P1/P2 文字 + 指向三角圖標）——核心技術是「跟隨世界座標但不受鏡頭 zoom 影響」：`BattleHud` 每幀用 `get_viewport().get_canvas_transform() * vs.vfx_anchor_position()` 把玩家世界座標換算成螢幕像素座標（這個 transform 自動把 `VsCamera` 當下動態縮放算進去），呼叫 `VsNameTag.set_anchor_screen_position()` 只搬動這個 CanvasLayer 底下節點的**位置**，字體/圖標大小永遠不受鏡頭 zoom 影響。文字/圖標的相對位置、大小、字型、顏色、浮動速度/振幅（`float_speed`/`float_amplitude`/`phase` 三個 `@export`）全部在 `.tscn`/Inspector 裡可視化調，`.gd` 只負責浮動動畫邏輯跟接收位置。
+- 血條數字只顯示單一數字（無 `/max`）；武藝能量條數字維持專案預設字體（不套 `badge_font.ttf`，只有徽章單字套）。
+
+### 連線模式的完整測試清單（每次改動賽前流程都要重跑一遍）
+
+`SelectScreen` → `MapSelectScreen` → `vs_world` 這條鏈的任何一段改動，離線模式相對好驗證，**線上模式的驗證成本高但不能省略**：本機一律用 P1 按鍵配置操作（見上方 InputState 章節）、WS 訊息型別要在 `signaling_server.py` 白名單裡且伺服器已重新部署（見上方 Signaling server 一節）、雙方轉場時機是否同步（尤其任何會影響模擬幀對齊的邏輯，例如 Phase 9 補完那次「回合確認鍵改走 InputState 不走 WS」的教訓）。
 
 ### Combat/hit detection — two separate implementations
 
@@ -230,7 +309,7 @@ Status outline VFX (`StatusOutline.gdshader`, wired on both `Player.gd` and `Ene
 | `Game` | `globals/game.gd` (`GameManager`) | Settings persistence (ConfigFile), fullscreen, custom keybindings, cross-scene world/player stats |
 | `CombatManager` | `Explod/CombatManager.gd` | `Engine.time_scale` arbitration (domain slowdown/time-stop vs. UI pause — no hitstop, the game deliberately doesn't use it), camera shake, hit-spark VFX spawning |
 | `AudioManager` | `sound/AudioManager.gd` | SFX/hit-SFX playback (`play_sfx`, `play_hit_sfx`) |
-| `VsGameManager` | `VsMods/ui/VsGameManager.gd` | Cross-scene P1/P2 character & custom-skill selection cache for VsMods |
+| `VsGameManager` | `VsMods/ui/VsGameManager.gd` | Cross-scene P1/P2 character/arts/arena selection cache for VsMods (`p1_character`/`p1_arts`/`selected_arena_id`/etc.) |
 | `Vignette`, `PauseMenu` | scene autoloads | Screen vignette effect; pause UI |
 
 Hitbox/Weapon code guards autoload calls with `has_method()` checks — treat this as the existing convention when adding new cross-autoload calls, not as something to "clean up".

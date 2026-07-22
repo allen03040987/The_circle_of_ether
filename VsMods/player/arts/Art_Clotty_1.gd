@@ -25,7 +25,7 @@ var _anim_length:   float = 0.0
 
 func _init() -> void:
 	art_name    = "武藝一"
-	energy_cost = 20.0
+	energy_cost = 30.0
 
 func enter(_prev: StringName) -> void:
 	super.enter(_prev)

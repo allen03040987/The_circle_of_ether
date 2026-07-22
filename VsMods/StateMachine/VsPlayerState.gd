@@ -66,4 +66,5 @@ func _check_art_cast(input: InputState) -> StringName:
 	if not vs.use_arts_energy(art.energy_cost):
 		return &""
 
+	vs.vfx_arts_cast(slot)
 	return StringName("vsart%d" % slot)

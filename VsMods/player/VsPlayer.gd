@@ -319,10 +319,33 @@ func use_dash_energy(amount: float) -> bool:
 ## 消耗武藝能量；失敗回傳 false，成功同時重置脫戰計時
 func use_arts_energy(amount: float) -> bool:
 	if arts_energy < amount:
+		vfx_arts_denied()
 		return false
 	arts_energy -= amount
 	out_of_combat_left = OUT_OF_COMBAT_DELAY
 	return true
+
+## 能量不足被拒——BattleHud 讀這個值讓武藝能量條閃白/紅提示。純視覺旗標，
+## 不進快照（跟 is_resimulating 同一類「執行期通訊，非模擬狀態」：它只影響
+## HUD 顯示，不回頭影響任何模擬邏輯或判定），用真實 delta 在 _process() 遞減
+## 即可，不用跟模擬時間同步。
+const ARTS_DENIED_FLASH_DURATION := 0.3
+var arts_denied_flash_left: float = 0.0
+
+func vfx_arts_denied() -> void:
+	if _vfx_blocked(): return
+	arts_denied_flash_left = ARTS_DENIED_FLASH_DURATION
+
+## 武藝成功施放（能量閘門通過）的當下觸發一次，純視覺訊號——BattleHud 監聽
+## 這個 signal 在對應槽位的徽章上炸一個脈衝殘影（比照主遊戲 CombatUI
+## ._spawn_cast_afterimage()）。由 VsPlayerState._check_art_cast() 在
+## use_arts_energy() 成功後呼叫，同一套 _vfx_blocked() 防呆擋掉 rollback
+## 重模擬/動畫 resync 造成的重複觸發。
+signal art_cast(slot: int)
+
+func vfx_arts_cast(slot: int) -> void:
+	if _vfx_blocked(): return
+	art_cast.emit(slot)
 
 func mark_in_combat() -> void:
 	out_of_combat_left = OUT_OF_COMBAT_DELAY
@@ -820,8 +843,10 @@ var _outline_original: Material       = null
 var _outline_tween:    Tween          = null
 var _outline_state:    String         = ""  ## "" / "invincible" / "strong_hyper" / "hyper"
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_update_status_outline()
+	if arts_denied_flash_left > 0.0:
+		arts_denied_flash_left = maxf(arts_denied_flash_left - delta, 0.0)
 
 func _update_status_outline() -> void:
 	var desired := ""

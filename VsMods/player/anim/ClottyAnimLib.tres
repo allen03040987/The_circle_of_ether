@@ -1,4 +1,4 @@
-[gd_resource type="AnimationLibrary" load_steps=55 format=3 uid="uid://dr5uo6d0mljie"]
+[gd_resource type="AnimationLibrary" load_steps=54 format=3 uid="uid://dr5uo6d0mljie"]
 
 [ext_resource type="Texture2D" uid="uid://cg3cbbecunwqo" path="res://player/state/IDLE.png" id="1_3ipxf"]
 [ext_resource type="Texture2D" uid="uid://bpp801dar3y4i" path="res://player/Katana/air_A.png" id="2_ocotf"]
@@ -16,10 +16,9 @@
 [ext_resource type="Texture2D" uid="uid://ctqmem4hxrmv0" path="res://player/state/hurt.png" id="14_5b2nh"]
 [ext_resource type="Texture2D" uid="uid://l84506e7x5cy" path="res://player/state/jump.png" id="15_dq5qv"]
 [ext_resource type="Texture2D" uid="uid://blf2mfs6ka62h" path="res://player/state/Launched.png" id="16_y85fp"]
-[ext_resource type="Texture2D" uid="uid://c7muqqh3aal7f" path="res://player/state/walk.png" id="17_46s81"]
 [ext_resource type="Texture2D" uid="uid://b3xqotv1hjo68" path="res://player/state/sliding.png" id="18_yxx4c"]
 [ext_resource type="Texture2D" uid="uid://vnof0kjp0drw" path="res://player/state/Parry.png" id="19_7jrmx"]
-[ext_resource type="Texture2D" uid="uid://cneaeqa1fain0" path="res://player/state/die.png" id="20_4i113"]
+[ext_resource type="Texture2D" uid="uid://doinixva27230" path="res://player/state/run.png" id="19_sbqlm"]
 
 [sub_resource type="Animation" id="Anim_reset"]
 resource_name = "RESET"
@@ -648,13 +647,13 @@ tracks/6/path = NodePath(".")
 tracks/6/interp = 1
 tracks/6/loop_wrap = true
 tracks/6/keys = {
-"times": PackedFloat32Array(0, 0.11, 0.25, 0.35),
+"times": PackedFloat32Array(0, 0.01, 0.25, 0.35),
 "transitions": PackedFloat32Array(1, 1, 1, 1),
 "values": [{
 "args": ["Circular shock wave", 0.0, -25.0, Vector2(2, 1.5), 0.0, Color(1, 1, 1, 1), Color(1, 1, 1, 0.603922), false, 1, 1.0],
 "method": &"spawn_anim_vfx"
 }, {
-"args": [-1200.0],
+"args": [-2000.0],
 "method": &"strike_impulse"
 }, {
 "args": ["cut", 0.0, -25.0, Vector2(0.7, 0.5), 15.0, Color(1, 3, 1, 1), Color(1, 1, 1, 1), false, 1, 1.0],
@@ -1045,12 +1044,9 @@ tracks/8/path = NodePath(".")
 tracks/8/interp = 1
 tracks/8/loop_wrap = true
 tracks/8/keys = {
-"times": PackedFloat32Array(0, 0.11, 0.25, 0.38),
-"transitions": PackedFloat32Array(1, 1, 1, 1),
+"times": PackedFloat32Array(0.11, 0.25, 0.38),
+"transitions": PackedFloat32Array(1, 1, 1),
 "values": [{
-"args": ["ult"],
-"method": &"vfx_action_sfx"
-}, {
 "args": ["cut"],
 "method": &"vfx_action_sfx"
 }, {
@@ -1486,15 +1482,9 @@ tracks/9/path = NodePath(".")
 tracks/9/interp = 1
 tracks/9/loop_wrap = true
 tracks/9/keys = {
-"times": PackedFloat32Array(0, 0.01, 0.4, 0.42),
-"transitions": PackedFloat32Array(1, 1, 1, 1),
+"times": PackedFloat32Array(0.4, 0.42),
+"transitions": PackedFloat32Array(1, 1),
 "values": [{
-"args": ["christmas_bells"],
-"method": &"vfx_action_sfx"
-}, {
-"args": ["beam_2"],
-"method": &"vfx_action_sfx"
-}, {
 "args": ["wave_2"],
 "method": &"vfx_action_sfx"
 }, {
@@ -1652,7 +1642,7 @@ tracks/8/keys = {
 
 [sub_resource type="Animation" id="Anim_art_5"]
 resource_name = "art_5"
-length = 0.8
+length = 0.5
 step = 0.01
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -1685,7 +1675,7 @@ tracks/2/path = NodePath("Graphics/Sprite2D:position")
 tracks/2/interp = 1
 tracks/2/loop_wrap = true
 tracks/2/keys = {
-"times": PackedFloat32Array(0, 0.38),
+"times": PackedFloat32Array(0, 0.2),
 "transitions": PackedFloat32Array(1, 1),
 "update": 1,
 "values": [Vector2(32, -32), Vector2(5, -32)]
@@ -1721,7 +1711,7 @@ tracks/5/path = NodePath("Graphics/Sprite2D:frame")
 tracks/5/interp = 1
 tracks/5/loop_wrap = true
 tracks/5/keys = {
-"times": PackedFloat32Array(0, 0.07, 0.14, 0.21, 0.28, 0.35, 0.38, 0.4, 0.42, 0.44),
+"times": PackedFloat32Array(0, 0.02, 0.05, 0.09, 0.12, 0.16, 0.2, 0.22, 0.24, 0.26),
 "transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
 "update": 1,
 "values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -1733,7 +1723,7 @@ tracks/6/path = NodePath(".")
 tracks/6/interp = 1
 tracks/6/loop_wrap = true
 tracks/6/keys = {
-"times": PackedFloat32Array(0.38, 0.39, 0.4, 0.41),
+"times": PackedFloat32Array(0.2, 0.21, 0.22, 0.23),
 "transitions": PackedFloat32Array(1, 1, 1, 1),
 "values": [{
 "args": [-4000.0],
@@ -1756,12 +1746,9 @@ tracks/7/path = NodePath(".")
 tracks/7/interp = 1
 tracks/7/loop_wrap = true
 tracks/7/keys = {
-"times": PackedFloat32Array(0.36, 0.4),
-"transitions": PackedFloat32Array(1, 1),
+"times": PackedFloat32Array(0.22),
+"transitions": PackedFloat32Array(1),
 "values": [{
-"args": ["ult"],
-"method": &"vfx_action_sfx"
-}, {
 "args": ["cut_5"],
 "method": &"vfx_action_sfx"
 }]
@@ -2881,10 +2868,10 @@ tracks/0/path = NodePath("Graphics/Sprite2D:texture")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.04),
-"transitions": PackedFloat32Array(1, 1),
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [ExtResource("14_5b2nh"), ExtResource("20_4i113")]
+"values": [ExtResource("14_5b2nh")]
 }
 tracks/1/type = "value"
 tracks/1/imported = false
@@ -2944,7 +2931,7 @@ tracks/5/keys = {
 "times": PackedFloat32Array(0, 0.04),
 "transitions": PackedFloat32Array(1, 1),
 "update": 1,
-"values": [1, 3]
+"values": [1, 2]
 }
 
 [sub_resource type="Animation" id="Anim_idle"]
@@ -3333,9 +3320,9 @@ tracks/5/keys = {
 
 [sub_resource type="Animation" id="Anim_run"]
 resource_name = "running"
-length = 0.9
+length = 0.7
 loop_mode = 1
-step = 0.05
+step = 0.07
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -3346,7 +3333,7 @@ tracks/0/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [ExtResource("17_46s81")]
+"values": [ExtResource("19_sbqlm")]
 }
 tracks/1/type = "value"
 tracks/1/imported = false
@@ -3358,7 +3345,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [3]
+"values": [4]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -3382,7 +3369,7 @@ tracks/3/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 0,
-"values": [Rect2(0, 0, 192, 192)]
+"values": [Rect2(0, 0, 256, 192)]
 }
 tracks/4/type = "value"
 tracks/4/imported = false
@@ -3394,7 +3381,7 @@ tracks/4/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [Vector2(0, -31)]
+"values": [Vector2(0, -28)]
 }
 tracks/5/type = "value"
 tracks/5/imported = false
@@ -3403,10 +3390,10 @@ tracks/5/path = NodePath("Graphics/Sprite2D:frame")
 tracks/5/interp = 1
 tracks/5/loop_wrap = true
 tracks/5/keys = {
-"times": PackedFloat32Array(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8),
-"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1),
+"times": PackedFloat32Array(0, 0.07, 0.14, 0.21, 0.28, 0.35, 0.42, 0.49, 0.56, 0.63),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
 "update": 1,
-"values": [0, 1, 2, 3, 4, 5, 6, 7, 8]
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 }
 tracks/6/type = "method"
 tracks/6/imported = false
@@ -3415,7 +3402,7 @@ tracks/6/path = NodePath(".")
 tracks/6/interp = 1
 tracks/6/loop_wrap = true
 tracks/6/keys = {
-"times": PackedFloat32Array(0.2, 0.65),
+"times": PackedFloat32Array(0.21, 0.56),
 "transitions": PackedFloat32Array(1, 1),
 "values": [{
 "args": ["move_1", -8.0],
