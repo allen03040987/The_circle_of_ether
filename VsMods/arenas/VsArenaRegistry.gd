@@ -10,6 +10,19 @@ const ARENAS: Dictionary = {
 		"display_name": "陽光島",   # 暫定名稱，不滿意可直接改這個字串
 		"scene_path": "res://VsMods/arenas/Arena_Sunnyland.tscn",
 	},
+	"ExperimentSpace": {
+		"display_name": "實驗空間",
+		# 目前是 Arena_Sunnyland.tscn 的原樣複製（場景根節點改名、uid 換新，
+		# 內容/貼圖/碰撞都還沒動）——使用者會自己在編輯器裡重新設計美術/關卡，
+		# 這裡先把「可選」這條路線接通。
+		"scene_path": "res://VsMods/arenas/Arena_ExperimentSpace.tscn",
+	},
+	"YouJin": {
+		"display_name": "幽津",
+		# 同上，Arena_Sunnyland.tscn 的原樣複製（根節點改名、uid 換新），美術/關卡
+		# 待使用者自己在編輯器裡佈置。
+		"scene_path": "res://VsMods/arenas/Arena_YouJin.tscn",
+	},
 }
 
 const DEFAULT_ARENA := "Sunnyland"

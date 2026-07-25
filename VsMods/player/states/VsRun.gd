@@ -26,6 +26,8 @@ func physics_update(delta: float, input: InputState) -> StringName:
 		return art_transition
 	if input.guard:
 		return &"vsguard"
+	if _check_platform_drop(input):
+		return &""
 	if input.jump:
 		return &"vsjump"
 	if input.move_dir == 0.0:

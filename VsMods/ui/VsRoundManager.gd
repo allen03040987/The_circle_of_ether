@@ -179,6 +179,8 @@ func _reset_round() -> void:
 		vs.velocity        = Vector2.ZERO
 		vs.pending_hit     = {}
 		vs.invincible_time_left = 0.5   # 開局 0.5s 無敵，避免立即被打
+		vs.hazard_buff_mult = {}   # buff 包效果本身是限時 10 秒（見 VsPlayer.HAZARD_BUFF_DURATION），
+		vs.hazard_buff_time_left = {}   # 這裡只是回合邊界的保險清空，避免跨回合殘留
 
 	_p1.position = _sp1
 	_p2.position = _sp2

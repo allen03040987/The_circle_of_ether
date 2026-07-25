@@ -59,6 +59,11 @@ const C_BADGE_CAST_PULSE    := Color(1.4, 1.4, 1.4, 0.85)    # 施放成功脈�
 # VsArtButton/VsArtInfoPopup 同一套「可視化編輯」慣例（見 CLAUDE.md）。
 const NAME_TAG_SCENE := preload("res://VsMods/ui/VsNameTag.tscn")
 
+# ── 角色腳下 buff 狀態小字（哪個屬性生效中、還剩幾秒）───────────────────────
+const BUFF_LABEL_W        := 60
+const BUFF_LABEL_Y_OFFSET := 6   # 螢幕像素，貼在角色腳底（position，非 sprite 錨點）下方
+const C_BUFF_LABEL        := Color(1.0, 0.95, 0.5, 1.0)   # 統一淡黃色，跟殘影的個別屬性色分開管
+
 ## 徽章單字字體——預設沿用專案全域字體（PixelTheme 的 pixel.ttf），如果這個
 ## 路徑有檔案就改用它（使用者要換書法字體：把字體檔放到這個路徑，不用再改
 ## 程式碼，下次執行就自動套用）。找不到檔案時 ResourceLoader.exists() 會是
@@ -97,6 +102,10 @@ var _p2_en_label: Label
 # 縮放，見 _update_name_tags()）─────────────────────────────────────────────
 var _p1_name_tag: VsNameTag
 var _p2_name_tag: VsNameTag
+
+# ── 角色腳下 buff 狀態小字（跟隨世界座標，見 _update_buff_labels()）──────────
+var _p1_buff_label: Label
+var _p2_buff_label: Label
 
 # ── 裝備武藝徽章（各 3 格：root 縮放容器 / 白框 / 單字 / 耗能數字）───────────
 # root 是 border+char 的共同父節點，修飾鍵高亮縮放整組一起動；cost 是獨立
@@ -151,6 +160,7 @@ func _process(_delta: float) -> void:
 	if not _p1 or not _p2:
 		return
 	_update_name_tags()
+	_update_buff_labels()
 	_set_bar(_p1_hp,   _p1.hp,          _p1.max_hp,          true)
 	_set_bar(_p1_en,   _p1.arts_energy, _p1.max_arts_energy, true)
 	_set_bar(_p1_dash, _p1.dash_energy, _p1.max_dash_energy, true)
@@ -316,6 +326,32 @@ func _update_name_tags() -> void:
 	_p1_name_tag.set_anchor_screen_position(canvas_xform * _p1.vfx_anchor_position())
 	_p2_name_tag.set_anchor_screen_position(canvas_xform * _p2.vfx_anchor_position())
 
+## 角色腳下 buff 狀態小字：跟頭頂標籤同一套「世界座標→螢幕座標」換算手法，
+## 但錨點用 position（腳底，模擬座標，見 CLAUDE.md 確定性規則表——這裡純顯示
+## 用不影響模擬，直接讀沒關係）而不是 vfx_anchor_position()（那個是身體中心，
+## 給殘影/火花用），因為「腳下」的視覺意義就是貼著角色站立的地面位置，不是
+## 貼著身體。文字內容讀 hazard_buff_time_left（哪些屬性生效中）+
+## HAZARD_BUFF_DISPLAY_NAMES（顯示名稱），沒有生效中的 buff 就顯示空字串。
+func _update_buff_labels() -> void:
+	var canvas_xform := get_viewport().get_canvas_transform()
+	_position_buff_label(_p1_buff_label, canvas_xform * _p1.position)
+	_position_buff_label(_p2_buff_label, canvas_xform * _p2.position)
+	_set_buff_label_text(_p1_buff_label, _p1)
+	_set_buff_label_text(_p2_buff_label, _p2)
+
+func _position_buff_label(lbl: Label, screen_pos: Vector2) -> void:
+	lbl.position = screen_pos + Vector2(-BUFF_LABEL_W / 2.0, BUFF_LABEL_Y_OFFSET)
+
+func _set_buff_label_text(lbl: Label, vs: VsPlayer) -> void:
+	if vs.hazard_buff_time_left.is_empty():
+		lbl.text = ""
+		return
+	var lines: Array[String] = []
+	for stat: String in vs.hazard_buff_time_left:
+		var display_name: String = VsPlayer.HAZARD_BUFF_DISPLAY_NAMES.get(stat, stat)
+		lines.append("%s %ds" % [display_name, ceili(vs.hazard_buff_time_left[stat])])
+	lbl.text = "\n".join(lines)
+
 # ── 外部 API ──────────────────────────────────────────────────────────────────
 func update_wins(p1w: int, p2w: int) -> void:
 	for i in VsRoundManager.ROUNDS_TO_WIN:
@@ -418,6 +454,11 @@ func _build_ui() -> void:
 	_p2_name_tag.phase = PI   # 跟 P1（相位 0）錯開，兩個標籤不會同步上下浮動
 	_p2_name_tag.set_text("P2")
 
+	# 角色腳下 buff 狀態小字。初始位置無所謂，_process() 每幀由
+	# _update_buff_labels() 依世界座標覆寫（見該函式說明）。
+	_p1_buff_label = _make_buff_label(root)
+	_p2_buff_label = _make_buff_label(root)
+
 	# 勝場指示點（中央上方）
 	var cx     := VIEW_W / 2
 	var dot_y  := y0 + 1
@@ -489,6 +530,20 @@ func _make_bar_label(parent: Control, x: int, y: int, w: int, h: int, ltr: bool)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if ltr else HORIZONTAL_ALIGNMENT_RIGHT
 	lbl.add_theme_font_size_override("font_size", 7)
 	lbl.add_theme_color_override("font_color", Color(1, 1, 1, 0.95))
+	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	lbl.add_theme_constant_override("outline_size", 2)
+	parent.add_child(lbl)
+	return lbl
+
+## 角色腳下的 buff 狀態小字——純文字、無背景，多行（同時有多個屬性生效時）
+## 置中對齊，字級跟血條數字同一套（含描邊確保各種底色都看得清楚）。
+func _make_buff_label(parent: Control) -> Label:
+	var lbl := Label.new()
+	lbl.size = Vector2(BUFF_LABEL_W, 20)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lbl.add_theme_font_size_override("font_size", 7)
+	lbl.add_theme_color_override("font_color", C_BUFF_LABEL)
 	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	lbl.add_theme_constant_override("outline_size", 2)
 	parent.add_child(lbl)

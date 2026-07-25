@@ -266,6 +266,7 @@ func apply_input(delta: float, input: InputState) -> void:
 	last_input = input
 	_update_energy_regen(delta)
 	_tick_invincibility(delta)
+	_tick_hazard_buffs(delta)
 	_apply_pending_hit()
 	# 動畫用模擬 delta 手動推進（AnimationPlayer 是 MANUAL 模式）——
 	# 攻擊動畫的 can_combo / hitbox monitoring 軌道值因此是模擬時間的純函數，
@@ -282,7 +283,22 @@ func apply_input(delta: float, input: InputState) -> void:
 ## move_and_collide() 與 test_move() 都是無狀態查詢，結果只取決於當前
 ## position/velocity，且 motion 向量顯式傳入，不依賴引擎真實 delta。
 func _move_deterministic(sim_delta: float) -> void:
-	var col := move_and_collide(velocity * sim_delta)
+	if platform_pass_through_left > 0.0:
+		platform_pass_through_left = maxf(platform_pass_through_left - sim_delta, 0.0)
+	collision_mask = GROUND_LAYER_BIT | (0 if platform_pass_through_left > 0.0 else PLATFORM_LAYER_BIT)
+
+	if _step_climb_t >= 0.0:
+		_advance_step_climb(sim_delta)
+		return
+
+	var motion := velocity * sim_delta
+	if grounded and motion.x != 0.0:
+		if _try_step_up(motion):
+			return   # 已經啟動爬升插值，本幀不用再跑一般 move_and_collide
+		if _try_step_down(motion):
+			return   # 已經啟動下降插值，本幀不用再跑一般 move_and_collide
+
+	var col := move_and_collide(motion)
 	if col:
 		var n := col.get_normal()
 		if absf(n.y) > 0.7:
@@ -307,6 +323,113 @@ func _move_deterministic(sim_delta: float) -> void:
 	grounded = test_move(global_transform, Vector2(0.0, 0.1))
 	if grounded:
 		air_attack_used = false
+
+## 階梯輔助——用磚塊拼成樓梯/弧形地形時，每一階的垂直轉角本身就是一道牆，
+## move_and_collide() 分不出「矮到可以直接踏上去的階梯」跟「真的牆」，水平
+## 移動會卡在轉角上。貼地時若水平移動被矮於 STEP_HEIGHT 的檻擋住，就是可以
+## 踏上去的階梯；擋住的東西比 STEP_HEIGHT 高（真牆）就正常卡住，不受影響。
+## 下樓梯是對稱的另一半（_try_step_down()，見下）：上樓梯有「被擋住」這個
+## 碰撞事件可以當觸發點，下樓梯沒有——只是懸空，原本純靠重力自然墜落，
+## 每一階都會有一小段自由落體再貼地的頓挫感（使用者實測：「下樓梯每一階
+## 都是用下落的」）。判斷邏輯反過來：這幀水平移動沒被擋住、但移動後那個
+## x 位置原地懸空、且往下 STEP_HEIGHT 內找得到地板，就是合法的一階落差，
+## 一樣用插值處理，不讓重力介入。
+##
+## ⚠ 不是偵測到就一幀瞬間墊高——那樣水平只移動一幀份的距離、垂直卻瞬移了
+## 一整格高度，視覺上會是明顯的「一格一格跳」割裂感，不是平滑的斜線爬升。
+## 改成：偵測到可爬的階梯時，先用跟之前同一套「墊高→水平跨一整格→貼地」
+## 邏輯算出這一階爬完的終點（複用既有判斷邏輯，保證落點正確），但不直接
+## 套用，改成接下來幾幀用 _step_climb_from/_step_climb_to 對 position 做
+## 線性插值——横跨距離固定用一格磚塊寬（STEP_WIDTH），爬升所需時間用
+## 目前水平速度換算（STEP_WIDTH / |velocity.x|），這樣水平移動的視覺速度
+## 在爬階梯時不會忽然變慢，只有垂直方向被拉開成連續斜線，而不是瞬間彈起。
+## 插值全程繞過碰撞（直接寫 position，不呼叫 move_and_collide）——這是刻意
+## 的：中途姿勢在幾何上會跟階梯垂直面重疊，但終點已經先驗證過合法，比照
+## 「已驗證合法的插值轉場」處理，不需要每幀重新做碰撞測試。
+## _step_climb_* 全部是會影響後續幀結果的模擬狀態，進 save_state()/restore_state()。
+const STEP_HEIGHT := 18.0   ## 略大於一格磚塊高（16px），含浮點誤差緩衝
+const STEP_WIDTH  := 16.0   ## 一格磚塊寬，決定插值橫跨的距離
+
+var _step_climb_t:        float   = -1.0   ## -1 = 沒在爬；[0,1] 是本次插值進度
+var _step_climb_from:     Vector2 = Vector2.ZERO
+var _step_climb_to:       Vector2 = Vector2.ZERO
+var _step_climb_duration: float   = 0.0
+
+## 回傳 true 代表本幀已經啟動插值爬升（見 _advance_step_climb()），呼叫端
+## 不用再跑一般的 move_and_collide() 流程。
+func _try_step_up(motion: Vector2) -> bool:
+	var horizontal := Vector2(motion.x, 0.0)
+	if not test_move(global_transform, horizontal):
+		return false   # 沒被擋住，不需要墊，交還一般流程
+
+	var up := Vector2(0.0, -STEP_HEIGHT)
+	if test_move(global_transform, up):
+		return false   # 頭上被擋住，墊不上去
+
+	var xform_up := global_transform
+	xform_up.origin += up
+	if test_move(xform_up, horizontal):
+		return false   # 墊高後水平方向還是被擋住，是真牆不是階梯
+
+	# 三項測試都過：用跟原本一樣的「墊高→水平跨一整格→貼地」邏輯算出終點
+	# （複用既有判斷，保證落點正確），算完立刻把 position 復原，實際位移
+	# 交給 _advance_step_climb() 接下來幾幀漸進套用。
+	var start := position
+	move_and_collide(up)
+	move_and_collide(Vector2(signf(motion.x) * STEP_WIDTH, 0.0))
+	move_and_collide(Vector2(0.0, STEP_HEIGHT))
+	_step_climb_from = start
+	_step_climb_to   = position
+	position = start
+
+	_step_climb_duration = STEP_WIDTH / maxf(absf(velocity.x), 1.0)
+	_step_climb_t = 0.0
+	velocity.y = 0.0
+	return true
+
+## 回傳 true 代表本幀已經啟動插值下降（見 _advance_step_climb()），呼叫端
+## 不用再跑一般的 move_and_collide() 流程。跟 _try_step_up() 對稱，差別只在
+## 觸發條件（沒被擋住、但移動後懸空）跟不用先墊高（本來就要往下）。
+func _try_step_down(motion: Vector2) -> bool:
+	var horizontal := Vector2(motion.x, 0.0)
+	if test_move(global_transform, horizontal):
+		return false   # 這幀水平移動本身被擋住，不是下降情境（可能是牆或可爬的階梯，交給 _try_step_up）
+
+	var xform_h := global_transform
+	xform_h.origin += horizontal
+	if test_move(xform_h, Vector2(0.0, 0.1)):
+		return false   # 移動後原地還貼地，沒有落差，一般流程處理就好
+
+	if not test_move(xform_h, Vector2(0.0, STEP_HEIGHT)):
+		return false   # 落差超過 STEP_HEIGHT（或根本沒地板），是真的懸崖，讓重力自然墜落
+
+	# 合法的一階落差：用跟 _try_step_up 對稱的「水平跨一整格→下降貼地」算出
+	# 終點，一樣不直接套用，交給 _advance_step_climb() 接下來幾幀漸進套用。
+	var start := position
+	move_and_collide(Vector2(signf(motion.x) * STEP_WIDTH, 0.0))
+	move_and_collide(Vector2(0.0, STEP_HEIGHT))
+	_step_climb_from = start
+	_step_climb_to   = position
+	position = start
+
+	_step_climb_duration = STEP_WIDTH / maxf(absf(velocity.x), 1.0)
+	_step_climb_t = 0.0
+	velocity.y = 0.0
+	return true
+
+## 每幀推進一點插值進度，純位置插值＋snapped 對齊（跟 _move_deterministic()
+## 尾段同一套 checksum 精度處理）。走完（t>=1）才重新做地面旗標判定，交還
+## 一般 _move_deterministic() 流程。
+func _advance_step_climb(sim_delta: float) -> void:
+	velocity.y = 0.0   # 爬升期間不累積重力，落地那一刻才不會多一段下墜速度
+	_step_climb_t = minf(_step_climb_t + sim_delta / maxf(_step_climb_duration, 0.001), 1.0)
+	position = _step_climb_from.lerp(_step_climb_to, _step_climb_t)
+	position = position.snapped(Vector2(0.01, 0.01))
+	if _step_climb_t >= 1.0:
+		_step_climb_t = -1.0
+		grounded = test_move(global_transform, Vector2(0.0, 0.1))
+		if grounded:
+			air_attack_used = false
 
 # ── 能量 ─────────────────────────────────────────────────────────────────────
 ## 消耗衝刺能量（30點/次）；失敗回傳 false
@@ -352,12 +475,12 @@ func mark_in_combat() -> void:
 
 func _update_energy_regen(delta: float) -> void:
 	# 衝刺能量：永遠恢復
-	dash_energy = minf(dash_energy + dash_regen_rate * delta, max_dash_energy)
+	dash_energy = minf(dash_energy + _buffed("dash_regen_rate", dash_regen_rate) * delta, max_dash_energy)
 	# 武藝能量：脫戰後恢復
 	if out_of_combat_left > 0.0:
 		out_of_combat_left = maxf(out_of_combat_left - delta, 0.0)
 	else:
-		arts_energy = minf(arts_energy + arts_regen_rate * delta, max_arts_energy)
+		arts_energy = minf(arts_energy + _buffed("arts_regen_rate", arts_regen_rate) * delta, max_arts_energy)
 	# 衝刺後強霸體倒計
 	if post_dash_armor_left > 0.0:
 		post_dash_armor_left = maxf(post_dash_armor_left - delta, 0.0)
@@ -460,6 +583,12 @@ func _on_hurtbox_hurt(hitbox: VsHitbox) -> void:
 			allows_hitstun = true
 			dmg_mult = 1.0
 
+	# 攻擊力 buff（"damage_mult"）是攻擊者身上的加成，不是防禦方的體質係數——
+	# 讀 hitbox.owner_player 自己的 hazard_buff_mult，跟上面 dmg_mult（防禦方
+	# 體質減傷）各自獨立、疊乘在一起。
+	if hitbox.owner_player:
+		dmg_mult *= (hitbox.owner_player as VsPlayer).hazard_buff_mult.get("damage_mult", 1.0)
+
 	if not allows_hitstun:
 		# 霸體吸收擊退/硬直；仍承受傷害（可能有 50% 減傷）
 		hp = maxf(hp - hitbox.damage * dmg_mult, 0.0)
@@ -508,6 +637,139 @@ func _apply_pending_hit() -> void:
 func take_damage(amount: float) -> void:
 	hp = maxf(hp - amount, 0.0)
 
+# ==========================================
+# 🗺️ 場地機關（VsHazard，見 VsMods/arenas/VsHazard.gd）
+# ==========================================
+## 場地機關造成的傷害/擊退——組出跟 _on_hurtbox_hurt() 一樣格式的 pending_hit，
+## 直接復用既有的 _apply_pending_hit() 傷害/硬直/擊飛/倒地流程，不重新發明
+## 一套，行為才會跟一般攻擊一致（含 causes_knockdown 分流進 VsLaunched/VsHurt
+## 的邏輯）。bypass_invincibility=true 給懸崖/傳送矩陣用（環境傷害，使用者
+## 原話標「必定」，不能被無敵吸收）；陷阱走 false，跟一般攻擊同待遇——衝刺
+## 無敵可以躲開陷阱，比較符合對戰手感。
+func take_hazard_damage(damage: float, knockback: Vector2, causes_knockdown: bool, hitstun: float, bypass_invincibility: bool) -> void:
+	if not bypass_invincibility and is_invincible():
+		return
+	pending_hit = {
+		"damage":           damage,
+		"hitstun_time":     hitstun,
+		"knockback":        knockback,
+		"causes_knockdown": causes_knockdown,
+	}
+
+## 懸崖用：必定死亡，忽略無敵——環境傷害不是攻擊，不能被無敵吸收。直接把
+## hp 歸零，剩下的交給 VsRoundManager._tick_fighting() 既有的 hp<=0 判定
+## （強制進 VsKnockdown、回合結束），不用在這裡自己處理死亡轉場。
+func kill_instantly() -> void:
+	hp = 0.0
+
+## 彈簧用：立刻進入跳躍狀態並套用更強的上升力道（比一般 jump_force 更負）。
+## 呼叫前 vs_world 已經檢查過 is_invincible()（陷阱/彈簧同一套規則，衝刺
+## 無敵可以躲開）。
+func apply_spring(force: float) -> void:
+	# 順序很重要：VsJump.enter() 會無條件把 velocity.y 蓋成 effective_jump_force()
+	# （一般跳躍力道），先轉場再設定 force 才不會被蓋掉——之前寫反過（先設
+	# velocity 再轉場）導致 spring_force 設多少都沒用，實測 10 跟 1000 效果
+	#一樣，就是被 VsJump.enter() 蓋回一般跳躍力道。
+	state_machine.transition_to(&"vsjump")
+	velocity.y = force
+
+## 補包用：直接恢復固定量血量，不帶硬直——跟 take_damage() 對稱的存在。
+func heal(amount: float) -> void:
+	hp = minf(hp + amount, max_hp)
+
+## buff 包隨機池——四選一，固定倍率＋固定時效（不再是±隨機方向、也不再是
+## 本回合有效，改成每種屬性各自調好的正向倍率，持續 HAZARD_BUFF_DURATION 秒）。
+## 想調整某個屬性的倍率只改這個字典，不用碰下面的邏輯。
+const HAZARD_BUFF_POOL: Array[String] = ["damage_mult", "move_speed", "dash_regen_rate", "arts_regen_rate"]
+const HAZARD_BUFF_MAGNITUDES: Dictionary = {
+	"damage_mult":     1.5,   # 攻擊力 +50%
+	"move_speed":      2.0,   # 移動速度 x2
+	"dash_regen_rate": 2.0,   # 衝刺能量回復 x2
+	"arts_regen_rate": 2.0,   # 武藝能量回復 x2
+}
+const HAZARD_BUFF_DURATION := 10.0   ## 秒，四種屬性統一時效——想調整時效改這個數字就好
+
+## 每個屬性對應一個顏色，撿到時噴一個這個顏色的殘影（vfx_ghost，見下）讓玩家
+## 一眼看出撿到哪一種。全部固定是加成，不再有衰減方向，因此不需要 darkened()
+## 暗版區分。BattleHud 角色腳下的小字狀態欄額外顯示文字（見 HAZARD_BUFF_DISPLAY_NAMES）
+## ——殘影是「這一刻撿到了什麼」的瞬間回饋，小字是「現在還有什麼在生效、剩多久」
+## 的持續狀態顯示，兩者互補、不是重複。
+const HAZARD_BUFF_COLORS: Dictionary = {
+	"move_speed":      Color(0.5, 1.0, 0.6),   # 綠：移動速度
+	"damage_mult":     Color(0.9, 0.3, 0.3),   # 紅：攻擊力
+	"dash_regen_rate": Color(1.0, 0.6, 0.4),   # 橙：衝刺能量回復
+	"arts_regen_rate": Color(0.8, 0.6, 1.0),   # 紫：武藝能量回復
+}
+
+## 小字狀態欄用的顯示名稱——BattleHud 讀這個字典，不用另外維護一份對照表。
+const HAZARD_BUFF_DISPLAY_NAMES: Dictionary = {
+	"move_speed":      "移速",
+	"damage_mult":     "攻擊力",
+	"dash_regen_rate": "衝刺回復",
+	"arts_regen_rate": "武藝回復",
+}
+
+## stat_name → 倍率／剩餘秒數，時效到就自動失效（見 _tick_hazard_buffs()）。
+## 不直接修改 move_speed/dash_regen_rate 等 @export 欄位本身——那些會被
+## apply_arts_bonus() 依 _base_* 重算覆寫（換裝武藝時可能重新呼叫），buff 疊在
+## 上面當獨立的第二層，讀取點一律走下面的 effective_*()／_buffed()，不要直接
+## 讀 @export 欄位。"damage_mult" 沒有對應的 @export 欄位——它是攻擊力這個
+## 虛擬屬性，讀取點在 _on_hurtbox_hurt() 直接讀攻擊者（hitbox.owner_player）
+## 的 hazard_buff_mult，不經過 _buffed()。
+var hazard_buff_mult: Dictionary = {}
+var hazard_buff_time_left: Dictionary = {}   ## stat_name → 剩餘秒數，與 hazard_buff_mult 成對維護
+
+## buff 包觸發用：從固定池子隨機選一項屬性，套用該屬性固定的倍率，
+## HAZARD_BUFF_DURATION 秒後自動失效。seed_value 必須是雙端已經同步好的資料
+## （vs_world 呼叫時傳入 VsNetworkManager.get_game_frame()）——兩端在同一次
+## 模擬處理同一次拾取，用同一個種子算出來的結果保證一致，見 CLAUDE.md
+## 確定性規則表：任何影響模擬結果的亂數都要用共享種子的 RandomNumberGenerator，
+## 不可各自獨立初始化（不能直接用裸的 randi()/randf()）。
+func apply_random_buff(seed_value: int) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var stat: String = HAZARD_BUFF_POOL[rng.randi() % HAZARD_BUFF_POOL.size()]
+	hazard_buff_mult[stat] = HAZARD_BUFF_MAGNITUDES[stat]
+	hazard_buff_time_left[stat] = HAZARD_BUFF_DURATION
+	# 回饋：對應屬性顏色的殘影，放大 1.3 倍讓 buff 拾取比一般殘影更醒目，不用文字。
+	# vfx_ghost() 內建 _vfx_blocked() 防呆，rollback 重模擬不會重複觸發。
+	var color: Color = HAZARD_BUFF_COLORS.get(stat, Color.WHITE)
+	vfx_ghost(color, 1.3)
+
+## 每個模擬幀遞減所有進行中的 buff 剩餘時間，時間到就移除（hazard_buff_mult
+## 恢復無此 key，_buffed() 的 get(..., 1.0) 預設值自然生效）。用 apply_input()
+## 傳入的模擬 delta 驅動，不可用真實時間——時效長短會因 rollback/幀率而分歧。
+func _tick_hazard_buffs(delta: float) -> void:
+	if hazard_buff_time_left.is_empty(): return
+	for stat: String in hazard_buff_time_left.keys().duplicate():
+		var left: float = hazard_buff_time_left[stat] - delta
+		if left <= 0.0:
+			hazard_buff_time_left.erase(stat)
+			hazard_buff_mult.erase(stat)
+		else:
+			hazard_buff_time_left[stat] = left
+
+## 套用 hazard_buff_mult 加成後的實際數值——移動/跳躍/回能相關的讀取點都要
+## 走這幾個函式，不要直接讀 @export 欄位，buff 才會確實生效。
+func _buffed(stat_name: String, base_value: float) -> float:
+	return base_value * hazard_buff_mult.get(stat_name, 1.0)
+
+func effective_move_speed() -> float: return _buffed("move_speed", move_speed)
+func effective_air_speed()  -> float: return _buffed("air_speed", air_speed)
+func effective_jump_force() -> float: return _buffed("jump_force", jump_force)
+
+# ── 平台（單向下拉）─────────────────────────────────────────────────────────
+## VsPlatform 是 project.godot 2d_physics/layer_13，位元值 1<<12=4096；地板本身
+## 是 layer_8 "VsWorld"，位元值 1<<7=128（見 Arena TileSet 的
+## physics_layer_0/collision_layer）。collision_mask 每幀在 _move_deterministic()
+## 重新計算（不是「記住原值再恢復」），跟專案既有的「無狀態、每幀依資料重算」
+## 慣例一致——platform_pass_through_left 倒數期間排除平台層，其餘時間永遠納入。
+const GROUND_LAYER_BIT   := 128
+const PLATFORM_LAYER_BIT := 4096
+const PLATFORM_PASS_THROUGH_DURATION := 0.3   ## 按下「下＋跳躍」後主動穿透平台的秒數
+
+var platform_pass_through_left: float = 0.0   ## >0 時暫時排除平台層碰撞，見 _move_deterministic()
+
 # ── Rollback：快照 / 還原 / 動畫同步 ─────────────────────────────────────────
 func save_state() -> Dictionary:
 	var cur := state_machine.current_state
@@ -528,6 +790,13 @@ func save_state() -> Dictionary:
 		"qhit":   queued_hitstun,
 		"qkd":    queued_knockdown,
 		"ctimer": out_of_combat_left,
+		"hbuff":  hazard_buff_mult.duplicate(),
+		"hbufft": hazard_buff_time_left.duplicate(),
+		"pfall":  platform_pass_through_left,
+		"stept":  _step_climb_t,
+		"stepf":  _step_climb_from,
+		"stepto": _step_climb_to,
+		"stepd":  _step_climb_duration,
 		# 每顆判定框的 [monitoring, has_hit, hits_dealt, hit_cooldown_left, is_locked]：
 		# monitoring 平時由動畫軌道驅動，has_hit（=連擊全部打完）防 rollback
 		# 重模擬時同一攻擊窗重複命中；hits_dealt/hit_cooldown_left/is_locked
@@ -555,6 +824,13 @@ func restore_state(s: Dictionary) -> void:
 	queued_hitstun       = s["qhit"]
 	queued_knockdown     = s["qkd"]
 	out_of_combat_left   = s["ctimer"]
+	hazard_buff_mult     = (s["hbuff"] as Dictionary).duplicate()
+	hazard_buff_time_left = (s.get("hbufft", {}) as Dictionary).duplicate()
+	platform_pass_through_left = s["pfall"]
+	_step_climb_t        = s.get("stept", -1.0)
+	_step_climb_from     = s.get("stepf", Vector2.ZERO)
+	_step_climb_to       = s.get("stepto", Vector2.ZERO)
+	_step_climb_duration = s.get("stepd", 0.0)
 	graphics.scale.x     = facing_dir
 	var hbs: Array = s["hbs"]
 	for i in hitboxes.size():
@@ -728,11 +1004,11 @@ func vfx_shake(intensity: float, duration: float = 0.06) -> void:
 
 ## 殘影——沿用主遊戲 add_ghost 的預設半透明白色。可當動畫 Call Method 軌道呼叫，
 ## 也可由 VsDodge 每 0.05s 呼叫一次（衝刺拖尾）
-func vfx_ghost(color: Color = Color(1.0, 1.0, 1.0, 0.4)) -> void:
+func vfx_ghost(color: Color = Color(1.0, 1.0, 1.0, 0.4), scale_mult: float = 1.0) -> void:
 	if _vfx_blocked(): return
 	var sprite := graphics.get_node_or_null("Sprite2D") as Sprite2D
 	if is_instance_valid(sprite):
-		CombatManager.spawn_ghost(sprite, sprite.global_position, graphics.scale, color)
+		CombatManager.spawn_ghost(sprite, sprite.global_position, graphics.scale * scale_mult, color)
 
 ## 完美閃避專屬火花——由 VsDodge.trigger_perfect_dodge() 呼叫
 func vfx_dodge_spark() -> void:

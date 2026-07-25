@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3 uid="uid://bqxk3n8w2s7ha"]
+
+[ext_resource type="Script" path="res://VsMods/arenas/VsHazard.gd" id="1_hazard"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hazard"]
+size = Vector2(2728, 32)
+
+[node name="VsHazard" type="Area2D"]
+collision_layer = 0
+collision_mask = 0
+script = ExtResource("1_hazard")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_hazard")

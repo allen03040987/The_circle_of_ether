@@ -4,7 +4,7 @@ extends VsPlayerState
 const JUMP_SFX := preload("res://sound/SFX/jump.wav")
 
 func enter(_prev: StringName) -> void:
-	player.velocity.y = (player as VsPlayer).jump_force
+	player.velocity.y = (player as VsPlayer).effective_jump_force()
 	(player as VsPlayer).anim_player.play("jump")
 	(player as VsPlayer).vfx_sfx(JUMP_SFX, -10.0)
 

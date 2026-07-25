@@ -55,6 +55,11 @@ var is_resimulating: bool = false
 const PROJECTILE_SCENE := preload("res://VsMods/combat/VsProjectile.tscn")
 var projectiles: Array[VsProjectile] = []
 
+## 場地機關（VsHazard，見 VsMods/arenas/VsHazard.gd）。跟判定框（VsPlayer.hitboxes）
+## 同一個模式：場地場景裡的固定節點，_spawn_arena() 掛完場地後一次性收集，
+## 不是動態生成/銷毀的陣列（跟 projectiles 不同，不需要整批砍掉重建）。
+var hazards: Array[VsHazard] = []
+
 # ── 初始化 ────────────────────────────────────────────────────────────────────
 func _ready() -> void:
 	if not VsGameManager.selection_confirmed:
@@ -165,6 +170,14 @@ func _spawn_arena() -> void:
 	camera.limit_left   = arena.camera_limit_left
 	camera.limit_right  = arena.camera_limit_right
 	camera.limit_bottom = arena.camera_limit_bottom
+	camera.min_zoom = arena.zoom_min
+	camera.max_zoom = arena.zoom_max
+	camera.margin   = arena.zoom_margin
+	hazards.clear()
+	for child in arena.find_children("*", "VsHazard", true, false):
+		hazards.append(child as VsHazard)
+	if arena.arena_bgm:
+		AudioManager.play_bgm(arena.arena_bgm, arena.bgm_volume)
 
 func _spawn_players() -> void:
 	var p1_scene := VsCharacterRegistry.get_scene(VsGameManager.p1_character)
@@ -291,6 +304,7 @@ func _save_snapshot(frame: int, inp1: InputState, inp2: InputState) -> void:
 			var d := p.save_state()
 			d["owner"] = p.owner_player.player_id
 			return d),
+		"hazards": hazards.map(func(h: VsHazard) -> Dictionary: return h.save_state()),
 		"inp1": inp1,
 		"inp2": inp2,
 	}
@@ -306,6 +320,7 @@ func _restore_snapshot(frame: int) -> void:
 	p2.restore_state(s["p2"])
 	round_manager.restore_state(s["rm"])
 	_restore_projectiles(s.get("proj", []))
+	_restore_hazards(s.get("hazards", []))
 
 ## 重建彈道清單以精確符合快照：直接砍掉現有節點重新生成，比逐一比對增刪
 ## 簡單可靠——彈道數量少（同時最多幾顆），沒有效能顧慮。
@@ -317,6 +332,13 @@ func _restore_projectiles(data: Array) -> void:
 		var owner: VsPlayer = p1 if d["owner"] == 1 else p2
 		var proj := _instantiate_projectile(owner)
 		proj.restore_state(d)
+
+## 機關是場地固定節點（不像彈道會動態生成/銷毀），按索引還原即可——順序在
+## _spawn_arena() 收集後就固定不變，不需要跟彈道一樣整批砍掉重建。
+func _restore_hazards(data: Array) -> void:
+	for i in hazards.size():
+		if i < data.size():
+			hazards[i].restore_state(data[i])
 
 # ── 單幀模擬 ──────────────────────────────────────────────────────────────────
 func _simulate_frame(delta: float, inp1: InputState, inp2: InputState) -> void:
@@ -339,6 +361,7 @@ func _simulate_frame(delta: float, inp1: InputState, inp2: InputState) -> void:
 	# 打擊偵測統一在此執行（正常幀與 rollback 幀走同一路徑，保證兩端時機一致）
 	_check_manual_hits(delta)
 	_update_projectiles(delta)
+	_check_arena_hazards(delta)
 
 # ── 回合事件 ──────────────────────────────────────────────────────────────────
 func _on_round_ended(winner_id: int) -> void:
@@ -354,6 +377,12 @@ func _on_round_started(round_num: int) -> void:
 	for proj: VsProjectile in projectiles:
 		proj.free()
 	projectiles.clear()
+	# 補包/buff包每回合重新可用——跟上面彈道清理同一類「回合重置=全新開始」
+	# 語意，必須在 is_resimulating 擋掉之前執行（是模擬狀態的一部分，resim 也
+	# 要照跑）。hazard_buff_mult（VsPlayer 那邊的每回合 buff 效果）在
+	# VsRoundManager._reset_round() 清空，不是這裡。
+	for hz: VsHazard in hazards:
+		hz.reset_for_round()
 	if is_resimulating: return
 	if _ar_overlay:
 		_ar_overlay.queue_free()
@@ -529,6 +558,69 @@ func _sim_rect_projectile(hb: VsHitbox, proj: VsProjectile) -> Rect2:
 	)
 	return Rect2(world_pos - size * 0.5, size)
 
+# ── 場地機關判定（VsHazard，見 VsMods/arenas/VsHazard.gd）──────────────────────
+## 跟 _check_manual_hits/_update_projectiles 同一個呼叫層級（_simulate_frame
+## 內，正常幀與 rollback 重模擬幀走同一路徑）。邊緣觸發：只有「上一幀沒重疊、
+## 這一幀重疊」那一刻才觸發效果，避免站在區域裡每幀重複觸發（陷阱/彈簧尤其
+## 明顯，一次接觸只該算一次）。
+func _check_arena_hazards(_delta: float) -> void:
+	for hz: VsHazard in hazards:
+		_check_hazard_for_player(hz, p1)
+		_check_hazard_for_player(hz, p2)
+
+func _check_hazard_for_player(hz: VsHazard, player: VsPlayer) -> void:
+	var overlapping := _sim_rect_hazard(hz).intersects(_sim_rect(player.hurtbox, player))
+	var was := hz.get_overlapping(player.player_id)
+	hz.set_overlapping(player.player_id, overlapping)
+	if overlapping and not was:
+		_trigger_hazard(hz, player)
+
+## 比照 _sim_rect/_sim_rect_projectile，讀子節點 CollisionShape2D 的
+## RectangleShape2D 實際尺寸（可視化調整用，見 VsHazard.gd 說明）。機關本身
+## 沒有 facing_dir 概念（跟彈道一樣，不是某個 VsPlayer 的相對位移），直接用
+## 節點自己的 position 當世界座標中心（vs_world 直屬場地子樹下的 position
+## 才等同世界座標，見 CLAUDE.md 確定性規則）。
+func _sim_rect_hazard(hz: VsHazard) -> Rect2:
+	var cs := hz.get_child(0) as CollisionShape2D
+	if not cs or not (cs.shape is RectangleShape2D):
+		return Rect2()
+	var size: Vector2 = (cs.shape as RectangleShape2D).size
+	var world_pos := hz.position + cs.position
+	return Rect2(world_pos - size * 0.5, size)
+
+func _trigger_hazard(hz: VsHazard, player: VsPlayer) -> void:
+	match hz.hazard_type:
+		VsHazard.HazardType.CLIFF:
+			player.vfx_shake(hz.cliff_shake_intensity, hz.cliff_shake_duration)
+			player.kill_instantly()
+		VsHazard.HazardType.TELEPORT_POOL:
+			if not hz.teleport_target_path.is_empty():
+				var target := hz.get_node_or_null(hz.teleport_target_path) as Node2D
+				if target:
+					player.position = target.position
+			player.velocity = Vector2.ZERO
+			if hz.teleport_launches:
+				# 走一般命中管線才能真的進 VsLaunched 弧線飛行——causes_knockdown=true
+				# + knockback.y<0 才會觸發，見 VsPlayer._apply_pending_hit() 的分流。
+				player.take_hazard_damage(hz.teleport_damage, hz.teleport_knockback, true, 0.0, true)
+			else:
+				# 下落樣式：單純扣血+重新定位，不進 pending_hit 管線，不強制任何
+				# 狀態——玩家在新位置直接開始正常重力墜落，落地就站穩，沒有硬直。
+				player.take_damage(hz.teleport_damage)
+		VsHazard.HazardType.TRAP:
+			player.take_hazard_damage(hz.trap_damage, hz.trap_knockback, hz.trap_causes_knockdown, hz.trap_hitstun, false)
+		VsHazard.HazardType.SPRING:
+			if not player.is_invincible():
+				player.apply_spring(hz.spring_force)
+		VsHazard.HazardType.HEAL_PICKUP:
+			if not hz.consumed:
+				player.heal(hz.heal_percent * player.max_hp)
+				hz.consumed = true
+		VsHazard.HazardType.BUFF_PICKUP:
+			if not hz.consumed:
+				player.apply_random_buff(VsNetworkManager.get_game_frame())
+				hz.consumed = true
+
 ## desync log 用：列出玩家所有判定框的 monitoring/has_hit（開著的才列，全關顯示 "-"）
 func _hb_summary(p: VsPlayer) -> String:
 	var parts: Array[String] = []
@@ -655,6 +747,7 @@ func _leave_to_lobby(msg: String, instant: bool = false) -> void:
 		return
 	_leaving = true
 	_vs_paused = false   # 確保不卡在暫停狀態
+	AudioManager.stop_bgm(1.0)
 	if instant:
 		VsGameManager.selection_confirmed = false
 		get_tree().change_scene_to_file("res://VsMods/ui/LobbyScreen.tscn")
@@ -673,6 +766,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not _vs_paused and round_manager and not round_manager.is_fighting() and \
 			round_manager.is_game_over() and _accept_return_input and event.is_pressed():
 		VsGameManager.selection_confirmed = false
+		AudioManager.stop_bgm(1.0)
 		get_tree().change_scene_to_file("res://VsMods/ui/SelectScreen.tscn")
 
 # ── VsMods 暫停選單 ───────────────────────────────────────────────────────────

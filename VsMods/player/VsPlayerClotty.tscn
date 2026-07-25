@@ -65,9 +65,8 @@ size = Vector2(125, 75)
 max_hp = 8000.0
 max_arts_energy = 100.0
 arts_regen_rate = 15.0
-gravity = 750.0
-move_speed = 250.0
-air_speed = 230.0
+move_speed = 200.0
+air_speed = 150.0
 dodge_speed = 500.0
 vfx_common = {
 "Aggregation ring": ExtResource("5_ring"),

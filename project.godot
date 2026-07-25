@@ -274,6 +274,7 @@ use_item_3={
 2d_physics/layer_10="VsHurtbox"
 2d_physics/layer_11="VsHitbox"
 2d_physics/layer_12="VsPlayerCollider"
+2d_physics/layer_13="VsPlatform"
 
 [rendering]
 

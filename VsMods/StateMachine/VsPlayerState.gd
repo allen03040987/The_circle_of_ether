@@ -14,7 +14,7 @@ func _apply_gravity(delta: float) -> void:
 func _apply_ground_move(_delta: float, input: InputState) -> void:
 	if input.move_dir != 0.0:
 		var vs := player as VsPlayer
-		player.velocity.x = input.move_dir * vs.move_speed
+		player.velocity.x = input.move_dir * vs.effective_move_speed()
 		vs.facing_dir = int(sign(input.move_dir))
 	else:
 		player.velocity.x = 0.0   # 放開方向鍵直接停下，不滑行
@@ -22,7 +22,7 @@ func _apply_ground_move(_delta: float, input: InputState) -> void:
 func _apply_air_move(input: InputState) -> void:
 	if input.move_dir != 0.0:
 		var vs := player as VsPlayer
-		player.velocity.x = input.move_dir * vs.air_speed
+		player.velocity.x = input.move_dir * vs.effective_air_speed()
 		vs.facing_dir = int(sign(input.move_dir))
 
 ## 恢復狀態（衝刺/硬直/起身/防禦…）結束時的共用收尾：地面且有方向輸入 → 直接
@@ -68,3 +68,14 @@ func _check_art_cast(input: InputState) -> StringName:
 
 	vs.vfx_arts_cast(slot)
 	return StringName("vsart%d" % slot)
+
+## 平台下拉共用檢查：按住下＋剛按跳躍、且在地面上，就消費這次輸入設定短暫
+## 的平台穿透時間，不觸發一般跳躍。回傳 true 代表輸入已被這裡消費，呼叫端
+## （VsIdle/VsRun）直接維持原狀態（回傳空字串），不要再往下判斷 input.jump。
+## 不檢查「腳下真的是平台」——不在平台上時這只是讓 collision_mask 短暫少一個
+## 用不到的位元，沒有副作用，省掉一次額外判斷。
+func _check_platform_drop(input: InputState) -> bool:
+	if input.is_crouch and input.jump and _grounded():
+		(player as VsPlayer).platform_pass_through_left = VsPlayer.PLATFORM_PASS_THROUGH_DURATION
+		return true
+	return false
