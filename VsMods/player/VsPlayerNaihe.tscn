@@ -1,0 +1,332 @@
+[gd_scene load_steps=31 format=3 uid="uid://dnwj4p7yqk2ha"]
+
+[ext_resource type="PackedScene" uid="uid://431fpia1g7sg" path="res://VsMods/player/VsPlayerBase.tscn" id="1_mcd3v"]
+[ext_resource type="Texture2D" uid="uid://cg3cbbecunwqo" path="res://player/state/IDLE.png" id="2_tx_idle"]
+[ext_resource type="AnimationLibrary" uid="uid://bqk8x3n7t2wjm" path="res://VsMods/player/anim/NaiheAnimLib.tres" id="3_animlib"]
+[ext_resource type="Script" path="res://VsMods/combat/VsHitbox.gd" id="4_hitbox"]
+[ext_resource type="PackedScene" uid="uid://djfuu6roflvrt" path="res://Explod/tscn/Aggregation ring.tscn" id="5_ring"]
+[ext_resource type="PackedScene" uid="uid://bnxo3v1t67xfj" path="res://Explod/tscn/Circular cut.tscn" id="6_ccut"]
+[ext_resource type="PackedScene" uid="uid://cbinpiayt3qmf" path="res://Explod/tscn/Circular shock wave.tscn" id="7_cshock"]
+[ext_resource type="PackedScene" uid="uid://dwwkd0oojlm8i" path="res://Explod/tscn/Cross slash sparks.tscn" id="8_cross"]
+[ext_resource type="PackedScene" uid="uid://8r8bfgadubf8" path="res://Explod/tscn/Dimensional Slash.tscn" id="9_dimslash"]
+[ext_resource type="PackedScene" uid="uid://djhor5kcgk1ey" path="res://Explod/tscn/Spiral Thrust.tscn" id="10_spiral"]
+[ext_resource type="PackedScene" uid="uid://7068kp6xhch1" path="res://Explod/tscn/Thrust.tscn" id="11_thrust"]
+[ext_resource type="PackedScene" uid="uid://naakd1ojnf0i" path="res://Explod/tscn/sparks/blunt_spark.tscn" id="12_blunt"]
+[ext_resource type="PackedScene" uid="uid://duygsx8odg8iu" path="res://Explod/tscn/chop.tscn" id="13_chop"]
+[ext_resource type="PackedScene" uid="uid://c1s06onyotqf3" path="res://Explod/tscn/cut.tscn" id="14_cut"]
+[ext_resource type="PackedScene" uid="uid://ejwp3sdtv1s3" path="res://Explod/tscn/whirlwind.tscn" id="15_whirl"]
+
+[sub_resource type="RectangleShape2D" id="Shape_hurtbox"]
+size = Vector2(14, 63)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbA1"]
+size = Vector2(74.5, 66.5)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbA2"]
+size = Vector2(106, 35)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbA3"]
+size = Vector2(79, 61)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbA4"]
+size = Vector2(134, 61)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbA5"]
+size = Vector2(259.5, 25)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbAir1"]
+size = Vector2(117.5, 104)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbAir2"]
+size = Vector2(156, 130)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbAir3"]
+size = Vector2(160, 124.5)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbSkill"]
+size = Vector2(80, 60)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbArt2"]
+size = Vector2(157, 129)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbArt2Air"]
+size = Vector2(157, 128)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbArt3"]
+size = Vector2(242.5, 89.5)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbArt4"]
+size = Vector2(185, 80.5)
+
+[sub_resource type="RectangleShape2D" id="Shape_hbArt6"]
+size = Vector2(125, 75)
+
+[node name="VsPlayer" instance=ExtResource("1_mcd3v")]
+max_hp = 8000.0
+max_arts_energy = 100.0
+arts_regen_rate = 15.0
+air_speed = 150.0
+dodge_speed = 500.0
+vfx_common = {
+"Aggregation ring": ExtResource("5_ring"),
+"Circular cut": ExtResource("6_ccut"),
+"Circular shock wave": ExtResource("7_cshock"),
+"Cross slash sparks": ExtResource("8_cross"),
+"Dimensional Slash": ExtResource("9_dimslash"),
+"Spiral Thrust": ExtResource("10_spiral"),
+"Thrust": ExtResource("11_thrust"),
+"blunt_spark": ExtResource("12_blunt"),
+"chop": ExtResource("13_chop"),
+"cut": ExtResource("14_cut"),
+"whirlwind": ExtResource("15_whirl")
+}
+default_spark_scale = 0.35
+default_spark_color = Color(1.4, 3, 1, 1)
+default_aura_color = Color(0, 1, 1, 1)
+default_spark_random_angle = 180.0
+
+[node name="Sprite2D" parent="Graphics" index="0"]
+position = Vector2(0, -32)
+texture = ExtResource("2_tx_idle")
+hframes = 3
+vframes = 3
+region_enabled = true
+region_rect = Rect2(0, 0, 192, 192)
+
+[node name="CollisionShape2D" parent="Graphics/VsHurtbox" index="0"]
+position = Vector2(0, -31.5)
+shape = SubResource("Shape_hurtbox")
+
+[node name="HitboxA1" parent="Graphics" index="2"]
+position = Vector2(30, -20)
+hitstun_time = 0.5
+knockback = Vector2(200, 0)
+hit_sfx_type = "hit_3"
+shake_intensity = 2.0
+
+[node name="CollisionShape2D" parent="Graphics/HitboxA1" index="0"]
+visible = false
+position = Vector2(0.25, -14)
+shape = SubResource("Shape_hbA1")
+
+[node name="HitboxA2" parent="Graphics" index="3"]
+position = Vector2(30, -20)
+hitstun_time = 0.5
+knockback = Vector2(300, 0)
+hit_sfx_type = "hit"
+shake_intensity = 2.0
+
+[node name="CollisionShape2D" parent="Graphics/HitboxA2" index="0"]
+visible = false
+position = Vector2(-2, -7.5)
+shape = SubResource("Shape_hbA2")
+
+[node name="HitboxA3" parent="Graphics" index="4"]
+position = Vector2(30, -20)
+damage = 80.0
+hitstun_time = 0.5
+knockback = Vector2(200, 0)
+hit_sfx_type = "hit"
+shake_intensity = 2.0
+
+[node name="CollisionShape2D" parent="Graphics/HitboxA3" index="0"]
+visible = false
+position = Vector2(1.5, -11.5)
+shape = SubResource("Shape_hbA3")
+
+[node name="HitboxA4" parent="Graphics" index="5"]
+position = Vector2(30, -20)
+damage = 80.0
+hitstun_time = 0.6
+knockback = Vector2(200, 0)
+hit_sfx_type = "hit"
+shake_intensity = 2.0
+
+[node name="CollisionShape2D" parent="Graphics/HitboxA4" index="0"]
+visible = false
+position = Vector2(19, -11.5)
+shape = SubResource("Shape_hbA4")
+
+[node name="HitboxA5" parent="Graphics" index="6"]
+position = Vector2(34, -20)
+damage = 140.0
+hitstun_time = 0.0
+knockback = Vector2(400, -400)
+causes_knockdown = true
+sticky = true
+hit_sfx_type = "hit_5"
+shake_intensity = 10.0
+use_character_default_spark = false
+spark_type = 3
+spark_scale = 0.45
+spark_color = Color(4, 3, 1, 1)
+aura_color = Color(0, 1, 1, 1)
+spark_random_angle = 90.0
+
+[node name="CollisionShape2D" parent="Graphics/HitboxA5" index="0"]
+visible = false
+position = Vector2(-13.25, -19)
+shape = SubResource("Shape_hbA5")
+
+[node name="HitboxAir1" parent="Graphics" index="7"]
+position = Vector2(30, -30)
+damage = 80.0
+hitstun_time = 0.35
+knockback = Vector2(100, -200)
+causes_knockdown = true
+hit_sfx_type = "hit"
+shake_intensity = 3.0
+
+[node name="CollisionShape2D" parent="Graphics/HitboxAir1" index="0"]
+visible = false
+position = Vector2(13, 1)
+shape = SubResource("Shape_hbAir1")
+
+[node name="HitboxAir2" parent="Graphics" index="8"]
+position = Vector2(30, -30)
+damage = 80.0
+hitstun_time = 0.35
+knockback = Vector2(100, -200)
+causes_knockdown = true
+guard_damage = 3.0
+hit_sfx_type = "hit"
+
+[node name="CollisionShape2D" parent="Graphics/HitboxAir2" index="0"]
+visible = false
+position = Vector2(-29, -2)
+shape = SubResource("Shape_hbAir2")
+
+[node name="HitboxAir3" parent="Graphics" index="9"]
+position = Vector2(30, -30)
+knockback = Vector2(100, -200)
+causes_knockdown = true
+guard_damage = 10.0
+hit_sfx_type = "hit"
+
+[node name="CollisionShape2D" parent="Graphics/HitboxAir3" index="0"]
+visible = false
+position = Vector2(-27, -2.75)
+shape = SubResource("Shape_hbAir3")
+
+[node name="HitboxSkill" parent="Graphics" index="10"]
+position = Vector2(30, -25)
+damage = 120.0
+hitstun_time = 0.45
+knockback = Vector2(250, -60)
+break_level = 2
+hit_sfx_type = "hit"
+
+[node name="CollisionShape2D" parent="Graphics/HitboxSkill" index="0"]
+visible = false
+shape = SubResource("Shape_hbSkill")
+
+[node name="HitboxArt2" type="Area2D" parent="Graphics" index="11"]
+position = Vector2(30, -25)
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("4_hitbox")
+damage = 120.0
+hitstun_time = 0.0
+knockback = Vector2(200, -400)
+causes_knockdown = true
+combo_hits = 5
+combo_interval = 0.1
+sticky = true
+hit_sfx_type = "hit"
+shake_intensity = 10.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxArt2" index="0"]
+visible = false
+position = Vector2(-29, -4)
+shape = SubResource("Shape_hbArt2")
+
+[node name="HitboxArt2Air" type="Area2D" parent="Graphics" index="12"]
+position = Vector2(0, -20)
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("4_hitbox")
+damage = 120.0
+hitstun_time = 0.0
+knockback = Vector2(250, 0)
+combo_hits = 5
+combo_interval = 0.1
+sticky = true
+hit_sfx_type = "hit"
+shake_intensity = 2.5
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxArt2Air" index="0"]
+visible = false
+position = Vector2(1.5, -9)
+shape = SubResource("Shape_hbArt2Air")
+
+[node name="HitboxArt3" type="Area2D" parent="Graphics" index="13"]
+position = Vector2(30, -25)
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("4_hitbox")
+damage = 400.0
+hitstun_time = 1.5
+knockback = Vector2(400, 0)
+break_level = 2
+combo_hits = 3
+combo_interval = 0.1
+hit_sfx_type = "hit"
+shake_intensity = 20.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxArt3" index="0"]
+visible = false
+position = Vector2(83.75, -12.25)
+shape = SubResource("Shape_hbArt3")
+
+[node name="HitboxArt4" type="Area2D" parent="Graphics" index="14"]
+position = Vector2(30, -25)
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("4_hitbox")
+hitstun_time = 0.0
+knockback = Vector2(200, -200)
+causes_knockdown = true
+combo_hits = 8
+combo_interval = 0.05
+sticky = true
+hit_sfx_type = "hit"
+shake_intensity = 5.0
+use_character_default_spark = false
+spark_scale = 0.5
+spark_color = Color(1.3, 3, 1, 1)
+aura_color = Color(0, 1, 1, 1)
+spark_random_angle = 360.0
+spark_random_offset = Vector2(25, 25)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxArt4" index="0"]
+visible = false
+position = Vector2(10, 2)
+shape = SubResource("Shape_hbArt4")
+
+[node name="HitboxArt6" type="Area2D" parent="Graphics" index="15"]
+position = Vector2(30, -25)
+collision_layer = 1024
+collision_mask = 512
+monitoring = false
+script = ExtResource("4_hitbox")
+damage = 200.0
+hitstun_time = 1.0
+knockback = Vector2(400, 0)
+combo_hits = 3
+combo_interval = 0.1
+sticky = true
+hit_sfx_type = "hit"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxArt6" index="0"]
+visible = false
+position = Vector2(-22.5, -7.5)
+shape = SubResource("Shape_hbArt6")
+
+[node name="AnimationPlayer" parent="." index="3"]
+libraries = {
+"": ExtResource("3_animlib")
+}

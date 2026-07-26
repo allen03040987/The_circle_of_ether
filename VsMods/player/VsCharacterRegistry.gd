@@ -14,6 +14,20 @@ const CHARACTERS: Dictionary = {
 			"Art_Clotty_4", "Art_Clotty_5", "Art_Clotty_6",
 		],
 	},
+	"Naihe": {
+		# 佔位測試角色——場景是 VsPlayerClotty.tscn 的原樣複製（VsPlayerNaihe.tscn，
+		# 只換了 uid），純粹為了驗證選角畫面能不能正確處理「兩個角色」，還不是
+		# 真正的第二角色。武藝也直接沿用 Clotty 的六招（duplicate 出來的場景節點
+		# 結構跟動畫庫完全相同，Art_Clotty_* 腳本能原樣運作）。使用者之後會把
+		# 主遊戲 Boss 奈何橋的素材移植進來取代這裡的內容（無法直接搬，細節待定），
+		# 屆時只需要換這裡的 scene_path/arts/display_name，不用改選角邏輯本身。
+		"display_name": "奈何",
+		"scene_path": "res://VsMods/player/VsPlayerNaihe.tscn",
+		"arts": [
+			"Art_Clotty_1", "Art_Clotty_2", "Art_Clotty_3",
+			"Art_Clotty_4", "Art_Clotty_5", "Art_Clotty_6",
+		],
+	},
 }
 
 const DEFAULT_CHARACTER := "Clotty"
