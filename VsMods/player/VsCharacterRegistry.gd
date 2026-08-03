@@ -33,8 +33,35 @@ const CHARACTERS: Dictionary = {
 		# 一起改壞，Naihe 當初踩過這個坑，見 CLAUDE.md「VsMods 選角色系統」）。
 		# 武藝暫時沿用 Clotty 的六招，等使用者說明真正的招式來源後再替換，
 		# 屆時只需要換這裡的 arts/display_name，跟 Naihe 走過的路一樣。
+		# skill_script：她第一個真正屬於自己的機制（血影召喚／附身），見
+		# VsSkill_Asatsubaki.gd／CLAUDE.md「VsMods Asatsubaki 血影機制」。
 		"display_name": "Asatsubaki",
 		"scene_path": "res://VsMods/player/VsPlayerAsatsubaki.tscn",
+		"arts": [
+			"Art_Clotty_1", "Art_Clotty_2", "Art_Clotty_3",
+			"Art_Clotty_4", "Art_Clotty_5", "Art_Clotty_6",
+		],
+		"skill_script": "res://VsMods/player/states/VsSkill_Asatsubaki.gd",
+	},
+	"Mech": {
+		# 佔位角色（2026-08-03）——場景 VsPlayerMech.tscn 是 VsPlayerClotty.tscn
+		# 的原樣複製（含獨立的 MechAnimLib.tres，不跟 Clotty 共用同一份
+		# AnimationLibrary 檔案，理由同 Naihe/Asatsubaki，見 CLAUDE.md
+		# 「VsMods 選角色系統」）。武藝/美術/招式來源都還沒定案，使用者明確
+		# 表示先不用管，沿用 Clotty 的六招當佔位，等後續說明後再替換
+		# display_name/arts/scene_path 裡的貼圖，跟 Naihe/Asatsubaki 走過的路一樣。
+		"display_name": "Mech",
+		"scene_path": "res://VsMods/player/VsPlayerMech.tscn",
+		"arts": [
+			"Art_Clotty_1", "Art_Clotty_2", "Art_Clotty_3",
+			"Art_Clotty_4", "Art_Clotty_5", "Art_Clotty_6",
+		],
+	},
+	"Ripple": {
+		# 佔位角色（2026-08-03）——場景 VsPlayerRipple.tscn 是 VsPlayerClotty.tscn
+		# 的原樣複製（含獨立的 RippleAnimLib.tres），同上一個條目的理由。
+		"display_name": "Ripple",
+		"scene_path": "res://VsMods/player/VsPlayerRipple.tscn",
 		"arts": [
 			"Art_Clotty_1", "Art_Clotty_2", "Art_Clotty_3",
 			"Art_Clotty_4", "Art_Clotty_5", "Art_Clotty_6",
@@ -53,6 +80,12 @@ static func get_arts(character_id: String) -> Array:
 
 static func get_display_name(character_id: String) -> String:
 	return CHARACTERS.get(character_id, {}).get("display_name", character_id)
+
+## 空字串＝沿用 VsPlayerBase.tscn 內建的靜態 VsSkill 節點（絕大多數角色）；
+## 有值則是這個角色專屬的技能腳本路徑，VsPlayer._load_skill() 會動態換掉靜態
+## 節點，見該函式與 CLAUDE.md「VsMods Asatsubaki 血影機制」。
+static func get_skill_script(character_id: String) -> String:
+	return CHARACTERS.get(character_id, {}).get("skill_script", "")
 
 static func all_ids() -> Array:
 	return CHARACTERS.keys()

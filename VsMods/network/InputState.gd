@@ -12,6 +12,10 @@ var art_2: bool = false     # 武藝 2
 var art_3: bool = false     # 武藝 3
 var dodge: bool = false     # 閃避
 var guard: bool = false     # 防禦（長按）
+
+# 血影附身系統專用（Asatsubaki，VsSkill_Asatsubaki.gd）——跟 skill 是同一顆
+# 按鍵，是「持續按住」版本，跟原本 edge-triggered 的 skill 並存不衝突。
+var skill_held: bool = false   # 技能鍵持續按住——長按 1 秒銷毀血影靠這個逐幀累加
 ## 非戰鬥選單確認（例如回合間重選武藝的「確認」鍵）。刻意跟其他戰鬥動作走
 ## 同一份 InputState/rollback 管線，不是另開一條 WS 側路——「雙方都確認了才
 ## 進下一回合」這件事需要兩端在同一個模擬幀達成一致，如果直接用 WS 訊息到達
@@ -29,6 +33,7 @@ func to_bytes() -> PackedByteArray:
 	if move_dir > 0.1:  m |= 2
 	if is_crouch:       m |= 4
 	if confirm:         m |= 8
+	if skill_held:      m |= 16
 	buf[0] = m
 	var a: int = 0
 	if jump:   a |= 1 << 0
@@ -52,6 +57,7 @@ static func from_bytes(buf: PackedByteArray) -> InputState:
 	elif m & 2: s.move_dir =  1.0
 	s.is_crouch = bool(m & 4)
 	s.confirm   = bool(m & 8)
+	s.skill_held = bool(m & 16)
 	s.jump   = bool(a & (1 << 0))
 	s.attack = bool(a & (1 << 1))
 	s.skill  = bool(a & (1 << 2))
@@ -85,6 +91,7 @@ static func from_input(player_id: int) -> InputState:
 		s.guard  = Input.is_action_pressed(p + "small_dash")      and not martial
 		s.attack = Input.is_action_just_pressed(p + "attack") and not martial
 		s.skill  = Input.is_action_just_pressed(p + "skill")  and not martial
+		s.skill_held = Input.is_action_pressed(p + "skill")   and not martial
 		s.art_1  = Input.is_action_just_pressed("art_1") and martial
 		s.art_2  = Input.is_action_just_pressed("art_2") and martial
 		s.art_3  = Input.is_action_just_pressed("art_3") and martial
@@ -93,6 +100,7 @@ static func from_input(player_id: int) -> InputState:
 		s.guard  = Input.is_action_pressed(p + "small_dash")
 		s.attack = Input.is_action_just_pressed(p + "attack")
 		s.skill  = Input.is_action_just_pressed(p + "skill")
+		s.skill_held = Input.is_action_pressed(p + "skill")
 		s.art_1  = Input.is_action_just_pressed(p + "special")
 		s.art_2  = Input.is_action_just_pressed(p + "ultimate")
 		s.art_3  = Input.is_action_just_pressed(p + "custom")

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://duvp5q4h5w1fr"
-path="res://.godot/imported/run.png-d894e75707c9e3d270aec1ae815e3313.ctex"
+uid="uid://gpcbknrmobg1"
+path="res://.godot/imported/run.png-2e2a63d4e1a83a252cc8e05c01cf0a8d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://VsMods/player/Asatsubaki/run.png"
-dest_files=["res://.godot/imported/run.png-d894e75707c9e3d270aec1ae815e3313.ctex"]
+source_file="res://VsMods/player/Role/Ripple/run.png"
+dest_files=["res://.godot/imported/run.png-2e2a63d4e1a83a252cc8e05c01cf0a8d.ctex"]
 
 [params]
 

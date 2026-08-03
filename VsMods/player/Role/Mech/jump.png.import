@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cfogkragjqe8t"
-path="res://.godot/imported/did.png-500ae53b8a55b790c545eb2571a128b5.ctex"
+uid="uid://ciu15u65slwsu"
+path="res://.godot/imported/jump.png-a066615516a10c8bb15f2349c6ede2f6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://VsMods/player/Asatsubaki/did.png"
-dest_files=["res://.godot/imported/did.png-500ae53b8a55b790c545eb2571a128b5.ctex"]
+source_file="res://VsMods/player/Role/Mech/jump.png"
+dest_files=["res://.godot/imported/jump.png-a066615516a10c8bb15f2349c6ede2f6.ctex"]
 
 [params]
 

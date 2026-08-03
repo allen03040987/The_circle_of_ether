@@ -4,6 +4,15 @@ extends Camera2D
 var target_p1: Node2D
 var target_p2: Node2D
 
+## 附身血影時（Asatsubaki）額外要一起入鏡的點——target_p1/p2 這時已經換成
+## 血影本身，角色本體停在原地不再被 target_p1/p2 代表，若不額外補上就會被
+## 鏡頭排除在外。沒有附身時維持 null，取景數學退化成跟原本完全一樣（見
+## _physics_process() 的邊界框計算，2 點時 bounding box 中點/跨距等價於
+## 原本的兩點連線中點/差值，不影響既有調好的鏡頭手感）。純視覺、不進快照，
+## 由 vs_world._process() 每幀設定。
+var target_p1_extra: Node2D = null
+var target_p2_extra: Node2D = null
+
 var shake_intensity: float = 0.0
 var shake_timer: float = 0.0
 
@@ -55,7 +64,24 @@ func _physics_process(delta: float) -> void:
 		# ==========================================
 		else:
 			# --- A. 雙軸分離追蹤 (極致平滑化) ---
-			var midpoint = (target_p1.global_position + target_p2.global_position) / 2.0
+			# 收集這一幀所有「必須入鏡」的點，用邊界框取中點/跨距，取代原本
+			# 寫死兩點的版本——正常情況只有 target_p1/target_p2 兩點，數學上
+			# min+max == 兩點相加，跟原本的兩點平均/差值完全等價；血影附身
+			# 時 extra 補上本體位置，鏡頭才會把本體也包進取景範圍，不會因為
+			# target_p1/p2 換成血影就把本體排除在外。
+			var points: Array[Vector2] = [target_p1.global_position, target_p2.global_position]
+			if target_p1_extra != null: points.append(target_p1_extra.global_position)
+			if target_p2_extra != null: points.append(target_p2_extra.global_position)
+
+			var min_pt := points[0]
+			var max_pt := points[0]
+			for pt in points:
+				min_pt.x = minf(min_pt.x, pt.x)
+				min_pt.y = minf(min_pt.y, pt.y)
+				max_pt.x = maxf(max_pt.x, pt.x)
+				max_pt.y = maxf(max_pt.y, pt.y)
+
+			var midpoint = (min_pt + max_pt) / 2.0
 			var target_pos = Vector2(midpoint.x, midpoint.y - 50.0)
 
 			# 🌟 使用較為柔和的 lerp 速度
@@ -63,8 +89,8 @@ func _physics_process(delta: float) -> void:
 			global_position.y = lerp(global_position.y, target_pos.y, follow_speed_y * delta)
 
 			# --- B. 2D 邊界智慧縮放 ---
-			var dist_x = abs(target_p1.global_position.x - target_p2.global_position.x)
-			var dist_y = abs(target_p1.global_position.y - target_p2.global_position.y)
+			var dist_x = max_pt.x - min_pt.x
+			var dist_y = max_pt.y - min_pt.y
 
 			var screen_size = get_viewport_rect().size
 

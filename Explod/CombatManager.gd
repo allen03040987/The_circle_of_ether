@@ -185,8 +185,12 @@ func spawn_dodge_spark(pos: Vector2) -> void:
 		spark.scale = Vector2(.2, .2)
 		_apply_anti_timestop(spark)
 
-## 生成通用殘影特效：複製來源 Sprite2D 的外觀，在指定位置/縮放/顏色淡出消失（玩家與敵人共用）
-func spawn_ghost(source_sprite: Sprite2D, spawn_position: Vector2, ghost_scale: Vector2, color: Color) -> void:
+## 生成通用殘影特效：複製來源 Sprite2D 的外觀，在指定位置/縮放/顏色淡出消失（玩家與敵人共用）。
+## z_index_offset/rise_distance 是選填的（預設 0——不改變既有呼叫端，例如 VsDodge 衝刺殘影
+## 的外觀跟行為完全不受影響）：z_index_offset 用來把殘影壓到來源圖層之後（VsMods 血影的紅色
+## 殘影要求疊在血影本體「後面」，見 VsBloodShadow._vfx_ghost()）；rise_distance 讓殘影淡出的
+## 同時往上飄一段距離，取代原本「原地淡出」的靜態消失。
+func spawn_ghost(source_sprite: Sprite2D, spawn_position: Vector2, ghost_scale: Vector2, color: Color, z_index_offset: int = 0, rise_distance: float = 0.0) -> void:
 	if not is_instance_valid(source_sprite) or not source_sprite.texture: return
 
 	var ghost := Sprite2D.new()
@@ -198,10 +202,18 @@ func spawn_ghost(source_sprite: Sprite2D, spawn_position: Vector2, ghost_scale: 
 	ghost.global_position = spawn_position
 	ghost.scale = ghost_scale
 	ghost.modulate = color
+	if z_index_offset != 0:
+		ghost.z_index = z_index_offset
 
 	get_tree().current_scene.add_child(ghost)
 	var tween := create_tween()
-	tween.tween_property(ghost, "modulate:a", 0.0, 0.3).set_trans(Tween.TRANS_SINE)
+	if rise_distance != 0.0:
+		# 有指定飄移距離才走這條路——跟原本「原地淡出」的分支完全分開，既有呼叫端
+		# （VsDodge 衝刺殘影等，rise_distance 預設 0）走下面的 else，行為/視覺零改動。
+		tween.tween_property(ghost, "position:y", ghost.position.y - rise_distance, 0.3).set_trans(Tween.TRANS_SINE)
+		tween.parallel().tween_property(ghost, "modulate:a", 0.0, 0.3).set_trans(Tween.TRANS_SINE)
+	else:
+		tween.tween_property(ghost, "modulate:a", 0.0, 0.3).set_trans(Tween.TRANS_SINE)
 	tween.tween_callback(ghost.queue_free)
 
 # ==========================================

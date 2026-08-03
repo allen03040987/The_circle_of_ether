@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://VsMods/arenas/VsHazard.gd" id="1_hazard"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_hazard"]
-size = Vector2(144, 32)
+size = Vector2(1388, 42)
 
 [node name="VsHazard" type="Area2D"]
 collision_layer = 0

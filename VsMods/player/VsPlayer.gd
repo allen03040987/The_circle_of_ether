@@ -98,6 +98,33 @@ func get_art_in_slot(slot: int) -> VsMartialArt:
 		return null
 	return loaded_arts[slot - 1]
 
+## 角色 id（"Clotty"/"Naihe"/"Asatsubaki"...）——vs_world._spawn_players() 在
+## add_child() 之後注入（跟 art_slots 同一個時機模式，_ready() 當下還不知道）。
+## 目前唯一用途是 _load_skill() 查表決定要不要換掉靜態的 VsSkill 節點。
+var character_id: String = ""
+
+## 技能逐角色可覆寫——絕大多數角色（Clotty/Naihe）維持 VsPlayerBase.tscn 內建
+## 的靜態 VsSkill 節點不變，VsCharacterRegistry.get_skill_script() 回傳空字串
+## 就直接 return，零風險。有指定的角色（例如 Asatsubaki 的血影機制）才動態換掉
+## 靜態節點——跟 reload_arts() 的「同名節點命名陷阱」同一套處理：必須先
+## remove_child() 讓名字立刻釋放，同一幀才能 add_child() 一個同名新節點，
+## 否則 Godot 會自動改名（變成 "VsSkill@2"），register_state() 就會用錯的 key
+## 登記，之後 transition_to(&"vsskill") 完全找不到狀態。由
+## vs_world._spawn_players() 在 _load_arts() 之後呼叫。
+func _load_skill() -> void:
+	var script_path := VsCharacterRegistry.get_skill_script(character_id)
+	if script_path == "":
+		return
+	var old: VsState = state_machine.states.get(&"vsskill")
+	if old:
+		state_machine.remove_child(old)
+		old.queue_free()
+	var script := load(script_path) as Script
+	var node := script.new() as VsState
+	node.name = "VsSkill"
+	state_machine.add_child(node)
+	state_machine.register_state(node, self)
+
 # ── 數值 ─────────────────────────────────────────────────────────────────────
 var hp:          float
 var arts_energy: float
@@ -123,6 +150,18 @@ var queued_hitstun:        float      = 0.4   # VsHurt.enter() 讀取的硬直�
 var queued_knockdown:      bool       = false # 落地屬性（y=0）：VsHurt 硬直完進倒地
 var last_input:            InputState         # 當幀輸入備份（供 enter() 讀取方向）
 var last_hit_outcome:      HitOutcome = HitOutcome.NORMAL   # 見 HitOutcome 註解
+
+## 血影附身系統（Asatsubaki 專屬，VsSkill_Asatsubaki.gd 觸發）——見
+## CLAUDE.md「VsMods Asatsubaki 血影機制」。shadow 是目前存活的血影（vs_world
+## 直屬子節點，null＝場上沒有），is_possessing 為 true 時 apply_input() 開頭
+## 就短路（見上），角色本體凍結在 vsidle，操控權轉交血影；_skill_hold_time
+## 是長按技能鍵銷毀血影的逐幀累加計時器，只有 is_possessing 時才有意義。
+## _skill_armed：轉移操控權那次按壓的 held 狀態必須先放開過一次，才開始認
+## 新的按壓（短按返回/長按銷毀）——見 _apply_possession_input() 說明。
+var shadow:          VsBloodShadow = null
+var is_possessing:   bool  = false
+var _skill_hold_time: float = 0.0
+var _skill_armed:    bool  = false
 
 ## 敗北演出（VsRoundManager._tick_fighting() 偵測 hp<=0 時設定，_reset_round()
 ## 重置）。is_defeated 讓 VsKnockdown 知道二次落地該接 vsgetup（起身）還是
@@ -330,6 +369,15 @@ func apply_input(delta: float, input: InputState) -> void:
 		_armor_reset_anim = anim_player.current_animation
 		anim_armor_tier = ArmorTier.NONE
 	anim_player.advance(delta)
+	# 血影附身期間（Asatsubaki）：角色本體不跑狀態機/一般移動（凍結在 vsidle
+	# 的位置，見 VsSkill_Asatsubaki.gd），操控權轉交給血影，但動畫（待機呼吸
+	# 之類的循環）要照常播放——上面兩行 advance() 不受這個分支影響，角色本體
+	# 看起來會是「站著、有待機動畫」而不是憑空定格的靜態畫面。攝影機這時會
+	# 切去追蹤血影（見 VsPlayer.get_camera_target()／vs_world._process()），
+	# 避免血影飛出畫面外。
+	if is_possessing:
+		_apply_possession_input(delta, input)
+		return
 	state_machine.physics_update(delta, input)
 	_move_deterministic(delta)
 	graphics.scale.x = facing_dir
@@ -591,6 +639,12 @@ func _on_hurtbox_hurt(hitbox: VsHitbox) -> void:
 	var cur := state_machine.current_state
 	last_hit_outcome = HitOutcome.NORMAL   # 預設；下面各分支視情況覆寫
 
+	# 血影附身中，角色本體受到攻擊——強制收回操控權（不用等長按滿 1 秒）。
+	# 純粹是附帶觸發，不影響這下攻擊接下來該怎麼處理傷害/硬直，兩件事分開，
+	# 所以這裡只呼叫 _recall_shadow() 就繼續往下走，不 return。
+	if is_possessing:
+		_recall_shadow()
+
 	# 已經敗北（回合結束等待敗北動畫播完這段期間，殘留判定框仍可能命中）——
 	# 直接無視、不進入任何後續流程。刻意獨立於 get_armor_tier() 判斷之外：
 	# 若借用 ArmorTier.INVINCIBLE 達成「打不到」，會連帶觸發無敵體質描邊特效，
@@ -770,6 +824,72 @@ func apply_spring(force: float) -> void:
 func heal(amount: float) -> void:
 	hp = minf(hp + amount, max_hp)
 
+# ==========================================
+# 🌑 血影附身（Asatsubaki 專屬，見 CLAUDE.md「VsMods Asatsubaki 血影機制」）
+# ==========================================
+const SHADOW_SKILL_HOLD_RECALL: float = 1.0   # 長按技能鍵銷毀血影所需秒數
+
+## is_possessing 期間每幀由 apply_input() 呼叫，取代一般狀態機邏輯。角色本體
+## 完全不移動（凍結在 vsidle 的姿勢），操控的是 shadow 這個獨立節點——跟本體
+## 一樣吃重力＋可以跳躍（2026-08-03 從「無重力四方向自由飛行」改版，使用者
+## 明確要求改成一般平台動作手感），水平移動速度仍用血影自己的
+## VsBloodShadow.SHADOW_MOVE_SPEED（比本體快，先前使用者要求調快過），
+## 重力/跳躍力道則直接讀 owner_player（也就是 self）的 gravity/
+## effective_jump_force()，跟本體完全一致。
+func _apply_possession_input(delta: float, input: InputState) -> void:
+	if not is_instance_valid(shadow):
+		# 防呆：理論上 shadow 被銷毀時 is_possessing 一定同步設回 false
+		# （見 _recall_shadow()），走到這裡代表哪裡漏呼叫了，直接強制收回
+		is_possessing = false
+		return
+	shadow.move(delta, input.move_dir, input.jump)
+
+	# ⚠ 轉移操控權那次按壓，跟操控血影期間要偵測的「短按返回/長按銷毀」是
+	# 同一顆鍵——是否要 arm（開始認新的一次按壓）之前，必須先看到這顆鍵放開
+	# 過一次，否則「轉移操控權那次按壓」殘留的 held 狀態會被誤判成新按壓，
+	# 一放開就立刻觸發短按返回，角色永遠碰不到血影就被切回去。_skill_armed
+	# 在每次進入附身狀態時重置為 false（見 VsSkill_Asatsubaki.enter()）。
+	if not _skill_armed:
+		if not input.skill_held:
+			_skill_armed = true
+		return
+
+	if input.skill_held:
+		_skill_hold_time += delta
+		if _skill_hold_time >= SHADOW_SKILL_HOLD_RECALL:
+			_recall_shadow()   # 長按滿 1 秒：銷毀血影
+	elif _skill_hold_time > 0.0:
+		# 剛放開，而且沒有長按滿 1 秒——短按：操控權還給角色，血影留在原地不銷毀
+		is_possessing    = false
+		_skill_hold_time = 0.0
+		_skill_armed     = false
+
+## 銷毀血影、操控權還給角色——**三個觸發來源（長按/角色受擊/血影碰懸崖）
+## 唯一共用的入口**，回血邏輯只在這裡寫一次，任何新增的銷毀時機都要呼叫這個
+## 函式，不要各自繞開直接銷毀節點。
+const SHADOW_DESTROY_HEAL: float = 100.0
+
+func _recall_shadow() -> void:
+	if not is_instance_valid(shadow):
+		return
+	var vw := get_parent()
+	if vw and vw.has_method("despawn_blood_shadow"):
+		vw.despawn_blood_shadow(shadow)
+	shadow = null
+	is_possessing   = false
+	_skill_hold_time = 0.0
+	_skill_armed     = false
+	heal(SHADOW_DESTROY_HEAL)
+
+## 攝影機追蹤目標——附身期間鏡頭要跟著血影跑（不然血影飛遠會直接跑出畫面，
+## 使用者明確要求「p1/p2 能成為攝影機目標」，不是本體一路釘死）。由
+## vs_world._process() 每幀讀取並塞進 VsCamera.target_p1/target_p2，純視覺、
+## 不進快照（跟 VsCamera 本身的 target 慣例一致）。
+func get_camera_target() -> Node2D:
+	if is_possessing and is_instance_valid(shadow):
+		return shadow
+	return self
+
 ## buff 包隨機池——四選一，固定倍率＋固定時效（不再是±隨機方向、也不再是
 ## 本回合有效，改成每種屬性各自調好的正向倍率，持續 HAZARD_BUFF_DURATION 秒）。
 ## 想調整某個屬性的倍率只改這個字典，不用碰下面的邏輯。
@@ -884,6 +1004,9 @@ func save_state() -> Dictionary:
 		"dfd":    is_defeated,
 		"dfs":    defeat_settled,
 		"dfh":    died_from_hazard,
+		"poss":   is_possessing,
+		"sht":    _skill_hold_time,
+		"sarm":   _skill_armed,
 		"phit":   pending_hit.duplicate(true),
 		"qhit":   queued_hitstun,
 		"qkd":    queued_knockdown,
@@ -923,6 +1046,9 @@ func restore_state(s: Dictionary) -> void:
 	is_defeated          = s.get("dfd", false)
 	defeat_settled       = s.get("dfs", false)
 	died_from_hazard     = s.get("dfh", false)
+	is_possessing        = s.get("poss", false)
+	_skill_hold_time     = s.get("sht", 0.0)
+	_skill_armed         = s.get("sarm", false)
 	pending_hit          = s["phit"].duplicate(true)
 	queued_hitstun       = s["qhit"]
 	queued_knockdown     = s["qkd"]

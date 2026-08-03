@@ -50,16 +50,16 @@ layout_mode = 0
 offset_left = 4.0
 offset_top = 16.0
 offset_right = 182.0
-offset_bottom = 132.0
+offset_bottom = 92.0
 mouse_filter = 2
 color = Color(0.14, 0.14, 0.14, 1)
 
 [node name="LeftButton" type="TextureButton" parent="PanelA"]
 layout_mode = 0
 offset_left = 6.0
-offset_top = 66.0
+offset_top = 48.0
 offset_right = 18.0
-offset_bottom = 78.0
+offset_bottom = 60.0
 texture_normal = ExtResource("2_arrow")
 flip_h = true
 ignore_texture_size = true
@@ -68,9 +68,9 @@ stretch_mode = 4
 [node name="RightButton" type="TextureButton" parent="PanelA"]
 layout_mode = 0
 offset_left = 168.0
-offset_top = 66.0
+offset_top = 48.0
 offset_right = 180.0
-offset_bottom = 78.0
+offset_bottom = 60.0
 texture_normal = ExtResource("2_arrow")
 ignore_texture_size = true
 stretch_mode = 4
@@ -78,9 +78,9 @@ stretch_mode = 4
 [node name="NameLabel" type="Label" parent="PanelA"]
 layout_mode = 0
 offset_left = 4.0
-offset_top = 136.0
+offset_top = 96.0
 offset_right = 182.0
-offset_bottom = 150.0
+offset_bottom = 108.0
 theme_override_font_sizes/font_size = 12
 text = "Clotty"
 horizontal_alignment = 1
@@ -88,13 +88,21 @@ horizontal_alignment = 1
 [node name="IndexLabel" type="Label" parent="PanelA"]
 layout_mode = 0
 offset_left = 4.0
-offset_top = 151.0
+offset_top = 109.0
 offset_right = 182.0
-offset_bottom = 162.0
+offset_bottom = 118.0
 theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
 theme_override_font_sizes/font_size = 8
 text = "1 / 1"
 horizontal_alignment = 1
+
+[node name="GridAnchor" type="Control" parent="PanelA"]
+layout_mode = 0
+offset_left = 4.0
+offset_top = 122.0
+offset_right = 182.0
+offset_bottom = 168.0
+mouse_filter = 2
 
 [node name="VSeparator" type="ColorRect" parent="."]
 layout_mode = 0
@@ -126,16 +134,16 @@ layout_mode = 0
 offset_left = 4.0
 offset_top = 16.0
 offset_right = 182.0
-offset_bottom = 132.0
+offset_bottom = 92.0
 mouse_filter = 2
 color = Color(0.14, 0.14, 0.14, 1)
 
 [node name="LeftButton" type="TextureButton" parent="PanelB"]
 layout_mode = 0
 offset_left = 6.0
-offset_top = 66.0
+offset_top = 48.0
 offset_right = 18.0
-offset_bottom = 78.0
+offset_bottom = 60.0
 texture_normal = ExtResource("2_arrow")
 flip_h = true
 ignore_texture_size = true
@@ -144,9 +152,9 @@ stretch_mode = 4
 [node name="RightButton" type="TextureButton" parent="PanelB"]
 layout_mode = 0
 offset_left = 168.0
-offset_top = 66.0
+offset_top = 48.0
 offset_right = 180.0
-offset_bottom = 78.0
+offset_bottom = 60.0
 texture_normal = ExtResource("2_arrow")
 ignore_texture_size = true
 stretch_mode = 4
@@ -154,9 +162,9 @@ stretch_mode = 4
 [node name="NameLabel" type="Label" parent="PanelB"]
 layout_mode = 0
 offset_left = 4.0
-offset_top = 136.0
+offset_top = 96.0
 offset_right = 182.0
-offset_bottom = 150.0
+offset_bottom = 108.0
 theme_override_font_sizes/font_size = 12
 text = "Clotty"
 horizontal_alignment = 1
@@ -164,13 +172,21 @@ horizontal_alignment = 1
 [node name="IndexLabel" type="Label" parent="PanelB"]
 layout_mode = 0
 offset_left = 4.0
-offset_top = 151.0
+offset_top = 109.0
 offset_right = 182.0
-offset_bottom = 162.0
+offset_bottom = 118.0
 theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
 theme_override_font_sizes/font_size = 8
 text = "1 / 1"
 horizontal_alignment = 1
+
+[node name="GridAnchor" type="Control" parent="PanelB"]
+layout_mode = 0
+offset_left = 4.0
+offset_top = 122.0
+offset_right = 182.0
+offset_bottom = 168.0
+mouse_filter = 2
 
 [node name="BackButton" type="Button" parent="."]
 layout_mode = 0

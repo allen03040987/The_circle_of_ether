@@ -1,7 +1,6 @@
 [gd_scene load_steps=31 format=3 uid="uid://bvks6nmwfa1te"]
 
 [ext_resource type="PackedScene" uid="uid://431fpia1g7sg" path="res://VsMods/player/VsPlayerBase.tscn" id="1_mcd3v"]
-[ext_resource type="Texture2D" uid="uid://cg3cbbecunwqo" path="res://player/state/IDLE.png" id="2_tx_idle"]
 [ext_resource type="AnimationLibrary" uid="uid://d0tjfxgc68gpp" path="res://VsMods/player/anim/AsatsubakiAnimLib.tres" id="3_animlib"]
 [ext_resource type="Script" path="res://VsMods/combat/VsHitbox.gd" id="4_hitbox"]
 [ext_resource type="PackedScene" uid="uid://djfuu6roflvrt" path="res://Explod/tscn/Aggregation ring.tscn" id="5_ring"]
@@ -12,12 +11,13 @@
 [ext_resource type="PackedScene" uid="uid://djhor5kcgk1ey" path="res://Explod/tscn/Spiral Thrust.tscn" id="10_spiral"]
 [ext_resource type="PackedScene" uid="uid://7068kp6xhch1" path="res://Explod/tscn/Thrust.tscn" id="11_thrust"]
 [ext_resource type="PackedScene" uid="uid://naakd1ojnf0i" path="res://Explod/tscn/sparks/blunt_spark.tscn" id="12_blunt"]
+[ext_resource type="Texture2D" uid="uid://bk7phb6ffrcfw" path="res://VsMods/player/Role/Asatsubaki/idle.png" id="13_82tjb"]
 [ext_resource type="PackedScene" uid="uid://duygsx8odg8iu" path="res://Explod/tscn/chop.tscn" id="13_chop"]
 [ext_resource type="PackedScene" uid="uid://c1s06onyotqf3" path="res://Explod/tscn/cut.tscn" id="14_cut"]
 [ext_resource type="PackedScene" uid="uid://ejwp3sdtv1s3" path="res://Explod/tscn/whirlwind.tscn" id="15_whirl"]
 
 [sub_resource type="RectangleShape2D" id="Shape_hurtbox"]
-size = Vector2(14, 59)
+size = Vector2(14, 56)
 
 [sub_resource type="RectangleShape2D" id="Shape_hbA1"]
 size = Vector2(74.5, 66.5)
@@ -62,11 +62,17 @@ size = Vector2(185, 80.5)
 size = Vector2(125, 75)
 
 [node name="VsPlayer" instance=ExtResource("1_mcd3v")]
+player_id = null
 max_hp = 5000.0
 max_arts_energy = 100.0
 arts_regen_rate = 15.0
+max_dash_energy = null
+dash_regen_rate = null
+gravity = null
 move_speed = 280.0
 air_speed = 280.0
+friction = null
+jump_force = null
 dodge_speed = 600.0
 vfx_common = {
 "Aggregation ring": ExtResource("5_ring"),
@@ -81,22 +87,29 @@ vfx_common = {
 "cut": ExtResource("14_cut"),
 "whirlwind": ExtResource("15_whirl")
 }
+vfx_weapon = null
+vfx_system = null
+default_spark_type = null
 default_spark_scale = 0.35
 default_spark_color = Color(1.4, 3, 1, 1)
 default_aura_color = Color(0, 1, 1, 1)
+default_spark_raw_intensity = null
 default_spark_random_angle = 180.0
+default_spark_base_offset = null
+default_spark_random_offset = null
+default_attach_spark_to_victim = null
 anim_armor_tier = 1
 
 [node name="Sprite2D" parent="Graphics" index="0"]
-position = Vector2(0, -32)
-texture = ExtResource("2_tx_idle")
+position = Vector2(4, -31)
+texture = ExtResource("13_82tjb")
 hframes = 3
 vframes = 3
 region_enabled = true
 region_rect = Rect2(0, 0, 192, 192)
 
 [node name="CollisionShape2D" parent="Graphics/VsHurtbox" index="0"]
-position = Vector2(0, -29.5)
+position = Vector2(0, -28)
 shape = SubResource("Shape_hurtbox")
 
 [node name="HitboxA1" parent="Graphics" index="2"]

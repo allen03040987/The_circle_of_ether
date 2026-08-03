@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://kcrhmomod83o"
-path="res://.godot/imported/jump.png-7188185954292ecf6cbe98ed98d63f97.ctex"
+path="res://.godot/imported/jump.png-7282b7e8415683252cb422238e3269ec.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://VsMods/player/Asatsubaki/jump.png"
-dest_files=["res://.godot/imported/jump.png-7188185954292ecf6cbe98ed98d63f97.ctex"]
+source_file="res://VsMods/player/Role/Asatsubaki/jump.png"
+dest_files=["res://.godot/imported/jump.png-7282b7e8415683252cb422238e3269ec.ctex"]
 
 [params]
 

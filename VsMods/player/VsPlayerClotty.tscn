@@ -1,4 +1,4 @@
-[gd_scene load_steps=32 format=3 uid="uid://c24ea4g7rkek5"]
+[gd_scene load_steps=31 format=3 uid="uid://c24ea4g7rkek5"]
 
 [ext_resource type="PackedScene" uid="uid://431fpia1g7sg" path="res://VsMods/player/VsPlayerBase.tscn" id="1_mcd3v"]
 [ext_resource type="Texture2D" uid="uid://cg3cbbecunwqo" path="res://player/state/IDLE.png" id="2_tx_idle"]
@@ -15,7 +15,6 @@
 [ext_resource type="PackedScene" uid="uid://duygsx8odg8iu" path="res://Explod/tscn/chop.tscn" id="13_chop"]
 [ext_resource type="PackedScene" uid="uid://c1s06onyotqf3" path="res://Explod/tscn/cut.tscn" id="14_cut"]
 [ext_resource type="PackedScene" uid="uid://ejwp3sdtv1s3" path="res://Explod/tscn/whirlwind.tscn" id="15_whirl"]
-[ext_resource type="Texture2D" uid="uid://dnai47v82feno" path="res://ui/icons/arrow.png" id="16_lw4v8"]
 
 [sub_resource type="RectangleShape2D" id="Shape_hurtbox"]
 size = Vector2(14, 59)
@@ -63,11 +62,17 @@ size = Vector2(185, 80.5)
 size = Vector2(125, 75)
 
 [node name="VsPlayer" instance=ExtResource("1_mcd3v")]
+player_id = null
 max_hp = 5000.0
 max_arts_energy = 100.0
 arts_regen_rate = 15.0
+max_dash_energy = null
+dash_regen_rate = null
+gravity = null
 move_speed = 250.0
 air_speed = 250.0
+friction = null
+jump_force = null
 dodge_speed = 600.0
 vfx_common = {
 "Aggregation ring": ExtResource("5_ring"),
@@ -82,10 +87,17 @@ vfx_common = {
 "cut": ExtResource("14_cut"),
 "whirlwind": ExtResource("15_whirl")
 }
+vfx_weapon = null
+vfx_system = null
+default_spark_type = null
 default_spark_scale = 0.35
 default_spark_color = Color(1.4, 3, 1, 1)
 default_aura_color = Color(0, 1, 1, 1)
+default_spark_raw_intensity = null
 default_spark_random_angle = 180.0
+default_spark_base_offset = null
+default_spark_random_offset = null
+default_attach_spark_to_victim = null
 anim_armor_tier = 1
 
 [node name="Sprite2D" parent="Graphics" index="0"]
@@ -343,7 +355,3 @@ max_combo = 3
 libraries = {
 "": ExtResource("3_animlib")
 }
-
-[node name="Arrow" type="Sprite2D" parent="." index="4"]
-position = Vector2(39, 13)
-texture = ExtResource("16_lw4v8")

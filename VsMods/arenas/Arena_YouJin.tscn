@@ -1203,6 +1203,6 @@ trap_causes_knockdown = true
 spring_force = 0.0
 
 [node name="CollisionShape2D" parent="VsHazard" index="0"]
-position = Vector2(584, 216)
+position = Vector2(552, 221)
 
 [editable path="VsHazard"]

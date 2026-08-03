@@ -1,0 +1,18 @@
+[remap]
+
+importer="aseprite_wizard.plugin"
+type="SpriteFrames"
+uid="uid://ny38hafdk0oo"
+path="res://.godot/imported/Blood Shadow_idle.aseprite-f0e38028052eef5d7d8fb4b1c633b20b.res"
+
+[deps]
+
+source_file="res://VsMods/player/Role/Asatsubaki/Blood Shadow_idle.aseprite"
+dest_files=["res://.godot/imported/Blood Shadow_idle.aseprite-f0e38028052eef5d7d8fb4b1c633b20b.res"]
+
+[params]
+
+split_layers=false
+exclude_layers_pattern=""
+only_visible_layers=false
+sheet_type="Packed"

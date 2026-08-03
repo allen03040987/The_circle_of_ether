@@ -63,6 +63,12 @@ const PROJECTILE_SCENE := preload("res://VsMods/combat/VsProjectile.tscn")
 const GROUND_SPIKE_SCENE := preload("res://VsMods/combat/VsGroundSpike.tscn")
 var projectiles: Array[VsProjectile] = []
 
+## 血影（Asatsubaki 專屬，見 VsPlayer._apply_possession_input()/CLAUDE.md
+## 「VsMods Asatsubaki 血影機制」）——只有 0/1 顆，不是陣列（跟彈道不同）。
+const BLOOD_SHADOW_SCENE := preload("res://VsMods/combat/VsBloodShadow.tscn")
+var p1_shadow: VsBloodShadow = null
+var p2_shadow: VsBloodShadow = null
+
 ## 場地機關（VsHazard，見 VsMods/arenas/VsHazard.gd）。跟判定框（VsPlayer.hitboxes）
 ## 同一個模式：場地場景裡的固定節點，_spawn_arena() 掛完場地後一次性收集，
 ## 不是動態生成/銷毀的陣列（跟 projectiles 不同，不需要整批砍掉重建）。
@@ -192,20 +198,24 @@ func _spawn_players() -> void:
 	var p2_scene := VsCharacterRegistry.get_scene(VsGameManager.p2_character)
 
 	p1 = p1_scene.instantiate()
-	p1.player_id = 1
-	p1.position  = spawn_point_p1.position
+	p1.player_id    = 1
+	p1.character_id = VsGameManager.p1_character
+	p1.position     = spawn_point_p1.position
 	add_child(p1)
 	p1.art_slots.assign(VsGameManager.p1_arts)
 	p1.apply_arts_bonus()
 	p1._load_arts()
+	p1._load_skill()
 
 	p2 = p2_scene.instantiate()
-	p2.player_id = 2
-	p2.position  = spawn_point_p2.position
+	p2.player_id    = 2
+	p2.character_id = VsGameManager.p2_character
+	p2.position     = spawn_point_p2.position
 	add_child(p2)
 	p2.art_slots.assign(VsGameManager.p2_arts)
 	p2.apply_arts_bonus()
 	p2._load_arts()
+	p2._load_skill()
 
 	# 對手參照：回到 idle 自動面向對方（輔助鎖敵）用
 	p1.opponent = p2
@@ -314,6 +324,10 @@ func _save_snapshot(frame: int, inp1: InputState, inp2: InputState) -> void:
 			d["owner"] = p.owner_player.player_id
 			return d),
 		"hazards": hazards.map(func(h: VsHazard) -> Dictionary: return h.save_state()),
+		"shadows": [
+			(p1_shadow.save_state() if is_instance_valid(p1_shadow) else null),
+			(p2_shadow.save_state() if is_instance_valid(p2_shadow) else null),
+		],
 		"inp1": inp1,
 		"inp2": inp2,
 	}
@@ -330,6 +344,25 @@ func _restore_snapshot(frame: int) -> void:
 	round_manager.restore_state(s["rm"])
 	_restore_projectiles(s.get("proj", []))
 	_restore_hazards(s.get("hazards", []))
+	_restore_shadows(s.get("shadows", [null, null]))
+
+## 血影（Asatsubaki 專屬）跟彈道同一招：整批砍掉重建，不逐一比對增刪——
+## 同時最多兩顆（各玩家一顆），沒有效能顧慮。null＝那個玩家當時沒有血影。
+## 還原後要把 VsPlayer.shadow 參照接回去（同 VsProjectile.owner_player 慣例，
+## 節點本身砍掉重建，玩家端的參照不能沿用舊物件）。
+func _restore_shadows(data: Array) -> void:
+	if is_instance_valid(p1_shadow): p1_shadow.free()
+	if is_instance_valid(p2_shadow): p2_shadow.free()
+	p1_shadow = null
+	p2_shadow = null
+	if data.size() > 0 and data[0] != null:
+		p1_shadow = spawn_blood_shadow(p1)
+		p1_shadow.restore_state(data[0])
+	if data.size() > 1 and data[1] != null:
+		p2_shadow = spawn_blood_shadow(p2)
+		p2_shadow.restore_state(data[1])
+	p1.shadow = p1_shadow
+	p2.shadow = p2_shadow
 
 ## 重建彈道清單以精確符合快照：直接砍掉現有節點重新生成，比逐一比對增刪
 ## 簡單可靠——彈道數量少（同時最多幾顆），沒有效能顧慮。
@@ -357,6 +390,8 @@ func _simulate_frame(delta: float, inp1: InputState, inp2: InputState) -> void:
 	# 重複觸發（同一次命中/同一幀衝刺可能因多次 rollback 被重跑好幾遍）
 	p1.is_resimulating = is_resimulating
 	p2.is_resimulating = is_resimulating
+	if is_instance_valid(p1_shadow): p1_shadow.is_resimulating = is_resimulating
+	if is_instance_valid(p2_shadow): p2_shadow.is_resimulating = is_resimulating
 	round_manager.tick(delta, inp1, inp2)
 
 	if round_manager.phase != VsRoundManager.Phase.FIGHTING and round_manager.phase != VsRoundManager.Phase.ROUND_END:
@@ -385,6 +420,7 @@ func _simulate_frame(delta: float, inp1: InputState, inp2: InputState) -> void:
 	# 打擊偵測統一在此執行（正常幀與 rollback 幀走同一路徑，保證兩端時機一致）
 	_check_manual_hits(sim_delta)
 	_update_projectiles(sim_delta)
+	_update_shadows(sim_delta)
 	_check_arena_hazards(sim_delta)
 
 # ── 回合事件 ──────────────────────────────────────────────────────────────────
@@ -465,6 +501,17 @@ func _process(_delta: float) -> void:
 	# BattleHud 自己另外持有 round_manager 參照）。
 	if hud and round_manager:
 		hud.update_timer(round_manager.round_time_left)
+
+	# 攝影機追蹤目標——純視覺、不進快照，每幀從模擬狀態（is_possessing/shadow）
+	# 推導出來。血影附身期間鏡頭主目標切去跟血影，同時把本體位置補進
+	# target_*_extra（見 VsCamera 的邊界框取景），本體才不會因為 target_p1/p2
+	# 換成血影就被排除在鏡頭範圍外；沒附身時 extra 是 null，行為等同原本
+	# 直接指到 p1/p2 本體。
+	if camera and p1 and p2:
+		camera.target_p1 = p1.get_camera_target()
+		camera.target_p1_extra = p1 if p1.is_possessing else null
+		camera.target_p2 = p2.get_camera_target()
+		camera.target_p2_extra = p2 if p2.is_possessing else null
 
 func _on_match_ended(winner_id: int) -> void:
 	if is_resimulating: return
@@ -561,6 +608,34 @@ func spawn_ground_spike(owner: VsPlayer, direction: int, offset_x: float, lifeti
 	proj.hitbox.direction_override = direction
 	return proj
 
+## 生成血影（Asatsubaki 專屬，VsSkill_Asatsubaki.gd 的召喚分支呼叫）。跟彈道
+## 系統同一套「vs_world 直屬子節點」慣例，但只有 0/1 顆、按 owner 存進固定的
+## p1_shadow/p2_shadow 欄位，不是陣列。
+func spawn_blood_shadow(owner: VsPlayer) -> VsBloodShadow:
+	var shadow := BLOOD_SHADOW_SCENE.instantiate() as VsBloodShadow
+	add_child(shadow)
+	shadow.owner_player = owner
+	shadow.position     = owner.position + Vector2(20.0 * owner.facing_dir, -30.0)
+	if owner == p1: p1_shadow = shadow
+	else:           p2_shadow = shadow
+	return shadow
+
+## 銷毀血影——**唯一入口是 VsPlayer._recall_shadow()**（三個觸發來源共用），
+## 這裡只負責節點層級的清理，不重複回血邏輯。
+func despawn_blood_shadow(shadow: VsBloodShadow) -> void:
+	if p1_shadow == shadow: p1_shadow = null
+	if p2_shadow == shadow: p2_shadow = null
+	if is_instance_valid(shadow):
+		shadow.free()
+
+## 推進血影的動畫（summon→idle 自動切換）——跟 _update_projectiles() 同一個
+## 呼叫層級，每個模擬幀都要跑，不管血影當下有沒有被操控（見
+## VsBloodShadow.advance_visual() 說明）。位置更新不在這裡，血影只有玩家
+## 操控時才會移動，見 VsPlayer._apply_possession_input()→shadow.move()。
+func _update_shadows(delta: float) -> void:
+	if is_instance_valid(p1_shadow): p1_shadow.advance_visual(delta)
+	if is_instance_valid(p2_shadow): p2_shadow.advance_visual(delta)
+
 func _instantiate_projectile(owner: VsPlayer, scene: PackedScene = PROJECTILE_SCENE, kind: StringName = &"wave") -> VsProjectile:
 	var proj := scene.instantiate() as VsProjectile
 	add_child(proj)
@@ -642,6 +717,8 @@ func _check_arena_hazards(_delta: float) -> void:
 	for hz: VsHazard in hazards:
 		_check_hazard_for_player(hz, p1)
 		_check_hazard_for_player(hz, p2)
+		if is_instance_valid(p1_shadow): _check_hazard_for_shadow(hz, p1_shadow)
+		if is_instance_valid(p2_shadow): _check_hazard_for_shadow(hz, p2_shadow)
 
 func _check_hazard_for_player(hz: VsHazard, player: VsPlayer) -> void:
 	var overlapping := _sim_rect_hazard(hz).intersects(_sim_rect(player.hurtbox, player))
@@ -649,6 +726,28 @@ func _check_hazard_for_player(hz: VsHazard, player: VsPlayer) -> void:
 	hz.set_overlapping(player.player_id, overlapping)
 	if overlapping and not was:
 		_trigger_hazard(hz, player)
+
+## 血影（Asatsubaki 專屬）只認懸崖類機關——規格沒提到陷阱/彈簧/傳送矩陣/
+## 補包對血影生效，不猜，直接跳過其餘類型。命中就呼叫擁有者的 _recall_shadow()
+## （銷毀血影＋回血＋操控權還給角色，三個觸發來源共用同一個入口）。
+func _check_hazard_for_shadow(hz: VsHazard, shadow: VsBloodShadow) -> void:
+	if hz.hazard_type != VsHazard.HazardType.CLIFF:
+		return
+	var pid := shadow.owner_player.player_id
+	var overlapping := _sim_rect_hazard(hz).intersects(_sim_rect_shadow(shadow))
+	var was := hz.get_shadow_overlapping(pid)
+	hz.set_shadow_overlapping(pid, overlapping)
+	if overlapping and not was:
+		shadow.owner_player._recall_shadow()
+
+## 比照 _sim_rect_hazard()，讀血影自己 CollisionShape2D 子節點的 RectangleShape2D
+## 尺寸——血影沒有 facing_dir 概念，直接用 position 當世界座標中心。
+func _sim_rect_shadow(shadow: VsBloodShadow) -> Rect2:
+	var cs := shadow.get_node("CollisionShape2D") as CollisionShape2D
+	if not cs or not (cs.shape is RectangleShape2D):
+		return Rect2()
+	var size: Vector2 = (cs.shape as RectangleShape2D).size
+	return Rect2(shadow.position - size * 0.5, size)
 
 ## 比照 _sim_rect/_sim_rect_projectile，讀子節點 CollisionShape2D 的
 ## RectangleShape2D 實際尺寸（可視化調整用，見 VsHazard.gd 說明）。機關本身
@@ -733,9 +832,18 @@ func _compute_checksums() -> Array:
 	for proj: VsProjectile in projectiles:
 		proj_vals.append(roundi(proj.position.x * 100))
 		proj_vals.append(roundi(proj.position.y * 100))
+	# 血影（Asatsubaki 專屬）座標/存在與否一起併進位置雜湊，同彈道的理由——
+	# 數量（0/1/2）或位置分歧要能被 desync 偵測抓到。
+	var shadow_vals: Array = [int(is_instance_valid(p1_shadow)), int(is_instance_valid(p2_shadow))]
+	if is_instance_valid(p1_shadow):
+		shadow_vals.append(roundi(p1_shadow.position.x * 100))
+		shadow_vals.append(roundi(p1_shadow.position.y * 100))
+	if is_instance_valid(p2_shadow):
+		shadow_vals.append(roundi(p2_shadow.position.x * 100))
+		shadow_vals.append(roundi(p2_shadow.position.y * 100))
 	return [
 		_fnv([roundi(p1.position.x*100), roundi(p1.position.y*100),
-			  roundi(p2.position.x*100), roundi(p2.position.y*100)] + proj_vals),
+			  roundi(p2.position.x*100), roundi(p2.position.y*100)] + proj_vals + shadow_vals),
 		_fnv([roundi(p1.velocity.x*100), roundi(p1.velocity.y*100),
 			  roundi(p2.velocity.x*100), roundi(p2.velocity.y*100)]),
 		# 把回合管理器狀態與面向方向一起雜湊

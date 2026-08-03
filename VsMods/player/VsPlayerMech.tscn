@@ -1,7 +1,7 @@
-[gd_scene load_steps=32 format=3 uid="uid://dnwj4p7yqk2ha"]
+[gd_scene load_steps=31 format=3 uid="uid://brb4f8smy28en"]
 
 [ext_resource type="PackedScene" uid="uid://431fpia1g7sg" path="res://VsMods/player/VsPlayerBase.tscn" id="1_mcd3v"]
-[ext_resource type="AnimationLibrary" uid="uid://bqk8x3n7t2wjm" path="res://VsMods/player/anim/NaiheAnimLib.tres" id="3_animlib"]
+[ext_resource type="AnimationLibrary" uid="uid://couq6m2ag3nuv" path="res://VsMods/player/anim/MechAnimLib.tres" id="3_animlib"]
 [ext_resource type="Script" path="res://VsMods/combat/VsHitbox.gd" id="4_hitbox"]
 [ext_resource type="PackedScene" uid="uid://djfuu6roflvrt" path="res://Explod/tscn/Aggregation ring.tscn" id="5_ring"]
 [ext_resource type="PackedScene" uid="uid://bnxo3v1t67xfj" path="res://Explod/tscn/Circular cut.tscn" id="6_ccut"]
@@ -11,20 +11,19 @@
 [ext_resource type="PackedScene" uid="uid://djhor5kcgk1ey" path="res://Explod/tscn/Spiral Thrust.tscn" id="10_spiral"]
 [ext_resource type="PackedScene" uid="uid://7068kp6xhch1" path="res://Explod/tscn/Thrust.tscn" id="11_thrust"]
 [ext_resource type="PackedScene" uid="uid://naakd1ojnf0i" path="res://Explod/tscn/sparks/blunt_spark.tscn" id="12_blunt"]
-[ext_resource type="Texture2D" uid="uid://08ww515mlicw" path="res://enemies/boss/BossNaihe/idle.png" id="13_7ld8f"]
-[ext_resource type="PackedScene" uid="uid://dhxdpgje0esqh" path="res://enemies/boss/BossNaihe/A3.tscn" id="13_bs7yl"]
 [ext_resource type="PackedScene" uid="uid://duygsx8odg8iu" path="res://Explod/tscn/chop.tscn" id="13_chop"]
+[ext_resource type="Texture2D" uid="uid://ctmxiknbklcll" path="res://VsMods/player/Role/Mech/idle.png" id="13_wgh78"]
 [ext_resource type="PackedScene" uid="uid://c1s06onyotqf3" path="res://Explod/tscn/cut.tscn" id="14_cut"]
 [ext_resource type="PackedScene" uid="uid://ejwp3sdtv1s3" path="res://Explod/tscn/whirlwind.tscn" id="15_whirl"]
 
 [sub_resource type="RectangleShape2D" id="Shape_hurtbox"]
-size = Vector2(24, 66)
+size = Vector2(14, 68)
 
 [sub_resource type="RectangleShape2D" id="Shape_hbA1"]
-size = Vector2(158, 94.25)
+size = Vector2(74.5, 66.5)
 
 [sub_resource type="RectangleShape2D" id="Shape_hbA2"]
-size = Vector2(265, 84)
+size = Vector2(106, 35)
 
 [sub_resource type="RectangleShape2D" id="Shape_hbA3"]
 size = Vector2(79, 61)
@@ -45,10 +44,10 @@ size = Vector2(156, 130)
 size = Vector2(160, 124.5)
 
 [sub_resource type="RectangleShape2D" id="Shape_hbSkill"]
-size = Vector2(297, 71)
+size = Vector2(175, 55)
 
 [sub_resource type="RectangleShape2D" id="Shape_hbArt2"]
-size = Vector2(271, 161)
+size = Vector2(157, 129)
 
 [sub_resource type="RectangleShape2D" id="Shape_hbArt2Air"]
 size = Vector2(157, 128)
@@ -64,24 +63,23 @@ size = Vector2(125, 75)
 
 [node name="VsPlayer" instance=ExtResource("1_mcd3v")]
 player_id = null
-max_hp = 8000.0
+max_hp = 50.0
 max_arts_energy = 100.0
 arts_regen_rate = 15.0
 max_dash_energy = null
 dash_regen_rate = null
 gravity = null
-move_speed = null
-air_speed = 150.0
+move_speed = 190.0
+air_speed = 190.0
 friction = null
 jump_force = null
-dodge_speed = 500.0
+dodge_speed = 600.0
 vfx_common = {
 "Aggregation ring": ExtResource("5_ring"),
 "Circular cut": ExtResource("6_ccut"),
 "Circular shock wave": ExtResource("7_cshock"),
 "Cross slash sparks": ExtResource("8_cross"),
 "Dimensional Slash": ExtResource("9_dimslash"),
-"Lightning": ExtResource("13_bs7yl"),
 "Spiral Thrust": ExtResource("10_spiral"),
 "Thrust": ExtResource("11_thrust"),
 "blunt_spark": ExtResource("12_blunt"),
@@ -91,56 +89,54 @@ vfx_common = {
 }
 vfx_weapon = null
 vfx_system = null
-default_spark_type = 4
-default_spark_scale = 0.5
-default_spark_color = Color(2, 1, 2, 1)
-default_aura_color = Color(0.501961, 0, 0.301961, 1)
+default_spark_type = null
+default_spark_scale = 0.35
+default_spark_color = Color(1.4, 3, 1, 1)
+default_aura_color = Color(0, 1, 1, 1)
 default_spark_raw_intensity = null
 default_spark_random_angle = 180.0
 default_spark_base_offset = null
 default_spark_random_offset = null
 default_attach_spark_to_victim = null
+anim_armor_tier = 1
 
 [node name="Sprite2D" parent="Graphics" index="0"]
-position = Vector2(0, -32)
-texture = ExtResource("13_7ld8f")
+position = Vector2(-1, -34)
+texture = ExtResource("13_wgh78")
 hframes = 3
-vframes = 3
+vframes = 2
 region_enabled = true
 region_rect = Rect2(0, 0, 192, 192)
 
 [node name="CollisionShape2D" parent="Graphics/VsHurtbox" index="0"]
-visible = false
-position = Vector2(-5, -33)
+position = Vector2(0, -34)
 shape = SubResource("Shape_hurtbox")
 
 [node name="HitboxA1" parent="Graphics" index="2"]
 position = Vector2(30, -20)
-hitstun_time = 0.7
-knockback = Vector2(400, 0)
-hit_sfx_type = "hit_5"
+hitstun_time = 0.5
+knockback = Vector2(200, 0)
+hit_sfx_type = "hit_3"
 shake_intensity = 2.0
 
 [node name="CollisionShape2D" parent="Graphics/HitboxA1" index="0"]
 visible = false
-position = Vector2(21, -27.875)
+position = Vector2(0.25, -14)
 shape = SubResource("Shape_hbA1")
 
 [node name="HitboxA2" parent="Graphics" index="3"]
 position = Vector2(30, -20)
-hitstun_time = 0.8
-knockback = Vector2(600, 0)
-causes_knockdown = true
-hit_sfx_type = "hit_5"
+hitstun_time = 0.5
+knockback = Vector2(300, 0)
+hit_sfx_type = "hit"
 shake_intensity = 2.0
 
 [node name="CollisionShape2D" parent="Graphics/HitboxA2" index="0"]
 visible = false
-position = Vector2(-12.5, -17)
+position = Vector2(-2, -7.5)
 shape = SubResource("Shape_hbA2")
 
 [node name="HitboxA3" parent="Graphics" index="4"]
-visible = false
 position = Vector2(30, -20)
 damage = 80.0
 hitstun_time = 0.5
@@ -154,7 +150,6 @@ position = Vector2(1.5, -11.5)
 shape = SubResource("Shape_hbA3")
 
 [node name="HitboxA4" parent="Graphics" index="5"]
-visible = false
 position = Vector2(30, -20)
 damage = 80.0
 hitstun_time = 0.6
@@ -168,11 +163,10 @@ position = Vector2(19, -11.5)
 shape = SubResource("Shape_hbA4")
 
 [node name="HitboxA5" parent="Graphics" index="6"]
-visible = false
 position = Vector2(34, -20)
 damage = 140.0
 hitstun_time = 0.0
-knockback = Vector2(400, -400)
+knockback = Vector2(200, -400)
 causes_knockdown = true
 sticky = true
 hit_sfx_type = "hit_5"
@@ -193,26 +187,32 @@ shape = SubResource("Shape_hbA5")
 position = Vector2(30, -30)
 damage = 80.0
 hitstun_time = 0.35
-knockback = Vector2(-500, 0)
+knockback = Vector2(100, -200)
 causes_knockdown = true
-hit_sfx_type = "hit_5"
+hit_sfx_type = "hit"
 shake_intensity = 3.0
 
 [node name="CollisionShape2D" parent="Graphics/HitboxAir1" index="0"]
+visible = false
 position = Vector2(13, 1)
 shape = SubResource("Shape_hbAir1")
 
 [node name="HitboxAir2" parent="Graphics" index="8"]
 position = Vector2(30, -30)
-knockback = Vector2(-500, 0)
+damage = 80.0
+hitstun_time = 0.35
+knockback = Vector2(100, -200)
+causes_knockdown = true
+hit_sfx_type = "hit"
 
 [node name="CollisionShape2D" parent="Graphics/HitboxAir2" index="0"]
+visible = false
 position = Vector2(-29, -2)
 shape = SubResource("Shape_hbAir2")
 
 [node name="HitboxAir3" parent="Graphics" index="9"]
 position = Vector2(30, -30)
-knockback = Vector2(-500, 0)
+knockback = Vector2(100, -200)
 causes_knockdown = true
 hit_sfx_type = "hit"
 
@@ -224,21 +224,21 @@ shape = SubResource("Shape_hbAir3")
 [node name="HitboxSkill" parent="Graphics" index="10"]
 position = Vector2(30, -25)
 damage = 120.0
-hitstun_time = 0.45
-knockback = Vector2(250, -500)
+hitstun_time = 1.0
+knockback = Vector2(500, 0)
 causes_knockdown = true
 break_level = 2
-hit_sfx_type = "hit_10"
-shake_intensity = 50.0
+hit_sfx_type = "hit_2"
 use_character_default_spark = false
-spark_type = 3
-spark_scale = 0.8
-spark_color = Color(2, 1, 2, 1)
-aura_color = Color(0.5, 0, 0.3, 0.811)
+spark_type = 1
+spark_scale = 0.7
+spark_color = Color(3, 1.2, 1, 1)
+aura_color = Color(1, 1, 0, 1)
+spark_random_offset = Vector2(10, 10)
 
 [node name="CollisionShape2D" parent="Graphics/HitboxSkill" index="0"]
 visible = false
-position = Vector2(108.5, -5.5)
+position = Vector2(-13, -3)
 shape = SubResource("Shape_hbSkill")
 
 [node name="HitboxArt2" type="Area2D" parent="Graphics" index="11"]
@@ -247,17 +247,19 @@ collision_layer = 1024
 collision_mask = 512
 monitoring = false
 script = ExtResource("4_hitbox")
-damage = 150.0
-hitstun_time = 0.35
-knockback = Vector2(-400, 0)
-combo_hits = 4
+damage = 120.0
+hitstun_time = 0.0
+knockback = Vector2(200, -400)
+causes_knockdown = true
+combo_hits = 5
 combo_interval = 0.1
 sticky = true
 hit_sfx_type = "hit"
-shake_intensity = 8.0
+shake_intensity = 10.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxArt2" index="0"]
-position = Vector2(104.5, -57.5)
+visible = false
+position = Vector2(-29, -4)
 shape = SubResource("Shape_hbArt2")
 
 [node name="HitboxArt2Air" type="Area2D" parent="Graphics" index="12"]
@@ -286,10 +288,14 @@ collision_layer = 1024
 collision_mask = 512
 monitoring = false
 script = ExtResource("4_hitbox")
-damage = 180.0
-knockback = Vector2(280, -100)
+damage = 400.0
+hitstun_time = 1.5
+knockback = Vector2(400, 0)
+break_level = 2
+combo_hits = 3
+combo_interval = 0.1
 hit_sfx_type = "hit"
-shake_intensity = 12.0
+shake_intensity = 20.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxArt3" index="0"]
 visible = false
@@ -342,10 +348,7 @@ position = Vector2(-22.5, -7.5)
 shape = SubResource("Shape_hbArt6")
 
 [node name="VsAttack" parent="VsStateMachine" index="10"]
-max_combo = 2
-
-[node name="VsAirAttack" parent="VsStateMachine" index="11"]
-max_combo = 1
+max_combo = 3
 
 [node name="AnimationPlayer" parent="." index="3"]
 libraries = {

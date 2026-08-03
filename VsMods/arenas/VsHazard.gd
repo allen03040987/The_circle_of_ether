@@ -75,6 +75,11 @@ enum HazardType {
 var consumed: bool = false           ## 補包/buff包一次性用，其他類型不管這個欄位（外部 vs_world 直接讀寫，不加底線）
 var _p1_overlapping: bool = false    ## 陷阱/彈簧/懸崖/傳送矩陣的邊緣觸發：1v1 只有兩個玩家，各自一個 bool 就夠——只透過下面 get/set_overlapping() 存取，外部不直接碰
 var _p2_overlapping: bool = false
+## 血影（Asatsubaki 專屬）的懸崖邊緣觸發——跟玩家本體的重疊旗標是分開的
+## 獨立追蹤欄位，不能共用 _p1_overlapping/_p2_overlapping（同一個 hazard 底下
+## 玩家本體跟自己的血影可能同時分別重疊/不重疊，混用同一個欄位會互相蓋掉）。
+var _p1_shadow_overlapping: bool = false
+var _p2_shadow_overlapping: bool = false
 
 ## 讀/寫某一位玩家的重疊旗標——vs_world._check_arena_hazards() 用 player_id
 ## 決定要動哪一個，兩個玩家各自獨立觸發，不會互相影響
@@ -85,13 +90,28 @@ func set_overlapping(player_id: int, value: bool) -> void:
 	if player_id == 1: _p1_overlapping = value
 	else:               _p2_overlapping = value
 
+## 血影版本——player_id 是血影 owner_player 的 player_id，不是血影自己的 id
+## （血影沒有 player_id 概念）。
+func get_shadow_overlapping(player_id: int) -> bool:
+	return _p1_shadow_overlapping if player_id == 1 else _p2_shadow_overlapping
+
+func set_shadow_overlapping(player_id: int, value: bool) -> void:
+	if player_id == 1: _p1_shadow_overlapping = value
+	else:               _p2_shadow_overlapping = value
+
 func save_state() -> Dictionary:
-	return {"consumed": consumed, "p1_ov": _p1_overlapping, "p2_ov": _p2_overlapping}
+	return {
+		"consumed": consumed,
+		"p1_ov": _p1_overlapping, "p2_ov": _p2_overlapping,
+		"p1_sov": _p1_shadow_overlapping, "p2_sov": _p2_shadow_overlapping,
+	}
 
 func restore_state(d: Dictionary) -> void:
 	consumed         = d["consumed"]
 	_p1_overlapping  = d["p1_ov"]
 	_p2_overlapping  = d["p2_ov"]
+	_p1_shadow_overlapping = d.get("p1_sov", false)
+	_p2_shadow_overlapping = d.get("p2_sov", false)
 
 ## VsRoundManager 每回合重置時呼叫（透過 vs_world._on_round_started()，見該處
 ## 說明）——補包/buff包每回合重新可用，不是永久消耗也不是整場累積。

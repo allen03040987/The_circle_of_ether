@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bo58ijqvrsrvy"
-path="res://.godot/imported/hurt_2.png-e7ee466ce544e3f18565b45fb5a2d30f.ctex"
+uid="uid://bk7phb6ffrcfw"
+path="res://.godot/imported/idle.png-3a7cdffe7fec67ed57e00e25734cfdba.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://VsMods/player/Asatsubaki/hurt_2.png"
-dest_files=["res://.godot/imported/hurt_2.png-e7ee466ce544e3f18565b45fb5a2d30f.ctex"]
+source_file="res://VsMods/player/Role/Asatsubaki/idle.png"
+dest_files=["res://.godot/imported/idle.png-3a7cdffe7fec67ed57e00e25734cfdba.ctex"]
 
 [params]
 
