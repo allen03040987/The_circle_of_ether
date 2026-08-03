@@ -1,10 +1,10 @@
 class_name VsGetup
 extends VsPlayerState
 ## 起身狀態（倒地滿時自動進入）
-## 規則：起身時給予 2 秒無敵（延續到起身動畫結束後的操作）；
-## 起身期間可用衝刺打斷，但無敵提前結束（衝刺自己的完美閃避窗照舊）。
-
-const GETUP_INVINCIBILITY: float = 2.0  # 起身給予的無敵時長（秒）
+## ⚠ 2026-07-27 使用者要求拿掉「起身後」額外 2 秒無敵——但起身動畫播放期間
+## （角色處於無法操作的起身姿勢，不該被打）仍然要無敵，兩者不是同一件事。
+## 無敵時間精確設成起身動畫長度，動畫播完那一刻自然歸零，不會延續到操作權
+## 交還之後。起身期間仍可用衝刺打斷（打斷當下無敵也一併結束，見下）。
 
 var elapsed:   float = 0.0
 var _duration: float = 0.3   # 起身時長 = launched_2 動畫長度（enter/restore 時讀取）
@@ -12,9 +12,12 @@ var _duration: float = 0.3   # 起身時長 = launched_2 動畫長度（enter/re
 func enter(_prev: StringName) -> void:
 	elapsed = 0.0
 	var vs  := player as VsPlayer
-	vs.invincible_time_left = GETUP_INVINCIBILITY
 	vs.anim_player.play("launched_2")
 	_duration = vs.anim_player.get_animation("launched_2").length
+	# 只罩住起身動畫本身這段時間，不多不少——跟 VsKnockdown.INVINCIBLE_COVER
+	# 那個「先給一個罩住整段流程的暫定大值、之後再校正」的做法不同，這裡精確
+	# 值就是動畫長度，不需要之後再由誰校正。
+	vs.invincible_time_left = _duration
 
 func save_state() -> Dictionary:
 	return {"elapsed": elapsed}
@@ -32,7 +35,7 @@ func physics_update(delta: float, input: InputState) -> StringName:
 	elapsed += delta
 	# 承接倒地彈起的殘留滑行動量，摩擦減速（不瞬間黏住）
 	player.velocity.x = move_toward(player.velocity.x, 0.0, (player as VsPlayer).friction * 1.5 * delta)
-	# 衝刺打斷起身：無敵提前結束（VsDodge.enter 會另設它自己的完美閃避窗）
+	# 衝刺打斷起身：提前結束就不再是「正在起身」的無防禦姿勢了，無敵一併提前結束
 	var vs := player as VsPlayer
 	if input.dodge and vs.use_dash_energy(30.0):
 		vs.invincible_time_left = 0.0

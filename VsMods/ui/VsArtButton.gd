@@ -18,9 +18,19 @@ func _ready() -> void:
 	info_button.focus_mode = Control.FOCUS_NONE
 	info_button.pressed.connect(func(): info_requested.emit(art_id))
 
+## display_name 現在是局內徽章同款的單字（VsGameManager.get_art_badge_char()），
+## 不是招式全名——2026-07-27 使用者要求選武藝時顯示的就是局內實際看到的那個
+## 單字徽章，不是文字說明；字體也套用同一個 VsGameManager.get_badge_font()。
 func setup(new_art_id: String, display_name: String) -> void:
 	art_id = new_art_id
 	name_label.text = display_name
+	var font := VsGameManager.get_badge_font()
+	if font:
+		name_label.add_theme_font_override("font", font)
+	# 單字徽章比原本的「武藝一」全名短很多，字級沿用 3 字詞的舊尺寸（9）看起來
+	# 太小——比照局內徽章的字級（BattleHud.BADGE_SIZE=18 用 13），這裡框高
+	# 15px 比較接近，用同一個數字視覺上還算合適。
+	name_label.add_theme_font_size_override("font_size", 13)
 
 ## 裝備中/選取中的變色效果呼叫這個，而不是直接對按鈕本體
 ## add_theme_color_override("font_color", ...)——名稱文字現在是獨立的

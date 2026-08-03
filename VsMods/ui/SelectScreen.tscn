@@ -34,16 +34,9 @@ offset_bottom = 12.0
 theme_override_font_sizes/font_size = 9
 text = "P1 PLAYER"
 
-[node name="CharacterAnchor" type="Control" parent="PanelA"]
-anchors_preset = 0
-offset_top = 16.0
-offset_right = 186.0
-offset_bottom = 28.0
-mouse_filter = 2
-
 [node name="ArtAnchor" type="Control" parent="PanelA"]
 anchors_preset = 0
-offset_top = 36.0
+offset_top = 16.0
 offset_right = 186.0
 offset_bottom = 102.0
 mouse_filter = 2
@@ -129,16 +122,9 @@ offset_bottom = 12.0
 theme_override_font_sizes/font_size = 9
 text = "P2 PLAYER"
 
-[node name="CharacterAnchor" type="Control" parent="PanelB"]
-anchors_preset = 0
-offset_top = 16.0
-offset_right = 186.0
-offset_bottom = 28.0
-mouse_filter = 2
-
 [node name="ArtAnchor" type="Control" parent="PanelB"]
 anchors_preset = 0
-offset_top = 36.0
+offset_top = 16.0
 offset_right = 186.0
 offset_bottom = 102.0
 mouse_filter = 2

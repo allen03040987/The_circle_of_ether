@@ -16,9 +16,10 @@ const VIEW_H  := 216
 
 const DOT_SIZE := 7    # 勝場指示點大小
 const DOT_GAP  := 3    # 點之間間距
+const TIMER_GAP := 12  # 勝場點中間讓開給回合計時器的半寬（左右各留這麼多）
 
-const UKEMI_DOT_SIZE := 4   # 受身次數指示點——刻意比勝場點小很多，只是個小提示
-const UKEMI_DOT_GAP  := 2
+const UKEMI_BAR_W := 20   # 受身冷卻條——無限次數改冷卻限制後，用一條小血條式的填充條顯示還要等多久
+const UKEMI_BAR_H := 3
 
 # ── 顏色 ──────────────────────────────────────────────────────────────────────
 const C_BG     := Color(0.08, 0.08, 0.08, 0.88)
@@ -29,8 +30,7 @@ const C_ENERGY := Color(1.0,  0.85, 0.1,  1.0)   # 武藝能量（金色）
 const C_DASH   := Color(0.3,  0.85, 1.0,  1.0)   # 衝刺能量（青色）
 const C_DOT_ON := Color(1.0,  1.0,  1.0,  1.0)
 const C_DOT_OFF:= Color(0.25, 0.25, 0.25, 1.0)
-const C_UKEMI_ON  := Color(1.0,  0.85, 0.1,  1.0)   # 金色，跟武藝能量條同色
-const C_UKEMI_OFF := Color(0.3,  0.27, 0.1,  1.0)   # 暗金＝用掉了
+const C_UKEMI_ON  := Color(1.0,  0.85, 0.1,  1.0)   # 金色，跟武藝能量條同色——冷卻條填充色，底色跟其他血條共用 C_BG
 const C_DENIED_WHITE := Color(1.0, 1.0, 1.0, 1.0)   # 武藝能量不足被拒——閃爍色 1
 const C_DENIED_RED   := Color(1.0, 0.15, 0.15, 1.0) # 武藝能量不足被拒——閃爍色 2
 const DENIED_FLASH_HZ := 20.0   # 閃爍頻率（次/秒），數值越大閃越快
@@ -68,8 +68,9 @@ const C_BUFF_LABEL        := Color(1.0, 0.95, 0.5, 1.0)   # 統一淡黃色，�
 ## 路徑有檔案就改用它（使用者要換書法字體：把字體檔放到這個路徑，不用再改
 ## 程式碼，下次執行就自動套用）。找不到檔案時 ResourceLoader.exists() 會是
 ## false，直接跳過，不會報錯。
-const BADGE_FONT_PATH := "res://VsMods/ui/badge_font.ttf"
-var _badge_font: Font = load(BADGE_FONT_PATH) if ResourceLoader.exists(BADGE_FONT_PATH) else null
+## 字體來源搬到 VsGameManager.get_badge_font()（選角/重選畫面的武藝格/裝備槽
+## 也要用同一個字體，避免兩邊各自 load 一份、改一邊漏改另一邊）。
+var _badge_font: Font = VsGameManager.get_badge_font()
 
 # ── 玩家參照 ──────────────────────────────────────────────────────────────────
 var _p1: VsPlayer
@@ -87,9 +88,9 @@ var _p2_dash: ColorRect
 var _p1_dots: Array = []   # Array[ColorRect]
 var _p2_dots: Array = []
 
-# ── 受身次數點（金色，貼在能量條下方跟 P1/P2 標籤同一列）───────────────────────
-var _p1_ukemi_dots: Array = []
-var _p2_ukemi_dots: Array = []
+# ── 受身冷卻條（金色，貼在能量條下方跟 P1/P2 標籤同一列；無限次數、只受冷卻限制）──
+var _p1_ukemi_bar: ColorRect
+var _p2_ukemi_bar: ColorRect
 
 # ── 血條/武藝能量條數字（疊在條上；血條只顯示目前血量單一數字，武藝能量條
 # 維持"目前/上限"）─────────────────────────────────────────────────────────
@@ -130,6 +131,7 @@ var _local_badge_tween: Tween
 # ── 文字 ──────────────────────────────────────────────────────────────────────
 var _result_label: Label   # 回合結果（平時隱藏）
 var _ping_label:   Label   # 網路延遲 + FPS 顯示（永遠顯示；離線模式只顯示 FPS）
+var _timer_label:  Label   # 回合計時器（正中央，vs_world 每幀 push，見 update_timer()）
 
 # ── 初始化 ────────────────────────────────────────────────────────────────────
 func _ready() -> void:
@@ -193,10 +195,8 @@ func _process(_delta: float) -> void:
 	_p1_en_label.text = "%d" % roundi(_p1.arts_energy * VsGameManager.ARTS_ENERGY_DISPLAY_SCALE)
 	_p2_en_label.text = "%d" % roundi(_p2.arts_energy * VsGameManager.ARTS_ENERGY_DISPLAY_SCALE)
 
-	for i in _p1_ukemi_dots.size():
-		_p1_ukemi_dots[i].color = C_UKEMI_ON if i < _p1.ukemi_uses_left else C_UKEMI_OFF
-	for i in _p2_ukemi_dots.size():
-		_p2_ukemi_dots[i].color = C_UKEMI_ON if i < _p2.ukemi_uses_left else C_UKEMI_OFF
+	_set_bar(_p1_ukemi_bar, VsPlayer.UKEMI_COOLDOWN - _p1.ukemi_cooldown_left, VsPlayer.UKEMI_COOLDOWN, true)
+	_set_bar(_p2_ukemi_bar, VsPlayer.UKEMI_COOLDOWN - _p2.ukemi_cooldown_left, VsPlayer.UKEMI_COOLDOWN, false)
 
 	# 裝備武藝徽章：框色/單字每幀同步（換裝武藝、回合重選都會反映），耗能
 	# 數字文字每幀更新（讀 loaded_arts 的實際 energy_cost，不是靜態表）
@@ -248,11 +248,17 @@ func _rainbow_color() -> Color:
 	var hue := fmod(Time.get_ticks_msec() / 1000.0 * ENERGY_FULL_RAINBOW_SPEED, 1.0)
 	return Color.from_hsv(hue, ENERGY_FULL_RAINBOW_SATURATION, ENERGY_FULL_RAINBOW_VALUE)
 
+## 填滿寬度用 fill 實際所在容器（_make_bar() 建立的 bg）的寬度換算，不是寫死
+## BAR_W——BAR_W 只適用血條/能量條那組固定 150px 寬的條，UKEMI_BAR_W（20px）
+## 這種自訂寬度的條若沿用 BAR_W 算，填色範圍會跟容器裁切範圍對不上（P1 算出
+## 的寬度直接超出容器被裁成「秒滿」，P2 換算出的起始位置整個在容器外看不到，
+## 快滿時才被裁進可視範圍變成「瞬間補滿」，兩種症狀都是這個根因）。
 func _set_bar(fill: ColorRect, cur: float, max_val: float, ltr: bool) -> void:
-	var w := int(BAR_W * clampf(cur / max_val, 0.0, 1.0)) if max_val > 0.0 else 0
+	var bar_w: float = (fill.get_parent() as Control).size.x
+	var w := int(bar_w * clampf(cur / max_val, 0.0, 1.0)) if max_val > 0.0 else 0
 	fill.size.x = w
 	if not ltr:
-		fill.position.x = BAR_W - w
+		fill.position.x = bar_w - w
 
 ## 框色/單字每幀同步成當下裝備的武藝（換裝、回合重選都會即時反映）：有裝備
 ## 白框、空槽位暗灰框，底色統一黑，靠框色+文字辨識「這格有沒有裝備」，不靠
@@ -358,6 +364,12 @@ func update_wins(p1w: int, p2w: int) -> void:
 		_p1_dots[i].color = C_DOT_ON if i < p1w else C_DOT_OFF
 		_p2_dots[i].color = C_DOT_ON if i < p2w else C_DOT_OFF
 
+## 回合計時器文字——vs_world 每幀從 round_manager.round_time_left push 進來。
+## 無條件進位到整秒（ceili）：讓「1」在畫面上停留到真的歸零那一刻，不要在
+## 還剩 0.x 秒時就先跳成「0」。
+func update_timer(seconds_left: float) -> void:
+	_timer_label.text = str(maxi(ceili(seconds_left), 0))
+
 func show_round_result(winner_id: int) -> void:
 	match winner_id:
 		1: _result_label.text = "P1 WINS!"
@@ -413,20 +425,16 @@ func _build_ui() -> void:
 	_make_label(root, "P1", lx,              label_y, 8)
 	_make_label(root, "P2", rx + BAR_W - 14, label_y, 8)
 
-	# 受身次數點（跟 P1/P2 標籤同一列，貼在該側能量條的另一端，避免跟文字重疊）
-	var ukemi_w := VsPlayer.UKEMI_MAX_USES * UKEMI_DOT_SIZE + (VsPlayer.UKEMI_MAX_USES - 1) * UKEMI_DOT_GAP
+	# 受身冷卻條（跟 P1/P2 標籤同一列，貼在該側能量條的另一端，避免跟文字重疊）——
+	# 無限次數、只受 UKEMI_COOLDOWN 秒冷卻限制，用跟血條/能量條同一套 _make_bar()/
+	# _set_bar() 顯示「還要等多久」，不是開/關次數點。
 	var ukemi_y := label_y + 2
-	for i in VsPlayer.UKEMI_MAX_USES:
-		_p1_ukemi_dots.append(_make_ukemi_dot(root, lx + BAR_W - ukemi_w + i * (UKEMI_DOT_SIZE + UKEMI_DOT_GAP), ukemi_y))
-	for i in VsPlayer.UKEMI_MAX_USES:
-		_p2_ukemi_dots.append(_make_ukemi_dot(root, rx + i * (UKEMI_DOT_SIZE + UKEMI_DOT_GAP), ukemi_y))
+	_p1_ukemi_bar = _make_bar(root, lx + BAR_W - UKEMI_BAR_W, ukemi_y, UKEMI_BAR_W, UKEMI_BAR_H, C_UKEMI_ON)
+	_p2_ukemi_bar = _make_bar(root, rx,                        ukemi_y, UKEMI_BAR_W, UKEMI_BAR_H, C_UKEMI_ON)
 
-	# 裝備武藝徽章（3 格，貼在螢幕底部、貼近 ping/FPS 標籤上方；耗能數字疊在
-	# 徽章下面，預設淡出，見 _process() 的修飾鍵高亮邏輯）。徽章區塊高度＝
-	# BADGE_SIZE（本體）+1（間距）+9（耗能數字行高），預留在 ping_label（貼
-	# 底部、10px 高）之上，避免兩者重疊。
-	var badge_block_h := BADGE_SIZE + 1 + 9
-	var badge_y := VIEW_H - 11 - 5 - badge_block_h
+	# 裝備武藝徽章（3 格，貼在血條/能量條/P1P2標籤/受身條那組 UI 正下方，同一側
+	# 對齊；耗能數字疊在徽章下面，預設淡出，見 _process() 的修飾鍵高亮邏輯）。
+	var badge_y := ukemi_y + UKEMI_BAR_H + 3
 	# P1 貼左邊界往右排（跟血條/能量條同一側對齊），P2 鏡像：貼右邊界往左排
 	# （整排右邊緣對齊 rx+BAR_W，跟 P1 整排左邊緣對齊 lx 互為鏡像），比照
 	# HP/EN 數字標籤 P1 靠左/P2 靠右的對稱慣例，不要兩排都往同一方向長
@@ -459,7 +467,9 @@ func _build_ui() -> void:
 	_p1_buff_label = _make_buff_label(root)
 	_p2_buff_label = _make_buff_label(root)
 
-	# 勝場指示點（中央上方）
+	# 勝場指示點（中央上方）——中間刻意讓開 TIMER_GAP 的空間放回合計時器
+	# （原本只留 4px，兩側點快貼在一起；这次確認過那個縫隙就是留給計時器的，
+	# 但太窄塞不下數字，加寬到 TIMER_GAP）
 	var cx     := VIEW_W / 2
 	var dot_y  := y0 + 1
 	var n      := VsRoundManager.ROUNDS_TO_WIN
@@ -467,15 +477,27 @@ func _build_ui() -> void:
 
 	# P1 點（靠中心左側）
 	for i in n:
-		var dx := cx - 4 - blk_w + i * (DOT_SIZE + DOT_GAP)
+		var dx := cx - TIMER_GAP - blk_w + i * (DOT_SIZE + DOT_GAP)
 		var dot := _make_dot(root, dx, dot_y)
 		_p1_dots.append(dot)
 
 	# P2 點（靠中心右側）
 	for i in n:
-		var dx := cx + 4 + i * (DOT_SIZE + DOT_GAP)
+		var dx := cx + TIMER_GAP + i * (DOT_SIZE + DOT_GAP)
 		var dot := _make_dot(root, dx, dot_y)
 		_p2_dots.append(dot)
+
+	# 回合計時器（正中央，跟勝場點同一列）——update_timer() 每幀由 vs_world
+	# 從 round_manager.round_time_left 推進來更新文字，這裡只負責排版。
+	_timer_label = Label.new()
+	_timer_label.position = Vector2(cx - TIMER_GAP, dot_y - 2)
+	_timer_label.size     = Vector2(TIMER_GAP * 2, 10)
+	_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_timer_label.add_theme_font_size_override("font_size", 9)
+	_timer_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.95))
+	_timer_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	_timer_label.add_theme_constant_override("outline_size", 2)
+	root.add_child(_timer_label)
 
 	# 回合結果 / GAME OVER 大字（螢幕中央）
 	_result_label          = Label.new()
@@ -603,14 +625,6 @@ func _make_dot(parent: Control, x: int, y: int) -> ColorRect:
 	dot.position = Vector2(x, y)
 	dot.size     = Vector2(DOT_SIZE, DOT_SIZE)
 	dot.color    = C_DOT_OFF
-	parent.add_child(dot)
-	return dot
-
-func _make_ukemi_dot(parent: Control, x: int, y: int) -> ColorRect:
-	var dot := ColorRect.new()
-	dot.position = Vector2(x, y)
-	dot.size     = Vector2(UKEMI_DOT_SIZE, UKEMI_DOT_SIZE)
-	dot.color    = C_UKEMI_ON
 	parent.add_child(dot)
 	return dot
 

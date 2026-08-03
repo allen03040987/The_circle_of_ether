@@ -2,10 +2,14 @@ class_name VsPlayer
 extends CharacterBody2D
 
 # ── 體質效果枚舉 ──────────────────────────────────────────────────────────────
+## 2026-07-27：從「整個狀態型別綁死一種體質」改成逐招、逐時間點可配置——見
+## anim_armor_tier 欄位＋get_armor_tier() 的說明。INVINCIBLE 併入這裡，
+## 跟舊的 invincible_time_left 計時器式無敵是同一件事的兩種觸發方式。
 enum ArmorTier {
 	NONE,        # 正常
 	HYPER,       # 霸體：免疫非破霸攻擊的擊退/硬直
-	STRONG_HYPER # 強霸體：免疫非強破霸攻擊的擊退/硬直，並獲得 50% 減傷
+	STRONG_HYPER,# 強霸體：免疫非強破霸攻擊的擊退/硬直，並獲得 50% 減傷
+	INVINCIBLE,  # 無敵：完全免疫，不吃傷害
 }
 
 ## 這次命中的結果分類——供 vs_world 在命中判定後決定要給哪種打擊回饋
@@ -120,22 +124,43 @@ var queued_knockdown:      bool       = false # 落地屬性（y=0）：VsHurt �
 var last_input:            InputState         # 當幀輸入備份（供 enter() 讀取方向）
 var last_hit_outcome:      HitOutcome = HitOutcome.NORMAL   # 見 HitOutcome 註解
 
+## 敗北演出（VsRoundManager._tick_fighting() 偵測 hp<=0 時設定，_reset_round()
+## 重置）。is_defeated 讓 VsKnockdown 知道二次落地該接 vsgetup（起身）還是
+## 停在原地播 launched_3（躺平終局）；defeat_settled 由終局狀態（VsDefeated
+## 或 VsKnockdown 的敗北分支）在畫面真正「定格」時設 true，VsRoundManager
+## 靠這個決定 ROUND_END_DELAY 何時開始倒數——見 VsDefeated.gd/VsKnockdown.gd。
+var is_defeated:    bool = false
+var defeat_settled: bool = false
+## 死於場地機關（目前只有懸崖 kill_instantly()）——沒有正常命中/硬直可看，
+## VsRoundManager 靠這個跳過敗方特寫+慢動作（LOSER_CLOSEUP），只保留勝方
+## 特寫，見 kill_instantly() 與 VsRoundManager._tick_fighting()。
+var died_from_hazard: bool = false
+
+## 最後一擊震動——比一般命中震動（hb.shake_intensity，逐招調）更誇張的固定值，
+## 只在「這一下正好把 hp 打到 <=0」時額外觸發，蓋過同一幀已經套用的一般命中
+## 震動（VsCamera.shake() 直接覆寫 intensity/timer，不會疊加，所以必須確保
+## 這個呼叫是同一幀「最後」才呼叫的那個，見 _apply_pending_hit()/vs_world.gd
+## 的呼叫順序說明）。
+const FINAL_BLOW_SHAKE_INTENSITY := 18.0
+const FINAL_BLOW_SHAKE_DURATION  := 0.25
+
 ## 受身（全角色通用）：受擊硬直（VsHurt）或擊飛（VsLaunched）期間——這兩個
 ## 狀態本來就「無法操作」——按下技能鍵立刻獲得 UKEMI_DURATION 秒強霸體，藉此
 ## 打斷正在進行中的連段/juggle（強霸體讓後續非強破霸的攻擊只扣血不再重新
 ## 進硬直，VsHurt 自己的 elapsed 倒數不會被打斷重置，juggle 到此為止）。不
 ## 取消當下狀態本身——角色仍照原本的硬直/落地時間軸走，只是變得打不動。
-## 每回合限用 UKEMI_MAX_USES 次（VsRoundManager._reset_round() 重置）。
+## 無次數限制，改用冷卻時間限制（UKEMI_COOLDOWN 秒），每回合開始重置成可用
+## （VsRoundManager._reset_round()）。
 const UKEMI_DURATION:  float = 2.0
-const UKEMI_MAX_USES:  int   = 2
-var ukemi_uses_left: int = UKEMI_MAX_USES
+const UKEMI_COOLDOWN:  float = 10.0
+var ukemi_cooldown_left: float = 0.0
 
 ## 由 VsHurt/VsLaunched 的 physics_update() 在 input.skill 時呼叫。
-## 次數用完回傳 false（呼叫端不用另外檢查次數，這裡就是唯一入口）。
+## 還在冷卻中回傳 false（呼叫端不用另外檢查冷卻，這裡就是唯一入口）。
 func try_ukemi() -> bool:
-	if ukemi_uses_left <= 0:
+	if ukemi_cooldown_left > 0.0:
 		return false
-	ukemi_uses_left -= 1
+	ukemi_cooldown_left = UKEMI_COOLDOWN
 	post_dash_armor_left = maxf(post_dash_armor_left, UKEMI_DURATION)
 	# 觸發回饋：黃色十字特效（Cross slash sparks，套用跟強霸體描邊同一個金色
 	# HDR 值 OUTLINE_COLOR_STRONG_HYPER，視覺語彙一致）+ beam_2 音效。兩個
@@ -228,6 +253,19 @@ func fire_sword_wave(damage_override: float = -1.0) -> void:
 		if damage_override > 0.0:
 			proj.hitbox.damage = damage_override
 
+## 生成一根地刺（奈何武藝1「間歇性地刺」的動畫 Call Method 軌道呼叫入口，
+## 跟 fire_sword_wave 同一套慣例——只擋 _resyncing_anim，不擋 is_resimulating，
+## 生成地刺本身是模擬狀態的一部分，rollback 重模擬到同一幀要照樣真的生成）。
+## offset_x：這根地刺相對施放者的水平偏移（往 facing_dir 那側量），同一招動畫
+## 軌道上排多個 Call Method key、各自傳不同 offset_x，就能做出依序冒出、
+## 由近到遠的一整排地刺，不用寫任何排程程式碼。
+func spawn_ground_spike(offset_x: float, lifetime: float = 0.4) -> void:
+	if _resyncing_anim: return
+	if not (state_machine.current_state is VsMartialArt): return
+	var vw := get_parent()
+	if vw and vw.has_method("spawn_ground_spike"):
+		vw.spawn_ground_spike(self, facing_dir, offset_x, lifetime)
+
 # 脫戰計時器：用 float + 模擬 delta，不用 Timer 節點（Timer 用真實時間，rollback 下會飄）
 const OUT_OF_COMBAT_DELAY := 2.0
 var out_of_combat_left: float = 0.0
@@ -260,6 +298,14 @@ func _ready() -> void:
 			hitboxes.append(c)
 	state_machine.init(self, &"vsidle")
 	hurtbox.hurt.connect(_on_hurtbox_hurt)
+	# VsDefeated 不是場景固定子節點（跟武藝一樣是動態註冊）——它是所有角色
+	# 共用、跟裝了哪些武藝無關的通用終局狀態，不需要等 art_slots 才能決定要
+	# 掛哪支腳本，直接在這裡註冊一次即可，不用像 _load_arts() 延後到 vs_world
+	# 設定完 art_slots 才呼叫。
+	var defeated_state := VsDefeated.new()
+	defeated_state.name = "VsDefeated"
+	state_machine.add_child(defeated_state)
+	state_machine.register_state(defeated_state, self)
 
 # ── 主更新（由 vs_world 每幀呼叫）────────────────────────────────────────────
 func apply_input(delta: float, input: InputState) -> void:
@@ -272,6 +318,17 @@ func apply_input(delta: float, input: InputState) -> void:
 	# 攻擊動畫的 can_combo / hitbox monitoring 軌道值因此是模擬時間的純函數，
 	# rollback 重模擬每幀都會重跑軌道，兩端保證一致。放在狀態更新之前，
 	# 讓「動畫時間」與各狀態的 elapsed 對齊（enter 播動畫的下一幀兩者同為 1 delta）
+	# ⚠ 離散值軌道不是「每幀冪等重套當前值」，是只有真的跨過關鍵影格那一瞬間
+	# 才寫入一次——can_combo/monitoring 能正常運作是因為沒有人每幀主動重置它們，
+	# 不是軌道自己重套。之前在這裡寫「每幀重置成 NONE 再讓 advance() 重套」是
+	# 錯的：只有跨過 t=0 那一幀是設定值，下一幀重置蓋掉、軌道沒有新 key 可以
+	# 重新寫入，值就會在「設定值／被重置」之間閃爍（實測抓到：art_2 的體質
+	# 輪廓每幀開開關關）。改成只在動畫「換了」的那一刻才重置：同一個動畫
+	# 播放期間完全不動 anim_armor_tier，讓軌道自己的 key 決定何時改變；換到
+	# 別的動畫（沒有軌道就會維持 NONE）才清空，不會殘留上一個動畫設過的值。
+	if anim_player.current_animation != _armor_reset_anim:
+		_armor_reset_anim = anim_player.current_animation
+		anim_armor_tier = ArmorTier.NONE
 	anim_player.advance(delta)
 	state_machine.physics_update(delta, input)
 	_move_deterministic(delta)
@@ -484,21 +541,42 @@ func _update_energy_regen(delta: float) -> void:
 	# 衝刺後強霸體倒計
 	if post_dash_armor_left > 0.0:
 		post_dash_armor_left = maxf(post_dash_armor_left - delta, 0.0)
+	# 受身冷卻
+	if ukemi_cooldown_left > 0.0:
+		ukemi_cooldown_left = maxf(ukemi_cooldown_left - delta, 0.0)
 
 # ── 體質效果 ──────────────────────────────────────────────────────────────────
-## 根據當前狀態與計時器計算實際 ArmorTier（衍生值，不儲存）
+## 動畫軌道驅動的體質值——各狀態動畫用 `.:anim_armor_tier` 值軌道設定，
+## get_armor_tier() 讀取，見該函式說明。動畫「換了」的那一刻在 apply_input()
+## 重置成 NONE（不是每幀重置，見該處說明）。
+## @export 是必要的，不是順手加——Godot 動畫面板的「Add Property Track」
+## 選單只列有標記給編輯器看的屬性（@export 或引擎內建屬性），純 var 不會
+## 出現在清單裡，使用者在編輯器裡會完全找不到這個屬性可以選（實測抓到）。
+@export var anim_armor_tier: ArmorTier = ArmorTier.NONE
+var _armor_reset_anim: StringName = &""   ## 追蹤上一幀播放的動畫名稱，判斷有沒有換動畫
+
+## 逐招、逐時間點可配置的體質等級——不再靠「目前是哪種狀態型別」寫死推斷。
+## 優先序：(1) invincible_time_left 計時器式無敵（回合開局/倒地彈起/起身/
+## 反擊窗這類「跟正在放什麼招無關」的無敵，折算成 INVINCIBLE）；(2) VsGuard
+## 的雙階段特例維持原樣（defense/defense_2 兩支動畫本身就是逐階段控制，
+## 不需要改造成軌道）；(3) post_dash_armor_left（受身 try_ukemi() 給的 2 秒
+## 強霸體——這個計時器獨立於「目前放什麼招」，改版時漏保留過一次，已修正）；
+## (4) 其餘全部走 anim_armor_tier——由目前播放中的動畫用一條值軌道（NodePath
+## `.:anim_armor_tier`，跟 `.:can_combo` 同一套慣例）逐時間點設定，每幀在
+## apply_input() 裡於 anim_player.advance() 之前重置成 NONE，沒有軌道的動畫
+## （idle/hurt 等）自然維持 NONE，不會殘留上一個動畫設過的值。想要「某武藝
+## 全程強霸體、戰技全程霸體、普攻最後一段無敵」都是在對應動畫上加關鍵影格，
+## 不用寫程式碼分支。
 func get_armor_tier() -> ArmorTier:
+	if invincible_time_left > 0.0:
+		return ArmorTier.INVINCIBLE
 	var cur := state_machine.current_state
 	if cur is VsGuard:
 		# 後搖（defense_2）期間沒有霸體，見 VsGuard.is_blocking() 註解
 		return ArmorTier.STRONG_HYPER if (cur as VsGuard).is_blocking() else ArmorTier.NONE
-	# 規則：武藝施放全程要有霸體或以上——多數武藝維持 HYPER（免疫非破霸攻擊）
-	# 即符合下限，個別招式想要強霸體就設 armor_tier_override_strong
-	if cur is VsMartialArt:
-		return ArmorTier.STRONG_HYPER if (cur as VsMartialArt).armor_tier_override_strong else ArmorTier.HYPER
 	if post_dash_armor_left > 0.0:
 		return ArmorTier.STRONG_HYPER
-	return ArmorTier.NONE
+	return anim_armor_tier
 
 # ── 無敵 ─────────────────────────────────────────────────────────────────────
 func _tick_invincibility(delta: float) -> void:
@@ -513,13 +591,21 @@ func _on_hurtbox_hurt(hitbox: VsHitbox) -> void:
 	var cur := state_machine.current_state
 	last_hit_outcome = HitOutcome.NORMAL   # 預設；下面各分支視情況覆寫
 
-	# 完美閃避：判定窗（VsDodge 前 PERFECT_WINDOW 秒，同時 invincible_time_left > 0）
-	if cur is VsDodge and invincible_time_left > 0.0:
-		(cur as VsDodge).trigger_perfect_dodge()
-		last_hit_outcome = HitOutcome.INVINCIBLE
+	# 已經敗北（回合結束等待敗北動畫播完這段期間，殘留判定框仍可能命中）——
+	# 直接無視、不進入任何後續流程。刻意獨立於 get_armor_tier() 判斷之外：
+	# 若借用 ArmorTier.INVINCIBLE 達成「打不到」，會連帶觸發無敵體質描邊特效，
+	# 死掉的角色卻在發無敵光效觀感很怪（使用者明確反應）。這裡用獨立旗標，
+	# 「打不動」跟「體質視覺」兩件事分開，defeat 期間維持角色普通外觀。
+	if is_defeated:
+		last_hit_outcome = HitOutcome.INVINCIBLE   # 沿用既有「無命中回饋」分支，vs_world 不會給音效/火花
 		return
 
-	if is_invincible():
+	# 用 get_armor_tier() 而不是 is_invincible()——這裡要同時涵蓋計時器式無敵
+	# （invincible_time_left）跟新的軌道式無敵窗口（anim_armor_tier == INVINCIBLE），
+	# get_armor_tier() 已經把兩者統一折算成同一個結果。is_invincible() 本身
+	# 保留給環境傷害情境用（take_hazard_damage 的 bypass、彈簧機關），刻意只認
+	# 計時器式無敵，不受「某招最後一瞬間無敵窗」影響。
+	if get_armor_tier() == ArmorTier.INVINCIBLE:
 		last_hit_outcome = HitOutcome.INVINCIBLE
 		return
 
@@ -608,10 +694,16 @@ func _apply_pending_hit() -> void:
 	var hit  := pending_hit
 	pending_hit = {}
 
+	var was_alive := hp > 0.0
 	hp            = maxf(hp - hit["damage"], 0.0)
 	velocity      = hit["knockback"]
 	queued_hitstun = hit["hitstun_time"]
 	mark_in_combat()
+	# 最後一擊震動：這下把角色打到 hp<=0（且打之前還活著，避免屍體被連續多下
+	# 波及重複觸發）。這個分支跟命中當下（_manual_check）的一般震動天生不同幀
+	# ——一般攻擊排隊到 pending_hit、下一幀才在這裡真正扣血，不會互相覆寫。
+	if was_alive and hp <= 0.0:
+		vfx_shake(FINAL_BLOW_SHAKE_INTENSITY, FINAL_BLOW_SHAKE_DURATION)
 
 	# 落地規則分流：
 	#   落地屬性 + y<0 擊退 → 擊飛（忽略硬直，落地那一刻直接進倒地）
@@ -661,6 +753,7 @@ func take_hazard_damage(damage: float, knockback: Vector2, causes_knockdown: boo
 ## （強制進 VsKnockdown、回合結束），不用在這裡自己處理死亡轉場。
 func kill_instantly() -> void:
 	hp = 0.0
+	died_from_hazard = true
 
 ## 彈簧用：立刻進入跳躍狀態並套用更強的上升力道（比一般 jump_force 更負）。
 ## 呼叫前 vs_world 已經檢查過 is_invincible()（陷阱/彈簧同一套規則，衝刺
@@ -784,8 +877,13 @@ func save_state() -> Dictionary:
 		"cc":     can_combo,
 		"aau":    air_attack_used,
 		"inv":    invincible_time_left,
+		"aat":    anim_armor_tier,
+		"aatn":   _armor_reset_anim,
 		"pda":    post_dash_armor_left,
-		"ukemi":  ukemi_uses_left,
+		"ukemi":  ukemi_cooldown_left,
+		"dfd":    is_defeated,
+		"dfs":    defeat_settled,
+		"dfh":    died_from_hazard,
 		"phit":   pending_hit.duplicate(true),
 		"qhit":   queued_hitstun,
 		"qkd":    queued_knockdown,
@@ -818,8 +916,13 @@ func restore_state(s: Dictionary) -> void:
 	can_combo            = s["cc"]
 	air_attack_used      = s["aau"]
 	invincible_time_left = s["inv"]
+	anim_armor_tier      = s.get("aat", ArmorTier.NONE)
+	_armor_reset_anim    = s.get("aatn", &"")
 	post_dash_armor_left = s["pda"]
-	ukemi_uses_left      = s.get("ukemi", UKEMI_MAX_USES)
+	ukemi_cooldown_left  = s.get("ukemi", 0.0)
+	is_defeated          = s.get("dfd", false)
+	defeat_settled       = s.get("dfs", false)
+	died_from_hazard     = s.get("dfh", false)
 	pending_hit          = s["phit"].duplicate(true)
 	queued_hitstun       = s["qhit"]
 	queued_knockdown     = s["qkd"]
@@ -910,8 +1013,8 @@ func reload_arts(new_slots: Array) -> void:
 # ==========================================
 # 🎇 打擊回饋 VFX
 # ==========================================
-## CombatManager（autoload）是共用的特效庫，`vfx_spark`/`vfx_shake`/`vfx_ghost`/
-## `vfx_dodge_spark` 是每個角色呼叫它的統一入口。`spawn_anim_vfx` 則是完整移植
+## CombatManager（autoload）是共用的特效庫，`vfx_spark`/`vfx_shake`/`vfx_ghost`
+## 是每個角色呼叫它的統一入口。`spawn_anim_vfx` 則是完整移植
 ## 主遊戲 Player.gd 的「字典庫」系統（見下方，vfx_common/vfx_weapon/vfx_system 三
 ## 個 @export Dictionary），用來掛任意自訂特效場景（不限於固定的 SparkType 打擊
 ## 火花）——這兩套系統並存，各司其職：固定打擊回饋用 vfx_*，招式專屬/自訂特效
@@ -922,7 +1025,7 @@ func reload_arts(new_slots: Array) -> void:
 ## `VsHitbox`（讀它的 use_character_default_spark/角色預設 fallback），只會由
 ## `vs_world._manual_check()` 在真正判定命中時呼叫，不提供動畫 Call Method 軌道
 ## 版本——招式自己的動畫不該無條件噴火花，那是命中那一刻、命中對象身上才有的
-## 反應。`vfx_shake`/`vfx_ghost`/`vfx_dodge_spark`/`spawn_anim_vfx` 則兩種來源
+## 反應。`vfx_shake`/`vfx_ghost`/`spawn_anim_vfx` 則兩種來源
 ## 都能呼叫：(1) 程式碼直接呼叫（hit 判定、dash 計時器這種要等執行期才知道該不
 ## 該觸發的場合）；(2) 當動畫 Call Method 軌道用（NodePath 打 `.`、方法名填函式
 ## 名，比照 strike_impulse 的用法，適合「這一幀就是要有這個特效」的固定時間點，
@@ -1009,11 +1112,6 @@ func vfx_ghost(color: Color = Color(1.0, 1.0, 1.0, 0.4), scale_mult: float = 1.0
 	var sprite := graphics.get_node_or_null("Sprite2D") as Sprite2D
 	if is_instance_valid(sprite):
 		CombatManager.spawn_ghost(sprite, sprite.global_position, graphics.scale * scale_mult, color)
-
-## 完美閃避專屬火花——由 VsDodge.trigger_perfect_dodge() 呼叫
-func vfx_dodge_spark() -> void:
-	if _vfx_blocked(): return
-	CombatManager.spawn_dodge_spark(vfx_anchor_position())
 
 ## 格擋成功火花——比照主遊戲 player/state/Guard.gd::try_block() 的火花參數
 ## （BLUNT 鈍擊型、貼在防禦方身上、朝防禦方面向），跟一般命中火花 vfx_spark
@@ -1126,14 +1224,20 @@ func _process(delta: float) -> void:
 
 func _update_status_outline() -> void:
 	var desired := ""
-	# 跟主遊戲共用同一個純視覺開關（設定選單的「狀態輪廓」）
-	if Game.config_enable_status_outline:
-		if is_invincible():
-			desired = "invincible"
-		else:
-			match get_armor_tier():
-				ArmorTier.STRONG_HYPER: desired = "strong_hyper"
-				ArmorTier.HYPER:        desired = "hyper"
+	# 跟主遊戲共用同一個純視覺開關（設定選單的「狀態輪廓」）——單一 match 涵蓋
+	# 四級，get_armor_tier() 已經統一折算計時器式無敵跟軌道式無敵/霸體，這裡
+	# 不用再分開判斷 is_invincible()。
+	# ⚠ is_defeated 期間一律不顯示任何體質描邊——敗北整段流程（擊飛落地彈起
+	# 期間的 INVINCIBLE_COVER、或硬直死亡的 VsDefeated）在底層可能仍帶著非零
+	# invincible_time_left（沿用既有落地保護機制，見 VsKnockdown.gd），但體質
+	# 描邊是「還在打」的視覺語言，死掉的角色顯示無敵光效觀感很怪（使用者明確
+	# 反應），這裡直接整組跳過，不用逐一去清每個可能設到 invincible_time_left
+	# 的地方。
+	if Game.config_enable_status_outline and not is_defeated:
+		match get_armor_tier():
+			ArmorTier.INVINCIBLE:   desired = "invincible"
+			ArmorTier.STRONG_HYPER: desired = "strong_hyper"
+			ArmorTier.HYPER:        desired = "hyper"
 
 	if desired != _outline_state:
 		_outline_state = desired

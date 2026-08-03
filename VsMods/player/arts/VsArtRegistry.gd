@@ -13,6 +13,10 @@ const SCRIPTS: Dictionary = {
 	"Art_Clotty_4": "res://VsMods/player/arts/Art_Clotty_4.gd",
 	"Art_Clotty_5": "res://VsMods/player/arts/Art_Clotty_5.gd",
 	"Art_Clotty_6": "res://VsMods/player/arts/Art_Clotty_6.gd",
+	"Art_Naihe_1": "res://VsMods/player/arts/Art_Naihe_1.gd",
+	"Art_Naihe_2": "res://VsMods/player/arts/Art_Naihe_2.gd",
+	"Art_Naihe_3": "res://VsMods/player/arts/Art_Naihe_3.gd",
+	"Art_Naihe_4": "res://VsMods/player/arts/Art_Naihe_4.gd",
 }
 
 static func get_art_script(art_name: String) -> Script:

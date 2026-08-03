@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bs0p208443fkv"
+path="res://.godot/imported/The Second Core - [DELTARUNE UST] - Tooth In Me (youtube) (mp3cut.net).wav-bba73e3e8907b5fb615d4c41217b7ec8.sample"
+
+[deps]
+
+source_file="res://sound/BGM/vsmods/The Second Core - [DELTARUNE UST] - Tooth In Me (youtube) (mp3cut.net).wav"
+dest_files=["res://.godot/imported/The Second Core - [DELTARUNE UST] - Tooth In Me (youtube) (mp3cut.net).wav-bba73e3e8907b5fb615d4c41217b7ec8.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=2
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=0

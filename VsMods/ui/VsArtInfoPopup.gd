@@ -29,9 +29,10 @@ static func open_over(parent: Node, art_id: String, layer: int = 22) -> CanvasLa
 	return canvas
 
 func _ready() -> void:
-	var art_name := VsGameManager.get_art_name(art_id)
-	_title.text = "%s：%s" % [VsGameManager.get_display_name(art_id), art_name] if art_name != "" \
-		else VsGameManager.get_display_name(art_id)
+	# get_display_name() 現在直接回傳正式招式名稱（2026-07-27 改版，取代原本
+	# 的「武藝N」佔位編號），跟 get_art_name() 是同一份資料，不用再兩個並列
+	# 顯示（以前是「武藝一：逆鱗返」，兩者統一後會變成重複的「逆鱗返：逆鱗返」）。
+	_title.text = VsGameManager.get_display_name(art_id)
 	var desc: String = VsGameManager.ART_DESCRIPTIONS.get(art_id, "（尚無說明）")
 	# 消耗能量數字套跟 BattleHud 能量條/徽章同一個顯示縮放（VsGameManager.
 	# ARTS_ENERGY_DISPLAY_SCALE），玩家在選角畫面看到的數字要跟局內看到的

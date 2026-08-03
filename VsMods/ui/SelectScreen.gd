@@ -1,10 +1,17 @@
 extends Control
 ## 武藝裝備選擇畫面。
 ## 固定元素（標題/分隔線/裝備欄標籤/3 個裝備槽按鈕/返回開始按鈕）都是
-## SelectScreen.tscn 裡真正的節點，可以直接在編輯器裡拖動排版；角色列跟武藝格
-## 數量會隨角色/武藝池變動，維持程式碼在執行期動態生成，塞進場景裡對應的
-## CharacterAnchor/ArtAnchor 這兩個「定位錨點」節點（錨點本身的 position/size
-## 在編輯器可調，決定動態按鈕要生成在哪個範圍）。
+## SelectScreen.tscn 裡真正的節點，可以直接在編輯器裡拖動排版；武藝格數量會
+## 隨武藝池變動，維持程式碼在執行期動態生成，塞進場景裡對應的 ArtAnchor 這個
+## 「定位錨點」節點（錨點本身的 position/size 在編輯器可調，決定動態按鈕要
+## 生成在哪個範圍）。
+##
+## ⚠ 2026-08-03：角色選擇已經拆到獨立的 CharacterSelectScreen（LobbyScreen→
+## CharacterSelectScreen→這裡→MapSelectScreen→vs_world）。這個畫面現在只
+## 負責武藝，角色是唯讀的（_ready() 從 VsGameManager.p1_character/p2_character
+## 讀入，兩者已經在上一頁確定），原本的 CharacterAnchor 角色按鈕列連同
+## _populate_character_row()/_on_character_clicked() 一起拿掉，空出來的高度
+## 讓給武藝格/裝備槽，緩解使用者反映的「視窗塞不下」。
 ##
 ## 離線模式：P1（PanelA）左半、P2（PanelB）右半，左右並排同時選。
 ## 線上模式：只顯示本機玩家那一半（PanelA 或 PanelB，看本機是 P1 還是 P2），
@@ -28,6 +35,7 @@ const C_SELECTED_BORDER := Color(1.0, 1.0, 1.0)
 var _p1_sel: Array = ["", "", ""]   # 固定 3 格，直接對應槽位索引（不是不定長清單）
 var _p2_sel: Array = ["", "", ""]
 
+## 唯讀——CharacterSelectScreen 已經確定好，_ready() 從 VsGameManager 讀入。
 var _p1_character: String = VsCharacterRegistry.DEFAULT_CHARACTER
 var _p2_character: String = VsCharacterRegistry.DEFAULT_CHARACTER
 
@@ -36,8 +44,6 @@ var _p2_selected_slot: int = -1
 
 var _p1_art_btns:  Array = []
 var _p2_art_btns:  Array = []
-var _p1_char_btns: Array = []
-var _p2_char_btns: Array = []
 
 ## 每個面板底下固定子節點的參照，_panel_refs() 在 _ready() 蒐集一次
 var _p1_refs: Dictionary = {}
@@ -55,6 +61,9 @@ func _ready() -> void:
 	_is_online   = VsNetworkManager.mode != VsNetworkManager.Mode.OFFLINE
 	_local_pid   = VsNetworkManager.local_player_id
 	_status_label = $StatusLabel
+	# 角色已經在 CharacterSelectScreen 確定，這裡只讀不改
+	_p1_character = VsGameManager.p1_character
+	_p2_character = VsGameManager.p2_character
 	_p1_refs = _panel_refs($PanelA)
 	_p2_refs = _panel_refs($PanelB)
 	_connect_slots(_p1_refs, 1)
@@ -67,7 +76,6 @@ func _ready() -> void:
 func _panel_refs(panel: Control) -> Dictionary:
 	return {
 		"section_label":    panel.get_node("SectionLabel") as Label,
-		"character_anchor": panel.get_node("CharacterAnchor") as Control,
 		"art_anchor":       panel.get_node("ArtAnchor") as Control,
 		"slot_row":         panel.get_node("SlotRow") as Control,
 		"slots": [
@@ -102,7 +110,6 @@ func _build_ui() -> void:
 		refs["section_label"].text = "P%d（你）" % _local_pid
 		refs["hint"].text = "（空槽位：生命/衝刺回復/移速 +%.0f%%）" % (VsGameManager.EMPTY_SLOT_STAT_BONUS_PCT * 100.0)
 		var character := VsGameManager.p1_character if local_is_p1 else VsGameManager.p2_character
-		_populate_character_row(refs, _local_pid)
 		_populate_art_grid(refs, _local_pid, VsCharacterRegistry.get_arts(character))
 		$StartButton.text = "確認選擇"
 	else:
@@ -117,8 +124,6 @@ func _build_ui() -> void:
 		var hint_text := "（空槽位：生命/衝刺回復/移速 +%.0f%%）" % (VsGameManager.EMPTY_SLOT_STAT_BONUS_PCT * 100.0)
 		_p1_refs["hint"].text = hint_text
 		_p2_refs["hint"].text = hint_text
-		_populate_character_row(_p1_refs, 1)
-		_populate_character_row(_p2_refs, 2)
 		_populate_art_grid(_p1_refs, 1, VsCharacterRegistry.get_arts(_p1_character))
 		_populate_art_grid(_p2_refs, 2, VsCharacterRegistry.get_arts(_p2_character))
 		$StartButton.text = "開始對戰"
@@ -130,7 +135,6 @@ func _build_ui() -> void:
 func _layout_panel(panel: Control, refs: Dictionary, x: float, width: float) -> void:
 	panel.position.x = x
 	panel.size.x     = width
-	(refs["character_anchor"] as Control).size.x = width
 	(refs["art_anchor"] as Control).size.x       = width
 	(refs["slot_row"] as Control).size.x         = width
 	(refs["hint"] as Label).size.x               = width
@@ -171,7 +175,7 @@ func _populate_art_grid(refs: Dictionary, pid: int, arts: Array) -> void:
 		# 觸發）才會解析，太早呼叫會拿到 null（"Invalid set index 'text' on
 		# base: 'Nil'"）
 		anchor.add_child(btn)
-		btn.setup(art_id, VsGameManager.get_display_name(art_id))
+		btn.setup(art_id, VsGameManager.get_art_badge_char(art_id))
 		btn.pressed.connect(func(): _on_art_clicked(pid, art_id))
 		btn.info_requested.connect(func(id: String): VsArtInfoPopup.open_over(self, id))
 		btn.position = Vector2(GAP + col * (bw + GAP), row * (btn_h + GAP))
@@ -180,50 +184,6 @@ func _populate_art_grid(refs: Dictionary, pid: int, arts: Array) -> void:
 	if pid == 1: _p1_art_btns = btns
 	else:        _p2_art_btns = btns
 
-## 換角色時整列砍掉重建——按鈕的 closure 在建立當下就把 art_id 捕捉死，
-## 換角色後武藝池整個不同，不能只改文字，必須整列重來。
-func _rebuild_art_row(pid: int) -> void:
-	var refs: Dictionary = _p1_refs if pid == 1 else _p2_refs
-	var character: String = _p1_character if pid == 1 else _p2_character
-	_populate_art_grid(refs, pid, VsCharacterRegistry.get_arts(character))
-
-# ── 選角色按鈕列（動態，塞進 CharacterAnchor）───────────────────────────────────
-func _populate_character_row(refs: Dictionary, pid: int) -> void:
-	var anchor: Control = refs["character_anchor"]
-	for c in anchor.get_children():
-		c.queue_free()
-	var ids   := VsCharacterRegistry.all_ids()
-	var width := anchor.size.x
-	var bw    := (width - GAP * (ids.size() + 1)) / maxi(ids.size(), 1)
-	var btns  := []
-	for i in ids.size():
-		var char_id: String = ids[i]
-		var btn := Button.new()
-		btn.text = VsCharacterRegistry.get_display_name(char_id)
-		btn.add_theme_font_size_override("font_size", 8)
-		btn.pressed.connect(func(): _on_character_clicked(pid, char_id))
-		anchor.add_child(btn)   # 字體覆寫要先於 add_child()，理由見 _populate_art_grid()
-		btn.position = Vector2(GAP + i * (bw + GAP), 0)
-		btn.size     = Vector2(bw, 12)
-		btns.append(btn)
-	if pid == 1: _p1_char_btns = btns
-	else:        _p2_char_btns = btns
-
-func _on_character_clicked(pid: int, char_id: String) -> void:
-	if pid == 1:
-		if _p1_character == char_id:
-			return
-		_p1_character = char_id
-		_p1_sel = ["", "", ""]   # 換角色後原本裝備的武藝對新角色沒意義
-		_p1_selected_slot = -1
-	else:
-		if _p2_character == char_id:
-			return
-		_p2_character = char_id
-		_p2_sel = ["", "", ""]
-		_p2_selected_slot = -1
-	_rebuild_art_row(pid)
-	_refresh(pid)
 
 # ── 點擊/拖放邏輯 ─────────────────────────────────────────────────────────────
 ## 點選裝備槽：再點一次同一格取消選取；點別格則切換選取到那格。
@@ -273,7 +233,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_refresh_all()
 
 func _on_back_pressed() -> void:
-	get_tree().change_scene_to_file("res://VsMods/ui/LobbyScreen.tscn")
+	get_tree().change_scene_to_file("res://VsMods/ui/CharacterSelectScreen.tscn")
 
 func _on_start() -> void:
 	if _is_online:
@@ -324,13 +284,9 @@ func _refresh_all() -> void:
 func _refresh(pid: int) -> void:
 	var sel:          Array = _p1_sel       if pid == 1 else _p2_sel
 	var art_btns:     Array = _p1_art_btns  if pid == 1 else _p2_art_btns
-	var char_btns:    Array = _p1_char_btns if pid == 1 else _p2_char_btns
 	var refs:         Dictionary = _p1_refs if pid == 1 else _p2_refs
 	var selected_slot: int = _p1_selected_slot if pid == 1 else _p2_selected_slot
 	var character: String = _p1_character if pid == 1 else _p2_character
-	var ids := VsCharacterRegistry.all_ids()
-	for i in char_btns.size():
-		_set_btn_style(char_btns[i], (ids[i] as String) == character, false)
 	if not art_btns.is_empty():
 		var arts := VsCharacterRegistry.get_arts(character)
 		for i in art_btns.size():
@@ -338,7 +294,7 @@ func _refresh(pid: int) -> void:
 			_set_btn_style(art_btns[i], equipped, false)
 	var slots: Array = refs["slots"]
 	for i in 3:
-		slots[i].text = VsGameManager.get_display_name(sel[i]) if sel[i] != "" else "（空）"
+		(slots[i] as ArtSlotButton).set_slot_display(sel[i])
 		_set_btn_style(slots[i], sel[i] != "", i == selected_slot)
 
 func _set_btn_style(btn: Button, active: bool, selected: bool) -> void:

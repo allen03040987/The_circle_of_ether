@@ -42,6 +42,10 @@ var _on_disconnect_cb: Callable
 const MAX_ROLLBACK_FRAMES := 20
 const PHYS_DELTA          := 1.0 / 60.0
 
+## 敗北運鏡（LOSER_CLOSEUP/WINNER_CLOSEUP）用的鏡頭拉近倍率——vfx_closeup()
+## 文件裡的 depth 參數，2026-08-01 從 2.0 調低，特寫別拉太近
+const DEFEAT_CLOSEUP_DEPTH := 1.5
+
 ## 幀快照：frame → {p1, p2, rm, inp1, inp2}
 var _frame_states: Dictionary = {}
 ## 幀開始時的 checksum 歷史：frame → [cs×4]。
@@ -53,6 +57,10 @@ var is_resimulating: bool = false
 ## 脫手彈道（武藝用，見 VsProjectile.gd）。由 VsPlayer.fire_sword_wave() 這類
 ## Call Method 動畫軌道呼叫 spawn_projectile() 動態生成，不是場景固定節點。
 const PROJECTILE_SCENE := preload("res://VsMods/combat/VsProjectile.tscn")
+## 地刺（奈何武藝1，見 VsPlayer.spawn_ground_spike()）——跟脫手彈道共用
+## VsProjectile.gd/projectiles 陣列/rollback 快照機制，只是視覺場景不同、
+## speed=0（原地不動，靠新增的 lifetime 欄位計時消失，見 VsProjectile.gd）。
+const GROUND_SPIKE_SCENE := preload("res://VsMods/combat/VsGroundSpike.tscn")
 var projectiles: Array[VsProjectile] = []
 
 ## 場地機關（VsHazard，見 VsMods/arenas/VsHazard.gd）。跟判定框（VsPlayer.hitboxes）
@@ -63,7 +71,7 @@ var hazards: Array[VsHazard] = []
 # ── 初始化 ────────────────────────────────────────────────────────────────────
 func _ready() -> void:
 	if not VsGameManager.selection_confirmed:
-		get_tree().change_scene_to_file("res://VsMods/ui/SelectScreen.tscn")
+		get_tree().change_scene_to_file("res://VsMods/ui/CharacterSelectScreen.tscn")
 		return
 	if VsNetworkManager.mode == VsNetworkManager.Mode.OFFLINE:
 		VsNetworkManager.start_offline()
@@ -219,6 +227,7 @@ func _spawn_round_manager() -> void:
 	round_manager.round_started.connect(_on_round_started)
 	round_manager.match_ended.connect(_on_match_ended)
 	round_manager.arts_reselect_started.connect(_on_arts_reselect_started)
+	round_manager.round_end_stage_changed.connect(_on_round_end_stage_changed)
 
 # ── 主循環 ────────────────────────────────────────────────────────────────────
 func _physics_process(delta: float) -> void:
@@ -330,7 +339,9 @@ func _restore_projectiles(data: Array) -> void:
 	projectiles.clear()
 	for d: Dictionary in data:
 		var owner: VsPlayer = p1 if d["owner"] == 1 else p2
-		var proj := _instantiate_projectile(owner)
+		var kind: StringName = d.get("kind", &"wave")
+		var scene := GROUND_SPIKE_SCENE if kind == &"spike" else PROJECTILE_SCENE
+		var proj := _instantiate_projectile(owner, scene, kind)
 		proj.restore_state(d)
 
 ## 機關是場地固定節點（不像彈道會動態生成/銷毀），按索引還原即可——順序在
@@ -347,21 +358,34 @@ func _simulate_frame(delta: float, inp1: InputState, inp2: InputState) -> void:
 	p1.is_resimulating = is_resimulating
 	p2.is_resimulating = is_resimulating
 	round_manager.tick(delta, inp1, inp2)
-	if not round_manager.is_fighting():
-		# AnimationPlayer 是 MANUAL 模式（平時由 VsPlayer.apply_input 推進）；
-		# 非戰鬥階段玩家不被模擬，這裡純外觀推進動畫以免畫面凍住。
-		# 不屬於模擬狀態：玩家凍結中軌道值不參與任何判定，且回合重置的
-		# transition_to 會重播動畫，重模擬跳過這段也不會分歧
+
+	if round_manager.phase != VsRoundManager.Phase.FIGHTING and round_manager.phase != VsRoundManager.Phase.ROUND_END:
+		# 重選武藝/比賽結束：這兩個階段是選單/結算畫面，玩家維持原樣不推進
+		# 物理。AnimationPlayer 是 MANUAL 模式（平時由 VsPlayer.apply_input
+		# 推進），這裡純外觀推進動畫以免畫面凍住——不屬於模擬狀態：玩家凍結中
+		# 軌道值不參與任何判定，且回合重置的 transition_to 會重播動畫，重模擬
+		# 跳過這段也不會分歧。
 		if not is_resimulating:
 			p1.anim_player.advance(delta)
 			p2.anim_player.advance(delta)
 		return
-	p1.apply_input(delta, inp1)
-	p2.apply_input(delta, inp2)
+
+	# FIGHTING：正常輸入；ROUND_END（回合剛結束，還沒進重選/結算）：動作/
+	# 物理繼續自然播完（例如倒地→彈起→起身），只是餵中立（全空）輸入不接受
+	# 任何新輸入——不是「凍結」。
+	var use_neutral := round_manager.phase == VsRoundManager.Phase.ROUND_END
+	# 敗北特寫的慢動作（LOSER_CLOSEUP 子階段）：整場模擬用縮小過的 delta 推進
+	# ——角色動畫/位移/打擊判定/彈道/機關全部一起變慢，不只敗方。純粹是
+	# round_manager 當下確定性狀態的函數（見 sim_delta_scale() 說明），
+	# rollback 兩端算出的縮放值保證一致。round_manager.tick() 在上面已經呼叫
+	# 過，用的是原始未縮放的 delta（子階段計時器的「2秒」不受慢動作影響）。
+	var sim_delta := delta * round_manager.sim_delta_scale()
+	p1.apply_input(sim_delta, InputState.new() if use_neutral else inp1)
+	p2.apply_input(sim_delta, InputState.new() if use_neutral else inp2)
 	# 打擊偵測統一在此執行（正常幀與 rollback 幀走同一路徑，保證兩端時機一致）
-	_check_manual_hits(delta)
-	_update_projectiles(delta)
-	_check_arena_hazards(delta)
+	_check_manual_hits(sim_delta)
+	_update_projectiles(sim_delta)
+	_check_arena_hazards(sim_delta)
 
 # ── 回合事件 ──────────────────────────────────────────────────────────────────
 func _on_round_ended(winner_id: int) -> void:
@@ -388,6 +412,22 @@ func _on_round_started(round_num: int) -> void:
 		_ar_overlay.queue_free()
 		_ar_overlay = null
 	hud.show_round_num(round_num)
+
+## 敗北運鏡（2026-08-01）：LOSER_CLOSEUP 特寫敗方（同時間段模擬本身已經在
+## sim_delta_scale() 用慢動作 delta 推進，這裡只負責鏡頭）；WINNER_CLOSEUP
+## 特寫勝方。depth 沿用 vfx_closeup() 文件建議的中間值；duration 直接用
+## round_manager 自己的 CLOSEUP_DURATION，兩邊計時器數值一致，不用另外傳參。
+## PLAIN/WAIT_LANDING 不觸發任何鏡頭動作，維持 VsCamera 一般立回模式。
+func _on_round_end_stage_changed(stage: int) -> void:
+	if is_resimulating: return
+	var dur := VsRoundManager.CLOSEUP_DURATION
+	match stage:
+		VsRoundManager.RoundEndStage.LOSER_CLOSEUP:
+			var loser := p2 if round_manager.round_end_winner == 1 else p1
+			loser.vfx_closeup(DEFEAT_CLOSEUP_DEPTH, dur)
+		VsRoundManager.RoundEndStage.WINNER_CLOSEUP:
+			var winner := p1 if round_manager.round_end_winner == 1 else p2
+			winner.vfx_closeup(DEFEAT_CLOSEUP_DEPTH, dur)
 
 func _on_arts_reselect_started() -> void:
 	if is_resimulating: return
@@ -419,6 +459,12 @@ func _process(_delta: float) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	else:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+	# 回合計時器顯示——純視覺，每幀從 round_manager 當下的模擬狀態推出，
+	# 跟 BattleHud 讀 _p1.hp 等血量數字同一個模式（vs_world 主動 push，不是
+	# BattleHud 自己另外持有 round_manager 參照）。
+	if hud and round_manager:
+		hud.update_timer(round_manager.round_time_left)
 
 func _on_match_ended(winner_id: int) -> void:
 	if is_resimulating: return
@@ -455,6 +501,11 @@ func _manual_check(delta: float, hb: VsHitbox, hrb: VsHurtbox, hb_owner: VsPlaye
 	# 否則走一般的幾何相交判定（也是 sticky 連擊第一下命中前的必經路徑）。
 	var confirmed := (hb.sticky and hb.is_locked) or _sim_rect(hb, hb_owner).intersects(_sim_rect(hrb, hrb_owner))
 	if confirmed:
+		# 最後一擊震動用：命中前先記住是否還活著。一般攻擊此時 hp 還沒真的扣
+		# （排隊到 pending_hit，下一幀 VsPlayer._apply_pending_hit() 才扣血+
+		# 觸發自己那份最後一擊判斷），這裡只會在「霸體吸收硬直、傷害卻同幀
+		# 直接扣血」的路徑才可能命中即死——見下面收尾的說明。
+		var was_alive := hrb_owner.hp > 0.0
 		hb.register_hit()
 		hrb.receive_hit(hb)
 		if hb.has_hit:
@@ -478,22 +529,43 @@ func _manual_check(delta: float, hb: VsHitbox, hrb: VsHurtbox, hb_owner: VsPlaye
 				hb_owner.vfx_spark(hb, hrb.global_position, hrb_owner)
 				hb_owner.vfx_shake(hb.shake_intensity)
 				hb_owner.vfx_hit_sfx(hb)
+		# 最後一擊震動：蓋過上面剛套用的一般命中震動（VsCamera.shake() 直接
+		# 覆寫、不疊加，所以這段必須放在最後）。一般攻擊的死亡震動由
+		# VsPlayer._apply_pending_hit()（下一幀，扣血真正發生的地方）自己觸發，
+		# 這裡只補霸體吸收硬直但傷害致命（同幀直接扣血）那個邊界情況。
+		if was_alive and hrb_owner.hp <= 0.0:
+			hrb_owner.vfx_shake(VsPlayer.FINAL_BLOW_SHAKE_INTENSITY, VsPlayer.FINAL_BLOW_SHAKE_DURATION)
 
 ## 生成一顆脫手彈道（VsPlayer.fire_sword_wave() 的 Call Method 軌道呼叫入口）。
 ## 呼叫時機發生在 apply_input() 內（見 _simulate_frame 順序），本幀稍後的
 ## _update_projectiles() 就會立刻推進它，跟一般命中判定同一幀生效沒有延遲。
 func spawn_projectile(owner: VsPlayer, direction: int) -> VsProjectile:
-	var proj := _instantiate_projectile(owner)
+	var proj := _instantiate_projectile(owner, PROJECTILE_SCENE, &"wave")
 	proj.position  = owner.position + Vector2(30.0 * direction, -30.0)   # 出手位置微調，比照主遊戲 c_3_wave
 	proj.direction = direction
 	proj.scale.x   = direction   # 視覺鏡像；_ready() 時 direction 還是預設值 1，這裡才是真正的方向
 	proj.hitbox.direction_override = direction   # 鎖定擊退方向，見 VsHitbox.direction_override 註解
 	return proj
 
-func _instantiate_projectile(owner: VsPlayer) -> VsProjectile:
-	var proj := PROJECTILE_SCENE.instantiate() as VsProjectile
+## 生成一根地刺（奈何武藝1，VsPlayer.spawn_ground_spike() 的 Call Method 軌道
+## 呼叫入口）。跟 spawn_projectile() 同構，差異：出手位置是地面高度（不是胸口
+## 高度的 -30 偏移）、speed 設 0（原地不動）、用 lifetime 取代 max_distance
+## 當銷毀條件——地刺是「冒出來、停留一下、消失」，不是飛行彈道。
+func spawn_ground_spike(owner: VsPlayer, direction: int, offset_x: float, lifetime: float) -> VsProjectile:
+	var proj := _instantiate_projectile(owner, GROUND_SPIKE_SCENE, &"spike")
+	proj.position  = owner.position + Vector2(offset_x * direction, 0.0)
+	proj.direction = direction
+	proj.speed     = 0.0
+	proj.lifetime  = lifetime
+	proj.scale.x   = direction
+	proj.hitbox.direction_override = direction
+	return proj
+
+func _instantiate_projectile(owner: VsPlayer, scene: PackedScene = PROJECTILE_SCENE, kind: StringName = &"wave") -> VsProjectile:
+	var proj := scene.instantiate() as VsProjectile
 	add_child(proj)
 	proj.owner_player       = owner
+	proj.scene_kind         = kind
 	proj.hitbox.owner_player = owner   # 供火花/震動等 vfx 呼叫用
 	projectiles.append(proj)
 	return proj
@@ -528,6 +600,7 @@ func _manual_check_projectile(delta: float, proj: VsProjectile, hrb_owner: VsPla
 	var hrb := hrb_owner.hurtbox
 	var confirmed := (hb.sticky and hb.is_locked) or _sim_rect_projectile(hb, proj).intersects(_sim_rect(hrb, hrb_owner))
 	if confirmed:
+		var was_alive := hrb_owner.hp > 0.0   # 最後一擊震動用，見 _manual_check() 同款說明
 		hb.register_hit()
 		hrb.receive_hit(hb)
 		# 打擊回饋例外規則跟 _manual_check 同一套，見該處註解
@@ -542,6 +615,8 @@ func _manual_check_projectile(delta: float, proj: VsProjectile, hrb_owner: VsPla
 				proj.owner_player.vfx_spark(hb, hrb.global_position, hrb_owner)
 				proj.owner_player.vfx_shake(hb.shake_intensity)
 				proj.owner_player.vfx_hit_sfx(hb)
+		if was_alive and hrb_owner.hp <= 0.0:
+			hrb_owner.vfx_shake(VsPlayer.FINAL_BLOW_SHAKE_INTENSITY, VsPlayer.FINAL_BLOW_SHAKE_DURATION)
 
 ## 比照 _sim_rect，但基準點是彈道自己的 position（不是某個 VsPlayer 的
 ## facing_dir 相對位移）——彈道在世界空間直線飛行，用 proj.direction 決定
@@ -767,7 +842,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			round_manager.is_game_over() and _accept_return_input and event.is_pressed():
 		VsGameManager.selection_confirmed = false
 		AudioManager.stop_bgm(1.0)
-		get_tree().change_scene_to_file("res://VsMods/ui/SelectScreen.tscn")
+		get_tree().change_scene_to_file("res://VsMods/ui/CharacterSelectScreen.tscn")
 
 # ── VsMods 暫停選單 ───────────────────────────────────────────────────────────
 func _toggle_vs_pause() -> void:

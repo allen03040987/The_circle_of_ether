@@ -161,7 +161,7 @@ func _populate_art_grid(refs: Dictionary, pid: int, arts: Array) -> void:
 		# setup() 要在 add_child() 之後呼叫，見 SelectScreen.gd 同款註解
 		# （@onready 節點太早存取會是 null）
 		anchor.add_child(btn)
-		btn.setup(art_id, VsGameManager.get_display_name(art_id))
+		btn.setup(art_id, VsGameManager.get_art_badge_char(art_id))
 		btn.pressed.connect(func(): _on_art_clicked(pid, art_id))
 		btn.info_requested.connect(func(id: String): VsArtInfoPopup.open_over(self, id))
 		btn.position = Vector2(GAP + col * (bw + GAP), row * (btn_h + GAP))
@@ -278,7 +278,7 @@ func _refresh(pid: int) -> void:
 		var equipped: bool = (arts[i] as String) in sel
 		_set_btn_style(art_btns[i], equipped, false)
 	for i in 3:
-		slots[i].text = VsGameManager.get_display_name(sel[i]) if sel[i] != "" else "（空）"
+		(slots[i] as ArtSlotButton).set_slot_display(sel[i])
 		_set_btn_style(slots[i], sel[i] != "", i == selected_slot)
 	status.modulate = Color(0.6, 0.6, 0.6)
 	status.text = "已替換 %d/2 種" % _changed_count(pid)

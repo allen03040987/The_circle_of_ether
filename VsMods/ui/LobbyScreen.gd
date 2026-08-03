@@ -28,7 +28,7 @@ func _process(delta: float) -> void:
 func _on_offline() -> void:
 	VsNetworkManager.start_offline()
 	VsGameManager.selection_confirmed = false
-	get_tree().change_scene_to_file("res://VsMods/ui/SelectScreen.tscn")
+	get_tree().change_scene_to_file("res://VsMods/ui/CharacterSelectScreen.tscn")
 
 func _on_host() -> void:
 	_start_connecting()
@@ -71,7 +71,7 @@ func _on_connected() -> void:
 	_connecting = false
 	_status("已連線！")
 	VsGameManager.selection_confirmed = false
-	get_tree().change_scene_to_file("res://VsMods/ui/SelectScreen.tscn")
+	get_tree().change_scene_to_file("res://VsMods/ui/CharacterSelectScreen.tscn")
 
 func _on_error(msg: String) -> void:
 	_connecting = false

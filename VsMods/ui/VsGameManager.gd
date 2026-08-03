@@ -2,23 +2,13 @@ extends Node
 ## 跨場景快取：角色選擇、武藝裝備
 ## 登錄為 autoload（project.godot）
 
-const ART_DISPLAY: Dictionary = {
-	"Art_Clotty_1": "武藝一",
-	"Art_Clotty_2": "武藝二",
-	"Art_Clotty_3": "武藝三",
-	"Art_Clotty_4": "武藝四",
-	"Art_Clotty_5": "武藝五",
-	"Art_Clotty_6": "武藝六",
-	"": "（空）",
-}
-
 ## 每個空槽位給予的屬性加成比例——套用在最大生命/衝刺能量回復速率/移速，
 ## 三項都用同一個比例對各自的角色基準值算百分比（見 VsPlayer.apply_arts_bonus()）
 const EMPTY_SLOT_STAT_BONUS_PCT := 0.08
 
-## 武藝正式招式名稱——VsArtInfoPopup 彈窗標題用（跟 ART_DISPLAY 的「武藝N」
-## 編號並列顯示，武藝格本身/裝備槽維持顯示「武藝N」不變，只有詳情彈窗會秀
-## 這裡的正式招式名）。
+## 武藝正式招式名稱——選角/重選/裝備槽/詳情彈窗全部統一顯示這個（2026-07-27
+## 改版，取代原本的「武藝一」～「武藝六」佔位編號，get_display_name() 直接讀
+## 這裡，跟局內徽章 get_art_badge_char() 用的是同一份資料）。
 const ART_NAMES: Dictionary = {
 	"Art_Clotty_1": "逆鱗返",
 	"Art_Clotty_2": "升龍",
@@ -26,6 +16,11 @@ const ART_NAMES: Dictionary = {
 	"Art_Clotty_4": "無影刺",
 	"Art_Clotty_5": "零式突氣",
 	"Art_Clotty_6": "流星連斬",
+	# 奈何招式名稱皆為暫定，之後隨時可以改這幾行，不影響其他程式碼
+	"Art_Naihe_1": "裂地刺",
+	"Art_Naihe_2": "崩擊",
+	"Art_Naihe_3": "業風斬",
+	"Art_Naihe_4": "幽退",
 }
 
 ## 武藝能量顯示縮放：玩家看到的所有武藝能量相關數字（BattleHud 的能量條/
@@ -44,6 +39,10 @@ const ART_DESCRIPTIONS: Dictionary = {
 	"Art_Clotty_4": "連續斬擊 8 下，可在空中施放；施放期間不受重力影響，原地懸空。",
 	"Art_Clotty_5": "發射一發劍氣彈道攻擊，可在空中施放。",
 	"Art_Clotty_6": "連續斬擊 3 下，出招時會向前拖出一段滑行距離。",
+	"Art_Naihe_1": "依序在前方冒出 5 根地刺，每根各自可以命中一次。",
+	"Art_Naihe_2": "向前突擊攻擊。",
+	"Art_Naihe_3": "大幅度揮擊。",
+	"Art_Naihe_4": "向後方跳開拉開距離，無判定框。",
 }
 
 ## 武藝徽章——沒有畫圖標的簡化替代方案（使用者要求「簡約美又有效」，美術
@@ -55,6 +54,14 @@ const ART_DESCRIPTIONS: Dictionary = {
 func get_art_badge_char(art_id: String) -> String:
 	var art_name := get_art_name(art_id)
 	return art_name.substr(0, 1) if art_name != "" else ""
+
+## 徽章單字專用字體——局內裝備武藝徽章（BattleHud）跟選角/重選畫面的武藝格/
+## 裝備槽（2026-07-27 起也改顯示單字徽章，樣式要跟局內看到的一致）共用同一個
+## 來源，不要各自 load() 一份。路徑不存在就回傳 null，呼叫端退回專案預設字體。
+const BADGE_FONT_PATH := "res://VsMods/ui/badge_font.ttf"
+
+func get_badge_font() -> Font:
+	return load(BADGE_FONT_PATH) if ResourceLoader.exists(BADGE_FONT_PATH) else null
 
 # ── 選擇快取 ──────────────────────────────────────────────────────────────────
 var p1_arts: Array = ["", "", ""]   # 3 槽位，空字串 = 未裝
@@ -77,7 +84,7 @@ var pending_confirm_1: bool = false
 var pending_confirm_2: bool = false
 
 func get_display_name(art_id: String) -> String:
-	return ART_DISPLAY.get(art_id, art_id)
+	return "（空）" if art_id == "" else ART_NAMES.get(art_id, art_id)
 
 func get_art_name(art_id: String) -> String:
 	return ART_NAMES.get(art_id, "")

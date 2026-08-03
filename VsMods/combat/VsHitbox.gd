@@ -13,7 +13,6 @@ enum BreakLevel {
 @export var knockback: Vector2 = Vector2(200.0, -80.0)
 @export var causes_knockdown: bool = false  # true = 觸發倒地狀態
 @export var break_level: BreakLevel = BreakLevel.NONE
-@export var guard_damage: float = 0.0      # 留用欄位（目前由體質效果系統統一計算）
 
 @export_group("連擊")
 @export var combo_hits: int = 1         ## 這顆判定框最多可以命中幾次（預設 1 = 一般單發，維持舊行為）

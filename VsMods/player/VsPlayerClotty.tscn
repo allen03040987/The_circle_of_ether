@@ -1,4 +1,4 @@
-[gd_scene load_steps=31 format=3 uid="uid://c24ea4g7rkek5"]
+[gd_scene load_steps=32 format=3 uid="uid://c24ea4g7rkek5"]
 
 [ext_resource type="PackedScene" uid="uid://431fpia1g7sg" path="res://VsMods/player/VsPlayerBase.tscn" id="1_mcd3v"]
 [ext_resource type="Texture2D" uid="uid://cg3cbbecunwqo" path="res://player/state/IDLE.png" id="2_tx_idle"]
@@ -15,9 +15,10 @@
 [ext_resource type="PackedScene" uid="uid://duygsx8odg8iu" path="res://Explod/tscn/chop.tscn" id="13_chop"]
 [ext_resource type="PackedScene" uid="uid://c1s06onyotqf3" path="res://Explod/tscn/cut.tscn" id="14_cut"]
 [ext_resource type="PackedScene" uid="uid://ejwp3sdtv1s3" path="res://Explod/tscn/whirlwind.tscn" id="15_whirl"]
+[ext_resource type="Texture2D" uid="uid://dnai47v82feno" path="res://ui/icons/arrow.png" id="16_lw4v8"]
 
 [sub_resource type="RectangleShape2D" id="Shape_hurtbox"]
-size = Vector2(14, 63)
+size = Vector2(14, 59)
 
 [sub_resource type="RectangleShape2D" id="Shape_hbA1"]
 size = Vector2(74.5, 66.5)
@@ -44,7 +45,7 @@ size = Vector2(156, 130)
 size = Vector2(160, 124.5)
 
 [sub_resource type="RectangleShape2D" id="Shape_hbSkill"]
-size = Vector2(80, 60)
+size = Vector2(175, 55)
 
 [sub_resource type="RectangleShape2D" id="Shape_hbArt2"]
 size = Vector2(157, 129)
@@ -62,12 +63,12 @@ size = Vector2(185, 80.5)
 size = Vector2(125, 75)
 
 [node name="VsPlayer" instance=ExtResource("1_mcd3v")]
-max_hp = 8000.0
+max_hp = 5000.0
 max_arts_energy = 100.0
 arts_regen_rate = 15.0
-move_speed = 200.0
-air_speed = 150.0
-dodge_speed = 500.0
+move_speed = 250.0
+air_speed = 250.0
+dodge_speed = 600.0
 vfx_common = {
 "Aggregation ring": ExtResource("5_ring"),
 "Circular cut": ExtResource("6_ccut"),
@@ -85,6 +86,7 @@ default_spark_scale = 0.35
 default_spark_color = Color(1.4, 3, 1, 1)
 default_aura_color = Color(0, 1, 1, 1)
 default_spark_random_angle = 180.0
+anim_armor_tier = 1
 
 [node name="Sprite2D" parent="Graphics" index="0"]
 position = Vector2(0, -32)
@@ -95,7 +97,8 @@ region_enabled = true
 region_rect = Rect2(0, 0, 192, 192)
 
 [node name="CollisionShape2D" parent="Graphics/VsHurtbox" index="0"]
-position = Vector2(0, -31.5)
+visible = false
+position = Vector2(0, -29.5)
 shape = SubResource("Shape_hurtbox")
 
 [node name="HitboxA1" parent="Graphics" index="2"]
@@ -152,7 +155,7 @@ shape = SubResource("Shape_hbA4")
 position = Vector2(34, -20)
 damage = 140.0
 hitstun_time = 0.0
-knockback = Vector2(400, -400)
+knockback = Vector2(200, -400)
 causes_knockdown = true
 sticky = true
 hit_sfx_type = "hit_5"
@@ -189,7 +192,6 @@ damage = 80.0
 hitstun_time = 0.35
 knockback = Vector2(100, -200)
 causes_knockdown = true
-guard_damage = 3.0
 hit_sfx_type = "hit"
 
 [node name="CollisionShape2D" parent="Graphics/HitboxAir2" index="0"]
@@ -201,7 +203,6 @@ shape = SubResource("Shape_hbAir2")
 position = Vector2(30, -30)
 knockback = Vector2(100, -200)
 causes_knockdown = true
-guard_damage = 10.0
 hit_sfx_type = "hit"
 
 [node name="CollisionShape2D" parent="Graphics/HitboxAir3" index="0"]
@@ -212,13 +213,21 @@ shape = SubResource("Shape_hbAir3")
 [node name="HitboxSkill" parent="Graphics" index="10"]
 position = Vector2(30, -25)
 damage = 120.0
-hitstun_time = 0.45
-knockback = Vector2(250, -60)
+hitstun_time = 1.0
+knockback = Vector2(500, 0)
+causes_knockdown = true
 break_level = 2
-hit_sfx_type = "hit"
+hit_sfx_type = "hit_2"
+use_character_default_spark = false
+spark_type = 1
+spark_scale = 0.7
+spark_color = Color(3, 1.2, 1, 1)
+aura_color = Color(1, 1, 0, 1)
+spark_random_offset = Vector2(10, 10)
 
 [node name="CollisionShape2D" parent="Graphics/HitboxSkill" index="0"]
 visible = false
+position = Vector2(-13, -3)
 shape = SubResource("Shape_hbSkill")
 
 [node name="HitboxArt2" type="Area2D" parent="Graphics" index="11"]
@@ -327,7 +336,14 @@ visible = false
 position = Vector2(-22.5, -7.5)
 shape = SubResource("Shape_hbArt6")
 
+[node name="VsAttack" parent="VsStateMachine" index="10"]
+max_combo = 3
+
 [node name="AnimationPlayer" parent="." index="3"]
 libraries = {
 "": ExtResource("3_animlib")
 }
+
+[node name="Arrow" type="Sprite2D" parent="." index="4"]
+position = Vector2(39, 13)
+texture = ExtResource("16_lw4v8")

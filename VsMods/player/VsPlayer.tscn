@@ -1,4 +1,4 @@
-[gd_scene load_steps=95 format=3 uid="uid://b15lm00sa5m5s"]
+[gd_scene load_steps=96 format=3 uid="uid://b15lm00sa5m5s"]
 
 [ext_resource type="Script" path="res://VsMods/player/VsPlayer.gd" id="1_player"]
 [ext_resource type="Script" path="res://VsMods/StateMachine/VsStateMachine.gd" id="2_sm"]
@@ -13,6 +13,7 @@
 [ext_resource type="Script" path="res://VsMods/combat/VsHitbox.gd" id="12_hitbox"]
 [ext_resource type="Script" path="res://VsMods/combat/VsHurtbox.gd" id="12_hurtbox"]
 [ext_resource type="Script" path="res://VsMods/player/states/VsDodge.gd" id="13_dodge"]
+[ext_resource type="PackedScene" uid="uid://dhxdpgje0esqh" path="res://enemies/boss/BossNaihe/A3.tscn" id="13_hyuju"]
 [ext_resource type="Script" path="res://VsMods/player/states/VsGuard.gd" id="14_guard"]
 [ext_resource type="Script" path="res://VsMods/player/states/VsHurt.gd" id="15_hurt"]
 [ext_resource type="Script" path="res://VsMods/player/states/VsKnockdown.gd" id="16_knockdown"]
@@ -3118,6 +3119,7 @@ vfx_common = {
 "Circular shock wave": ExtResource("31_vfx_circular_shock"),
 "Cross slash sparks": ExtResource("32_vfx_cross_slash"),
 "Dimensional Slash": ExtResource("33_vfx_dim_slash"),
+"Lightning": ExtResource("13_hyuju"),
 "Spiral Thrust": ExtResource("34_vfx_spiral_thrust"),
 "Thrust": ExtResource("35_vfx_thrust"),
 "blunt_spark": ExtResource("36_vfx_blunt_spark"),
@@ -3266,7 +3268,6 @@ damage = 80.0
 hitstun_time = 0.35
 knockback = Vector2(100, -200)
 causes_knockdown = true
-guard_damage = 3.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxAir2"]
 visible = false
@@ -3281,7 +3282,6 @@ monitoring = false
 script = ExtResource("12_hitbox")
 knockback = Vector2(100, -400)
 causes_knockdown = true
-guard_damage = 10.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Graphics/HitboxAir3"]
 visible = false

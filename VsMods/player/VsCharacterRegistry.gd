@@ -15,14 +15,26 @@ const CHARACTERS: Dictionary = {
 		],
 	},
 	"Naihe": {
-		# 佔位測試角色——場景是 VsPlayerClotty.tscn 的原樣複製（VsPlayerNaihe.tscn，
-		# 只換了 uid），純粹為了驗證選角畫面能不能正確處理「兩個角色」，還不是
-		# 真正的第二角色。武藝也直接沿用 Clotty 的六招（duplicate 出來的場景節點
-		# 結構跟動畫庫完全相同，Art_Clotty_* 腳本能原樣運作）。使用者之後會把
-		# 主遊戲 Boss 奈何橋的素材移植進來取代這裡的內容（無法直接搬，細節待定），
-		# 屆時只需要換這裡的 scene_path/arts/display_name，不用改選角邏輯本身。
+		# 場景 VsPlayerNaihe.tscn（原本是 VsPlayerClotty.tscn 的原樣複製，用來
+		# 驗證選角畫面能不能處理「兩個角色」）。武藝從 2026-08-01 起改成移植自
+		# 主遊戲關底 BOSS「奈何橋」（enemies/boss/BossNaihe/）自己的招式庫，不是
+		# 另一把武器——目前只完成 1~4（attack_6 地刺／attack_8／attack_7／
+		# dash_back 後撤），5、6 待使用者說明後再補。
 		"display_name": "奈何",
 		"scene_path": "res://VsMods/player/VsPlayerNaihe.tscn",
+		"arts": [
+			"Art_Naihe_1", "Art_Naihe_2", "Art_Naihe_3", "Art_Naihe_4",
+		],
+	},
+	"Asatsubaki": {
+		# 佔位角色（2026-08-03）——場景 VsPlayerAsatsubaki.tscn 是 VsPlayerClotty.tscn
+		# 的原樣複製（含獨立的 AsatsubakiAnimLib.tres，不跟 Clotty 共用同一份
+		# AnimationLibrary 檔案——共用會導致其中一邊改動畫時把另一邊的動畫庫
+		# 一起改壞，Naihe 當初踩過這個坑，見 CLAUDE.md「VsMods 選角色系統」）。
+		# 武藝暫時沿用 Clotty 的六招，等使用者說明真正的招式來源後再替換，
+		# 屆時只需要換這裡的 arts/display_name，跟 Naihe 走過的路一樣。
+		"display_name": "Asatsubaki",
+		"scene_path": "res://VsMods/player/VsPlayerAsatsubaki.tscn",
 		"arts": [
 			"Art_Clotty_1", "Art_Clotty_2", "Art_Clotty_3",
 			"Art_Clotty_4", "Art_Clotty_5", "Art_Clotty_6",
