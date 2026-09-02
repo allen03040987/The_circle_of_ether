@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bjkuuy0mn7w68"
-path="res://.godot/imported/chop.png-d6d3ecb74180b728801fcfa68c5cd324.ctex"
+uid="uid://dw133y2q5x0ef"
+path="res://.godot/imported/chop_2.png-cafe39b6d030d5494fb28ef123600b31.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Explod/chop.png"
-dest_files=["res://.godot/imported/chop.png-d6d3ecb74180b728801fcfa68c5cd324.ctex"]
+source_file="res://Explod/cut/chop_2.png"
+dest_files=["res://.godot/imported/chop_2.png-cafe39b6d030d5494fb28ef123600b31.ctex"]
 
 [params]
 

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cvxd7q4yw8ghg"
-path="res://.godot/imported/cut.png-a4b228b847b3f26e11385e064d4cd0ee.ctex"
+uid="uid://djwlu4tps1nfe"
+path="res://.godot/imported/Thrust_2.png-bb14f7c034b8a661caf8507f01f35244.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Explod/cut.png"
-dest_files=["res://.godot/imported/cut.png-a4b228b847b3f26e11385e064d4cd0ee.ctex"]
+source_file="res://Explod/Thrust_2.png"
+dest_files=["res://.godot/imported/Thrust_2.png-bb14f7c034b8a661caf8507f01f35244.ctex"]
 
 [params]
 

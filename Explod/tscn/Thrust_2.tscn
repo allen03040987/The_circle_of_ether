@@ -1,18 +1,18 @@
-[gd_scene load_steps=9 format=3 uid="uid://c1s06onyotqf3"]
+[gd_scene load_steps=9 format=3 uid="uid://c0ckuc0sdagwn"]
 
-[ext_resource type="Script" path="res://Explod/hit_spark.gd" id="1_b1kn4"]
-[ext_resource type="Texture2D" uid="uid://cvxd7q4yw8ghg" path="res://Explod/cut/cut.png" id="2_x23fe"]
+[ext_resource type="Script" path="res://Explod/hit_spark.gd" id="1_jja3k"]
+[ext_resource type="Texture2D" uid="uid://djwlu4tps1nfe" path="res://Explod/Thrust_2.png" id="2_gr31v"]
 
 [sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_tewop"]
 blend_mode = 1
 
-[sub_resource type="Gradient" id="Gradient_qrigc"]
+[sub_resource type="Gradient" id="Gradient_pun3g"]
 colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
 
 [sub_resource type="GradientTexture2D" id="GradientTexture2D_4n6ao"]
-gradient = SubResource("Gradient_qrigc")
+gradient = SubResource("Gradient_pun3g")
 width = 300
-height = 286
+height = 150
 fill = 1
 fill_from = Vector2(0.5, 0.5)
 fill_to = Vector2(0.6, 0.6)
@@ -60,41 +60,52 @@ tracks/2/keys = {
 resource_name = "slash"
 length = 0.25
 step = 0.01
-tracks/0/type = "value"
+tracks/0/type = "method"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("CPUParticles2D/Sprite-0001:modulate")
+tracks/0/path = NodePath(".")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0.1, 0.16),
-"transitions": PackedFloat32Array(1, 1),
-"update": 0,
-"values": [Color(1, 1, 1, 1), Color(1, 1, 1, 0)]
+"times": PackedFloat32Array(),
+"transitions": PackedFloat32Array(),
+"values": []
 }
 tracks/1/type = "value"
 tracks/1/imported = false
 tracks/1/enabled = true
-tracks/1/path = NodePath("Aura:modulate")
+tracks/1/path = NodePath("CPUParticles2D/Sprite-0001:modulate")
 tracks/1/interp = 1
 tracks/1/loop_wrap = true
 tracks/1/keys = {
-"times": PackedFloat32Array(0, 0.16),
+"times": PackedFloat32Array(0.1, 0.2),
 "transitions": PackedFloat32Array(1, 1),
 "update": 0,
-"values": [Color(1, 1, 1, 0.333333), Color(1, 1, 1, 0)]
+"values": [Color(1, 1, 1, 1), Color(1, 1, 1, 0)]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
 tracks/2/enabled = true
-tracks/2/path = NodePath("CPUParticles2D/Sprite-0001:frame")
+tracks/2/path = NodePath("Aura:modulate")
 tracks/2/interp = 1
 tracks/2/loop_wrap = true
 tracks/2/keys = {
-"times": PackedFloat32Array(0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12),
-"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1),
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Color(1, 1, 1, 0.333333), Color(1, 1, 1, 0)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("CPUParticles2D/Sprite-0001:frame")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.02, 0.04, 0.07, 0.11, 0.15),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1),
 "update": 1,
-"values": [0, 1, 2, 3, 4, 5, 6]
+"values": [0, 1, 2, 3, 4, 5]
 }
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_h3s45"]
@@ -103,17 +114,18 @@ _data = {
 "slash": SubResource("Animation_p13pf")
 }
 
-[node name="Cut" type="Node2D"]
-script = ExtResource("1_b1kn4")
+[node name="Thrust" type="Node2D"]
+script = ExtResource("1_jja3k")
 
 [node name="Aura" type="Sprite2D" parent="."]
 modulate = Color(1, 1, 1, 0.376471)
 material = SubResource("CanvasItemMaterial_tewop")
-position = Vector2(10, 0)
+position = Vector2(17.3045, -18.1755)
 scale = Vector2(2.58203, 2.59766)
 texture = SubResource("GradientTexture2D_4n6ao")
 
 [node name="CPUParticles2D" type="CPUParticles2D" parent="."]
+position = Vector2(-0.695496, -19.1755)
 emitting = false
 amount = 15
 one_shot = true
@@ -127,8 +139,8 @@ linear_accel_min = -100.0
 
 [node name="Sprite-0001" type="Sprite2D" parent="CPUParticles2D"]
 position = Vector2(10, -1)
-scale = Vector2(1.5, 1.5)
-texture = ExtResource("2_x23fe")
+scale = Vector2(1.5, 1)
+texture = ExtResource("2_gr31v")
 hframes = 3
 vframes = 3
 region_enabled = true

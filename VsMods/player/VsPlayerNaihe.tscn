@@ -1,8 +1,9 @@
-[gd_scene load_steps=32 format=3 uid="uid://dnwj4p7yqk2ha"]
+[gd_scene load_steps=45 format=3 uid="uid://dnwj4p7yqk2ha"]
 
 [ext_resource type="PackedScene" uid="uid://431fpia1g7sg" path="res://VsMods/player/VsPlayerBase.tscn" id="1_mcd3v"]
 [ext_resource type="AnimationLibrary" uid="uid://bqk8x3n7t2wjm" path="res://VsMods/player/anim/NaiheAnimLib.tres" id="3_animlib"]
 [ext_resource type="Script" path="res://VsMods/combat/VsHitbox.gd" id="4_hitbox"]
+[ext_resource type="Script" path="res://Explod/hit_spark.gd" id="4_hq0xv"]
 [ext_resource type="PackedScene" uid="uid://djfuu6roflvrt" path="res://Explod/tscn/Aggregation ring.tscn" id="5_ring"]
 [ext_resource type="PackedScene" uid="uid://bnxo3v1t67xfj" path="res://Explod/tscn/Circular cut.tscn" id="6_ccut"]
 [ext_resource type="PackedScene" uid="uid://cbinpiayt3qmf" path="res://Explod/tscn/Circular shock wave.tscn" id="7_cshock"]
@@ -15,16 +16,152 @@
 [ext_resource type="PackedScene" uid="uid://dhxdpgje0esqh" path="res://enemies/boss/BossNaihe/A3.tscn" id="13_bs7yl"]
 [ext_resource type="PackedScene" uid="uid://duygsx8odg8iu" path="res://Explod/tscn/chop.tscn" id="13_chop"]
 [ext_resource type="PackedScene" uid="uid://c1s06onyotqf3" path="res://Explod/tscn/cut.tscn" id="14_cut"]
+[ext_resource type="PackedScene" uid="uid://bqqujuixayire" path="res://Explod/tscn/cut_2.tscn" id="14_lwqmx"]
+[ext_resource type="PackedScene" uid="uid://bc76ffhe6ixb2" path="res://Explod/tscn/chop_2.tscn" id="15_41gtl"]
 [ext_resource type="PackedScene" uid="uid://ejwp3sdtv1s3" path="res://Explod/tscn/whirlwind.tscn" id="15_whirl"]
+[ext_resource type="PackedScene" uid="uid://c0ckuc0sdagwn" path="res://Explod/tscn/Thrust_2.tscn" id="16_5rx6j"]
+[ext_resource type="PackedScene" uid="uid://c340g18lcciy7" path="res://Explod/tscn/cut_3.tscn" id="18_2r224"]
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_tewop"]
+blend_mode = 1
+
+[sub_resource type="Gradient" id="Gradient_c1ubx"]
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_4n6ao"]
+gradient = SubResource("Gradient_c1ubx")
+width = 300
+height = 200
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.6, 0.6)
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_sjkow"]
+
+[sub_resource type="Animation" id="Animation_g0e3y"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("CPUParticles2D/Sprite-0001:modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 1, 1, 1)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Aura:modulate")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 1, 1, 0.376471)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("CPUParticles2D/Sprite-0001:frame")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [0]
+}
+
+[sub_resource type="Animation" id="Animation_p13pf"]
+resource_name = "slash"
+length = 0.3
+step = 0.01
+tracks/0/type = "method"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(),
+"transitions": PackedFloat32Array(),
+"values": []
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("CPUParticles2D/Sprite-0001:modulate")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0.1, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Color(1, 1, 1, 1), Color(1, 1, 1, 0)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Aura:modulate")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.05, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Color(1, 1, 1, 0.541176), Color(1, 1, 1, 0)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("CPUParticles2D/Sprite-0001:frame")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.02, 0.04, 0.06, 0.08, 0.12),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_h3s45"]
+_data = {
+"RESET": SubResource("Animation_g0e3y"),
+"slash": SubResource("Animation_p13pf")
+}
+
+[sub_resource type="PackedScene" id="PackedScene_12g6v"]
+_bundled = {
+"conn_count": 0,
+"conns": PackedInt32Array(),
+"editable_instances": [],
+"names": PackedStringArray("Cut", "Node2D", "script", "Aura", "Sprite2D", "modulate", "material", "position", "scale", "texture", "CPUParticles2D", "CPUParticles2D", "emitting", "amount", "one_shot", "explosiveness", "direction", "spread", "gravity", "initial_velocity_min", "initial_velocity_max", "linear_accel_min", "Sprite-0001", "Sprite2D", "position", "scale", "texture", "hframes", "vframes", "region_enabled", "region_rect", "metadata/_aseprite_wizard_interface_config_", "AnimationPlayer", "AnimationPlayer", "libraries"),
+"node_count": 5,
+"node_paths": [NodePath("."), NodePath("."), NodePath("./CPUParticles2D"), NodePath(".")],
+"nodes": PackedInt32Array(-1, -1, 1, 0, -1, 1, 2, 0, 0, 1073741824, 0, 4, 3, -1, 5, 5, 1, 6, 2, 7, 3, 8, 4, 9, 5, 0, 1073741825, 0, 11, 10, -1, 10, 12, 6, 13, 7, 14, 8, 15, 9, 16, 10, 17, 11, 18, 12, 19, 13, 20, 14, 21, 15, 0, 1073741826, 0, 23, 22, -1, 8, 24, 16, 25, 17, 26, 18, 27, 19, 28, 20, 29, 21, 30, 22, 31, 23, 0, 1073741827, 0, 33, 32, -1, 1, 34, 24, 0),
+"variants": [ExtResource("4_hq0xv"), Color(1, 1, 1, 0.376471), SubResource("CanvasItemMaterial_tewop"), Vector2(10, 0), Vector2(2.58203, 2.59766), SubResource("GradientTexture2D_4n6ao"), false, 15, true, 1.0, Vector2(1, 0.5), 15.0, Vector2(0, 0), 400.0, 600.0, -100.0, Vector2(10, -1), Vector2(1.5, 1.5), SubResource("CompressedTexture2D_sjkow"), 3, 3, true, Rect2(0, 0, 384, 384), {
+"animation_section": false,
+"output_section": false,
+"slice_section": false
+}, {
+"": SubResource("AnimationLibrary_h3s45")
+}],
+"version": 3
+}
 
 [sub_resource type="RectangleShape2D" id="Shape_hurtbox"]
 size = Vector2(24, 66)
 
 [sub_resource type="RectangleShape2D" id="Shape_hbA1"]
-size = Vector2(158, 94.25)
+size = Vector2(108, 94.25)
 
 [sub_resource type="RectangleShape2D" id="Shape_hbA2"]
-size = Vector2(265, 84)
+size = Vector2(277, 84)
 
 [sub_resource type="RectangleShape2D" id="Shape_hbA3"]
 size = Vector2(79, 61)
@@ -78,15 +215,20 @@ dodge_speed = 500.0
 vfx_common = {
 "Aggregation ring": ExtResource("5_ring"),
 "Circular cut": ExtResource("6_ccut"),
+"Circular cut_2": SubResource("PackedScene_12g6v"),
 "Circular shock wave": ExtResource("7_cshock"),
 "Cross slash sparks": ExtResource("8_cross"),
 "Dimensional Slash": ExtResource("9_dimslash"),
 "Lightning": ExtResource("13_bs7yl"),
 "Spiral Thrust": ExtResource("10_spiral"),
 "Thrust": ExtResource("11_thrust"),
+"Thrust_2": ExtResource("16_5rx6j"),
 "blunt_spark": ExtResource("12_blunt"),
 "chop": ExtResource("13_chop"),
+"chop_2": ExtResource("15_41gtl"),
 "cut": ExtResource("14_cut"),
+"cut_2": ExtResource("14_lwqmx"),
+"cut_3": ExtResource("18_2r224"),
 "whirlwind": ExtResource("15_whirl")
 }
 vfx_weapon = null
@@ -116,14 +258,15 @@ shape = SubResource("Shape_hurtbox")
 
 [node name="HitboxA1" parent="Graphics" index="2"]
 position = Vector2(30, -20)
+damage = 1.0
 hitstun_time = 0.7
-knockback = Vector2(400, 0)
+knockback = Vector2(100, 0)
 hit_sfx_type = "hit_5"
 shake_intensity = 2.0
 
 [node name="CollisionShape2D" parent="Graphics/HitboxA1" index="0"]
 visible = false
-position = Vector2(21, -27.875)
+position = Vector2(-4, -27.875)
 shape = SubResource("Shape_hbA1")
 
 [node name="HitboxA2" parent="Graphics" index="3"]
@@ -136,7 +279,7 @@ shake_intensity = 2.0
 
 [node name="CollisionShape2D" parent="Graphics/HitboxA2" index="0"]
 visible = false
-position = Vector2(-12.5, -17)
+position = Vector2(-6.5, -17)
 shape = SubResource("Shape_hbA2")
 
 [node name="HitboxA3" parent="Graphics" index="4"]
@@ -191,6 +334,7 @@ shape = SubResource("Shape_hbA5")
 
 [node name="HitboxAir1" parent="Graphics" index="7"]
 position = Vector2(30, -30)
+monitoring = true
 damage = 80.0
 hitstun_time = 0.35
 knockback = Vector2(-500, 0)

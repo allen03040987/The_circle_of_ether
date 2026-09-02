@@ -1,7 +1,7 @@
 [gd_scene load_steps=9 format=3 uid="uid://duygsx8odg8iu"]
 
 [ext_resource type="Script" path="res://Explod/hit_spark.gd" id="1_nvekj"]
-[ext_resource type="Texture2D" uid="uid://bjkuuy0mn7w68" path="res://Explod/chop.png" id="2_fvdir"]
+[ext_resource type="Texture2D" uid="uid://bjkuuy0mn7w68" path="res://Explod/cut/chop.png" id="2_fvdir"]
 
 [sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_tewop"]
 blend_mode = 1
